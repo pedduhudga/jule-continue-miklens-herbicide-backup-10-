@@ -1,3 +1,4 @@
+
  <!DOCTYPE html>
 <html lang="en">
 
@@ -527,24 +528,7 @@
                         <i data-lucide="settings"></i><span>Settings</span>
                     </a>
                 </div>
-
-                <!-- User Profile & Logout -->
-                <div id="user-profile-section" class="mt-auto p-4 border-t border-slate-200/50 hidden">
-                    <div class="flex items-center gap-3 mb-4 px-2">
-                        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold" id="user-avatar">
-                            U
-                        </div>
-                        <div class="flex flex-col overflow-hidden">
-                            <span class="text-sm font-bold text-slate-800 truncate" id="user-display-name">User</span>
-                            <span class="text-xs text-slate-500 uppercase tracking-wider font-semibold" id="user-role-badge">Role</span>
-                        </div>
-                    </div>
-                    <button id="logout-btn" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200 font-medium">
-                        <i data-lucide="log-out" class="w-5 h-5"></i><span>Sign Out</span>
-                    </button>
-                </div>
             </nav>
-
         </aside>
 
         <!-- Main Content -->
@@ -580,58 +564,6 @@
     </div>
 
     <div id="toast" class="toast"></div>
-
-    <!-- Login Overlay -->
-    <div id="login-overlay" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-[20000] hidden">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-300">
-            <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 mb-4">
-                    <i data-lucide="lock" class="w-10 h-10"></i>
-                </div>
-                <h2 class="text-3xl font-extrabold text-slate-800">Welcome Back</h2>
-                <p class="text-slate-500 mt-2">Sign in to manage your trials</p>
-            </div>
-            
-            <form id="login-form" class="space-y-6">
-                <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Username</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                            <i data-lucide="user" class="w-5 h-5"></i>
-                        </span>
-                        <input type="text" id="login-username" required
-                            class="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all shadow-sm"
-                            placeholder="Type your username">
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                            <i data-lucide="key" class="w-5 h-5"></i>
-                        </span>
-                        <input type="password" id="login-password" required
-                            class="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all shadow-sm"
-                            placeholder="••••••••">
-                    </div>
-                </div>
-                
-                <button type="submit"
-                    class="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
-                    Sign In
-                </button>
-            </form>
-            
-            <div class="mt-8 pt-6 border-t border-slate-100 text-center">
-                <p class="text-xs text-slate-400 flex items-center justify-center gap-2">
-                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i>
-                    Secure Multi-User Authentication Active
-                </p>
-            </div>
-        </div>
-    </div>
-
 
     <!-- Cropper Modal -->
     <div id="cropper-modal-fixed"
@@ -808,12 +740,7 @@
             }
             // --- STATE MANAGEMENT ---
             let state = {
-                auth: {
-                    user: null, // {id, username, role}
-                    token: null
-                },
                 currentPage: 'dashboard',
-
                 ingredients: [],
                 formulations: [],
                 trials: [],
@@ -6885,30 +6812,26 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
             // --- API & DATA HANDLING ---
             async function apiCall(action, payload = {}, showOverlay = true) {
-                const OFFLINE_ACTIONS = ['addTrial', 'createTrialRecord', 'updateTrialRecord', 'updateTrialStatus', 'addFormulation', 'addIngredient', 'finalizeTrial', 'addBatchTrials', 'updateProject', 'addBlock'];
-                
-                const queueItem = (errType, msg) => {
-                    if (OFFLINE_ACTIONS.includes(action)) {
-                        const queuedAction = {
-                            id: Date.now().toString(),
-                            action: action,
-                            payload: payload,
-                            timestamp: new Date().toISOString(),
-                            status: 'pending',
-                            attempts: 0
-                        };
-                        state.syncQueue = state.syncQueue || [];
-                        state.syncQueue.push(queuedAction);
-                        saveSyncQueue(); // Centralized saving
-                        showToast(`Offline mode: ${action} saved locally.`, 'info');
-                        if (typeof renderSyncStatus === 'function') renderSyncStatus();
-                        return { success: true, offline: true, ...payload };
-                    }
-                    return { _errType: errType, message: msg };
-                };
+                if (!navigator.onLine && ['addTrial', 'createTrialRecord', 'updateTrialRecord', 'updateTrialStatus', 'addFormulation', 'addIngredient', 'finalizeTrial'].includes(action)) {
+                    const queuedAction = {
+                        id: Date.now().toString(),
+                        action: action,
+                        payload: payload,
+                        timestamp: new Date().toISOString(),
+                        status: 'pending'
+                    };
+                    state.syncQueue = state.syncQueue || [];
+                    state.syncQueue.push(queuedAction);
 
-                if (!navigator.onLine) {
-                    return queueItem('network', 'Offline');
+                    try {
+                        localStorage.setItem('herbicide_sync_queue', JSON.stringify(state.syncQueue));
+                    } catch (e) {
+                        console.error("Failed to save sync queue:", e);
+                    }
+
+                    showToast(`Offline mode: ${action} saved locally.`, 'info');
+                    if (typeof renderSyncStatus === 'function') renderSyncStatus();
+                    return { success: true, offline: true, ...payload };
                 }
 
                 // If running inside Apps Script HTML environment, use google.script.run
@@ -6916,24 +6839,18 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     return new Promise((resolve, reject) => {
                         if (showOverlay) loadingOverlay.classList.remove('hidden');
                         try {
-                            const fullPayload = { 
-                                ...payload, 
-                                spreadsheetId: state.settings.sheetId, 
-                                folderId: state.settings.folderId,
-                                auth: state.auth
-                            };
+                            const fullPayload = { ...payload, spreadsheetId: state.settings.sheetId, folderId: state.settings.folderId };
                             google.script.run
-
                                 .withSuccessHandler((response) => {
                                     resolve(response);
                                 })
                                 .withFailureHandler((error) => {
                                     console.error(`API Error (${action}):`, error);
-                                    resolve(queueItem('server', error?.message || String(error)));
+                                    reject({ _errType: 'server', message: error?.message || String(error) });
                                 })
                                 .handleRequest({ action, payload: fullPayload });
                         } catch (err) {
-                            resolve(queueItem('client', err?.message || String(err)));
+                            reject({ _errType: 'client', message: err?.message || String(err) });
                         } finally {
                             if (showOverlay) loadingOverlay.classList.add('hidden');
                         }
@@ -6942,21 +6859,15 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
                 if (showOverlay) loadingOverlay.classList.remove('hidden');
                 try {
-                    const fullPayload = { 
-                        ...payload, 
-                        spreadsheetId: state.settings.sheetId, 
-                        folderId: state.settings.folderId,
-                        auth: state.auth 
-                    };
+                    const fullPayload = { ...payload, spreadsheetId: state.settings.sheetId, folderId: state.settings.folderId };
                     const res = await fetch(state.settings.scriptUrl, {
                         method: 'POST',
                         headers: { "Content-Type": "text/plain;charset=utf-8" },
                         body: JSON.stringify({ action, payload: fullPayload }),
                     });
 
-
                     if (!res.ok) {
-                        return queueItem('network', `HTTP ${res.status}: ${res.statusText} `);
+                        return { _errType: 'network', message: `HTTP ${res.status}: ${res.statusText} ` };
                     }
 
                     const text = await res.text();
@@ -6974,10 +6885,11 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         return { _errType: 'server', message: errorMsg || 'Unknown server error' };
                     }
 
+                    // Backend returns result.data for success, or the object itself
                     return result.data !== undefined ? result.data : result;
                 } catch (error) {
                     console.error('API Call Error:', action, error);
-                    return queueItem('fetch', error.message);
+                    return { _errType: 'fetch', message: error.message };
                 } finally {
                     if (showOverlay) loadingOverlay.classList.add('hidden');
                 }
@@ -7646,7 +7558,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             IsControl: isControl || false,
                             IsStandardCheck: form.querySelector('[name="isStandardCheck"]')?.checked || false,
                             RandomizationOrder: (state.trials.find(x => x.ID === id)?.RandomizationOrder) || (safeJsonParse(aiSummariesJSON)?.plotNum) || null,
-                            PlotNumber: (state.trials.find(x => x.ID === id)?.PlotNumber) || (safeJsonParse(aiSummariesJSON)?.plotNum) || (formData.replication ? `${formData.replication}.${formData.randomizationOrder || 1}` : null),
                             EfficacyDataJSON: efficacyDataJSON,
                             AISummariesJSON: aiSummariesJSON
                         };
@@ -9270,137 +9181,11 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     }
                 });
             }
-            
-            // --- AUTHENTICATION FUNCTIONS ---
-            function checkSession() {
-                const savedAuth = localStorage.getItem('herbicide_auth');
-                if (savedAuth) {
-                    try {
-                        const auth = JSON.parse(savedAuth);
-                        // Check if token is expired (assuming 24h expiration for now as a simple client-side check)
-                        const now = Date.now();
-                        if (auth.expiresAt && now > auth.expiresAt) {
-                            handleLogout();
-                            return false;
-                        }
-                        state.auth = auth;
-                        return true;
-                    } catch (e) {
-                        console.error('Failed to parse auth from localStorage', e);
-                        return false;
-                    }
-                }
-                return false;
-            }
 
-            async function handleLogin(e) {
-                if (e) e.preventDefault();
-                const userVal = document.getElementById('login-username').value;
-                const passVal = document.getElementById('login-password').value;
-                const errorEl = document.getElementById('login-error');
-                
-                if (!userVal || !passVal) {
-                    errorEl.textContent = 'Please enter both username and password.';
-                    errorEl.classList.remove('hidden');
-                    return;
-                }
-
-                errorEl.classList.add('hidden');
-                loadingOverlay.classList.remove('hidden');
-
-                try {
-                    // Note: We send the request without the auth state (which is empty anyway)
-                    // The server handleRequest logic handles the 'login' action bypass
-                    const result = await apiCall('login', { username: userVal, password: passVal }, false);
-                    
-                    if (result && result.success) {
-                        const userData = result.data;
-                        state.auth = {
-                            user: {
-                                id: userData.ID,
-                                username: userData.Username,
-                                role: userData.Role,
-                                name: userData.Username // or a proper Name field if added later
-                            },
-                            token: userData.Token || 'dummy-token',
-                            expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-                        };
-                        
-                        localStorage.setItem('herbicide_auth', JSON.stringify(state.auth));
-                        document.getElementById('login-overlay').classList.add('hidden');
-                        updateUserUI();
-                        showToast('Login successful!', 'success');
-                        
-                        // Proceed with app initialization
-                        await initializeApp(true);
-                    } else {
-                        errorEl.textContent = result?.message || 'Invalid credentials. Please try again.';
-                        errorEl.classList.remove('hidden');
-                    }
-                } catch (err) {
-                    console.error('Login error:', err);
-                    errorEl.textContent = 'An error occurred during login. Please try again later.';
-                    errorEl.classList.remove('hidden');
-                } finally {
-                    loadingOverlay.classList.add('hidden');
-                }
-            }
-
-            function handleLogout() {
-                state.auth = { user: null, token: null };
-                localStorage.removeItem('herbicide_auth');
-                document.getElementById('login-overlay').classList.remove('hidden');
-                document.getElementById('user-profile-section').classList.add('hidden');
-                document.getElementById('login-password').value = ''; // Clear password field
-                showToast('Signed out successfully.', 'info');
-                // Optional: fully reload app to clear internal state
-                // location.reload();
-            }
-
-            function updateUserUI() {
-                const profileSection = document.getElementById('user-profile-section');
-                const displayName = document.getElementById('user-display-name');
-                const roleBadge = document.getElementById('user-role-badge');
-                const avatar = document.getElementById('user-avatar');
-
-                if (state.auth && state.auth.user) {
-                    profileSection.classList.remove('hidden');
-                    displayName.textContent = state.auth.user.username;
-                    roleBadge.textContent = state.auth.user.role;
-                    avatar.textContent = (state.auth.user.username || 'U').charAt(0).toUpperCase();
-                    
-                    // Simple role-based color for avatar
-                    if (state.auth.user.role === 'Admin') {
-                        avatar.className = "w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold shadow-sm";
-                    } else {
-                        avatar.className = "w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shadow-sm";
-                    }
-                } else {
-                    profileSection.classList.add('hidden');
-                }
-            }
-
-            // Bind Auth Events
-            document.addEventListener('DOMContentLoaded', () => {
-                const loginForm = document.getElementById('login-form');
-                if (loginForm) loginForm.addEventListener('submit', handleLogin);
-                
-                const logoutBtn = document.getElementById('logout-btn');
-                if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
-            });
 
             // --- INITIALIZATION ---
-
             async function initializeApp(showOverlay = true) {
-                // --- AUTH CHECK ---
-                if (!checkSession()) {
-                    document.getElementById('login-overlay').classList.remove('hidden');
-                    return;
-                }
-                updateUserUI();
-
                 // --- RESTORE SYNC QUEUE ---
-
                 try {
                     const savedQueue = localStorage.getItem('herbicide_sync_queue');
                     if (savedQueue) {
@@ -15930,44 +15715,17 @@ Style Guidelines:
                     }
 
                     const itemStartTime = Date.now();
-                    const itemLabel = item.action ? `Action: ${item.action}` : (item.photo?.fileName || item.id);
+                    const itemLabel = item.photo.fileName || item.id;
 
                     if (!isFirstItem || (item.attempts || 0) > 0) {
                         const waitTime = Math.min(10000, (isFirstItem ? 0 : 500) + ((item.attempts || 0) * 2000));
-                        if (waitTime > 0 && item.action) { // Actions have priority, but we still backoff on repeats
+                        if (waitTime > 0) {
                             console.log(`[HighTechSync] Waiting ${waitTime}ms (backoff)...`);
                             await new Promise(resolve => setTimeout(resolve, waitTime));
                         }
                     }
                     isFirstItem = false;
 
-                    // --- NEW: DATA ACTION SYNC PATH ---
-                    if (item.action) {
-                        try {
-                            item.status = 'uploading';
-                            saveSyncQueue();
-                            renderSyncStatus();
-                            
-                            console.log(`[HighTechSync] ☁️ Syncing Action: ${item.action}`);
-                            const result = await apiCall(item.action, item.payload, false);
-                            
-                            if (result && result._errType) throw new Error(result.message);
-                            
-                            console.log(`%c✔ Action Synced: ${item.action}`, "color: #16a34a;");
-                            item.status = 'completed';
-                            state.syncQueue = state.syncQueue.filter(i => i.id !== item.id);
-                            saveSyncQueue();
-                            continue;
-                        } catch (e) {
-                            console.error(`[HighTechSync] ❌ Action Fail: ${item.action}`, e);
-                            item.status = 'failed';
-                            item.attempts = (item.attempts || 0) + 1;
-                            saveSyncQueue();
-                            continue;
-                        }
-                    }
-
-                    // --- PHOTO UPLOAD SYNC PATH ---
                     // RE-CHECK DATA INTEGRITY
                     const trial = state.trials.find(t => t.ID === item.trialId);
                     if (trial) {
