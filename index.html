@@ -6945,13 +6945,12 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     const fullPayload = { 
                         ...payload, 
                         spreadsheetId: state.settings.sheetId, 
-                        folderId: state.settings.folderId,
-                        auth: state.auth 
+                        folderId: state.settings.folderId
                     };
                     const res = await fetch(state.settings.scriptUrl, {
                         method: 'POST',
                         headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify({ action, payload: fullPayload }),
+                        body: JSON.stringify({ action, payload: fullPayload, auth: state.auth }),
                     });
 
 
@@ -9279,7 +9278,6 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 if (savedAuth) {
                     try {
                         const auth = JSON.parse(savedAuth);
-                        // Check if token is expired (assuming 24h expiration for now as a simple client-side check)
                         const now = Date.now();
                         if (auth.expiresAt && now > auth.expiresAt) {
                             handleLogout();
@@ -9315,27 +9313,27 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     // The server handleRequest logic handles the 'login' action bypass
                     const result = await apiCall('login', { username: userVal, password: passVal }, false);
                     
-                    if (result && result.success) {
-                        const userData = result.data;
+                    // Backend returns the user object directly (ID, Username, Role, Name)
+                    // OR an error object with _errType if login failed
+                    if (result && result.ID && !result._errType) {
+                        const userData = result;
                         state.auth = {
-                            user: {
-                                id: userData.ID,
-                                username: userData.Username,
-                                role: userData.Role,
-                                name: userData.Username // or a proper Name field if added later
-                            },
-                            token: userData.Token || 'dummy-token',
+                            userId: userData.ID,
+                            role: userData.Role,
+                            username: userData.Username,
+                            name: userData.Name || userData.Username,
                             expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
                         };
                         
                         localStorage.setItem('herbicide_auth', JSON.stringify(state.auth));
                         document.getElementById('login-overlay').classList.add('hidden');
                         updateUserUI();
-                        showToast('Login successful!', 'success');
+                        showToast('Login successful! Welcome, ' + userData.Name + '!', 'success');
                         
                         // Proceed with app initialization
                         await initializeApp(true);
                     } else {
+                        // Show error from backend or generic message
                         errorEl.textContent = result?.message || 'Invalid credentials. Please try again.';
                         errorEl.classList.remove('hidden');
                     }
@@ -9365,20 +9363,20 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const roleBadge = document.getElementById('user-role-badge');
                 const avatar = document.getElementById('user-avatar');
 
-                if (state.auth && state.auth.user) {
-                    profileSection.classList.remove('hidden');
-                    displayName.textContent = state.auth.user.username;
-                    roleBadge.textContent = state.auth.user.role;
-                    avatar.textContent = (state.auth.user.username || 'U').charAt(0).toUpperCase();
-                    
-                    // Simple role-based color for avatar
-                    if (state.auth.user.role === 'Admin') {
-                        avatar.className = "w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold shadow-sm";
-                    } else {
-                        avatar.className = "w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shadow-sm";
+                if (state.auth && state.auth.userId) {
+                    if (profileSection) profileSection.classList.remove('hidden');
+                    if (displayName) displayName.textContent = state.auth.name || state.auth.username;
+                    if (roleBadge) roleBadge.textContent = state.auth.role;
+                    if (avatar) {
+                        avatar.textContent = (state.auth.username || 'U').charAt(0).toUpperCase();
+                        if (state.auth.role === 'Admin') {
+                            avatar.className = "w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold shadow-sm";
+                        } else {
+                            avatar.className = "w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shadow-sm";
+                        }
                     }
                 } else {
-                    profileSection.classList.add('hidden');
+                    if (profileSection) profileSection.classList.add('hidden');
                 }
             }
 
