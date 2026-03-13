@@ -437,6 +437,11 @@
                     class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-emerald-600 bg-emerald-50 font-semibold shadow-sm hover:shadow-md hover:translate-x-1 transition-all duration-200">
                     <i data-lucide="sparkles" class="w-5 h-5"></i><span>AI Assistant</span>
                 </a>
+                <a href="#" data-page="smartSearch"
+                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
+                    <i data-lucide="search" class="w-5 h-5"></i><span>Smart Search</span>
+                </a>
+
                 <div id="admin-sidebar-section" class="hidden">
                     <div class="px-4 py-2 mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-t border-slate-100/50 pt-4">Administration</div>
                     <a href="#" data-page="users"
@@ -5185,7 +5190,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     dataMgmt: 'Data Management', 
                     settings: 'Settings',
                     users: 'User Management'
-                };
+                , smartSearch: 'Smart Search'};
 
                 document.querySelectorAll('#sidebar-nav a').forEach(link => {
                     link.classList.toggle('bg-emerald-50', link.dataset.page === pageId);
@@ -5243,7 +5248,10 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         case 'ingredients':
                             render.ingredients(state.ingredients);
                             break;
-                        case 'settings':
+                        case 'smartSearch':
+                        renderSmartSearch();
+                        break;
+                    case 'settings':
                             const apiKeyContainer = document.getElementById('api-keys-container');
                             if (apiKeyContainer) {
                                 apiKeyContainer.innerHTML = state.settings.apiKeys.map((key, i) => render.apiKeyInput(key, i)).join('') || render.apiKeyInput('', 0);
@@ -7426,6 +7434,1060 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 });
             }
 
+
+async function testAllApiKeys() {
+                const resultsEl = document.getElementById('api-key-test-results');
+                if (resultsEl) resultsEl.innerHTML = '';
+
+                const inputs = Array.from(document.querySelectorAll('.api-key-input'));
+                const keys = inputs.map(i => (i.value || '').trim());
+                const targets = keys.map((k, idx) => ({ key: k, index: idx })).filter(x => !!x.key);
+                if (targets.length === 0) {
+                    showToast('No API keys to test. Please add at least one key.', 'error');
+                    return;
+                }
+
+                const maskKey = (k) => {
+                    const s = String(k || '');
+                    if (s.length <= 10) return '••••••••••';
+                    return `${s.slice(0, 4)}••••••••${s.slice(-4)}`;
+                };
+
+                const modelInput = document.getElementById('settings-api-model');
+                const requestedModelId = modelInput ? modelInput.value : getActiveApiModel();
+                const modelTryOrder = [requestedModelId, ...GEMINI_MODEL_PRIORITY.filter(m => m !== requestedModelId)].slice(0, 3);
+
+                const summary = [];
+                let okCount = 0;
+                let invalidCount = 0;
+                let quotaCount = 0;
+                let unsupportedCount = 0;
+                let permissionCount = 0;
+                let otherCount = 0;
+
+                showToast(`Testing ${targets.length} API keys...`, 'info');
+
+                for (let i = 0; i < targets.length; i++) {
+                    const { key, index } = targets[i];
+                    let status = 'error';
+                    let message = '';
+                    let usedModel = '';
+
+                    try {
+                        const genAI = new GoogleGenAI({ apiKey: key });
+                        let response = null;
+                        let lastError = null;
+                        for (const modelId of modelTryOrder) {
+                            usedModel = modelId;
+                            try {
+                                response = await genAI.models.generateContent({
+                                    model: modelId,
+                                    contents: [{ parts: [{ text: 'Say "API key is working!" in exactly those words.' }] }]
+                                });
+                                lastError = null;
+                                break;
+                            } catch (e) {
+                                lastError = e;
+                                const msg = (e?.message || '').toLowerCase();
+                                if (msg.includes('quota') || msg.includes('429') || msg.includes('resource exhausted')) continue;
+                                if (msg.includes('not_found') || msg.includes('not found') || msg.includes('unsupported') || msg.includes('v1beta')) continue;
+                                throw e;
+                            }
+                        }
+                        if (!response && lastError) throw lastError;
+
+                        if (response && response.text) {
+                            status = 'ok';
+                            message = `Working (${usedModel})`;
+                            okCount++;
+                        } else {
+                            status = 'error';
+                            message = 'Unexpected response format';
+                            otherCount++;
+                        }
+                    } catch (e) {
+                        const msg = (e?.message || '').toLowerCase();
+                        if (msg.includes('api key not valid') || msg.includes('invalid')) {
+                            status = 'invalid';
+                            message = 'Invalid key';
+                            invalidCount++;
+                        } else if (msg.includes('quota') || msg.includes('429') || msg.includes('resource exhausted')) {
+                            status = 'quota';
+                            message = 'Quota exhausted';
+                            quotaCount++;
+                        } else if (msg.includes('permission') || msg.includes('403')) {
+                            status = 'permission';
+                            message = 'Permission denied';
+                            permissionCount++;
+                        } else if (msg.includes('not_found') || msg.includes('not found') || msg.includes('unsupported') || msg.includes('v1beta')) {
+                            status = 'unsupported';
+                            message = `Model not supported (${modelTryOrder.join(', ')})`;
+                            unsupportedCount++;
+                        } else {
+                            status = 'error';
+                            message = e?.message || 'Unknown error';
+                            otherCount++;
+                        }
+                    }
+
+                    summary.push({
+                        index,
+                        masked: maskKey(key),
+                        status,
+                        message
+                    });
+                }
+
+                const badge = (status) => {
+                    if (status === 'ok') return `<span class="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800 font-semibold">OK</span>`;
+                    if (status === 'quota') return `<span class="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-800 font-semibold">QUOTA</span>`;
+                    if (status === 'invalid') return `<span class="px-2 py-0.5 rounded text-xs bg-red-100 text-red-800 font-semibold">INVALID</span>`;
+                    if (status === 'permission') return `<span class="px-2 py-0.5 rounded text-xs bg-red-100 text-red-800 font-semibold">DENIED</span>`;
+                    if (status === 'unsupported') return `<span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-800 font-semibold">MODEL</span>`;
+                    return `<span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-800 font-semibold">ERROR</span>`;
+                };
+
+                if (resultsEl) {
+                    resultsEl.innerHTML = `
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm">
+                            <div class="flex flex-wrap gap-3">
+                                <span class="font-semibold text-slate-700">Summary:</span>
+                                <span class="text-emerald-700 font-semibold">OK ${okCount}</span>
+                                <span class="text-amber-700 font-semibold">Quota ${quotaCount}</span>
+                                <span class="text-red-700 font-semibold">Invalid ${invalidCount}</span>
+                                <span class="text-red-700 font-semibold">Denied ${permissionCount}</span>
+                                <span class="text-slate-700 font-semibold">Model ${unsupportedCount}</span>
+                                <span class="text-slate-700 font-semibold">Other ${otherCount}</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 overflow-x-auto border rounded-lg bg-white">
+                            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">Key</th>
+                                        <th class="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">Status</th>
+                                        <th class="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    ${summary
+                                        .sort((a, b) => a.index - b.index)
+                                        .map(r => `
+                                            <tr>
+                                                <td class="px-3 py-2 font-mono text-xs">${sanitizeHTML(`Key ${r.index + 1}: ${r.masked}`)}</td>
+                                                <td class="px-3 py-2">${badge(r.status)}</td>
+                                                <td class="px-3 py-2 text-slate-700">${sanitizeHTML(r.message)}</td>
+                                            </tr>
+                                        `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                showToast(`Test complete. OK ${okCount}/${targets.length}.`, okCount > 0 ? 'success' : 'error');
+                if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+            }
+
+async function testApiKeyByIndex(keyIndex) {
+                const inputs = Array.from(document.querySelectorAll('.api-key-input'));
+                const idx = parseInt(keyIndex, 10);
+                const value = inputs[idx]?.value?.trim();
+                if (!value) {
+                    showToast(`No API key found in row ${idx + 1}.`, 'error');
+                    return;
+                }
+
+                const activeEl = document.activeElement;
+                if (activeEl && activeEl !== inputs[idx]) {
+                    try { inputs[idx].focus(); } catch (e) { }
+                }
+
+                showToast(`Testing key ${idx + 1}...`, 'info');
+
+                try {
+                    const modelInput = document.getElementById('settings-api-model');
+                    const requestedModelId = modelInput ? modelInput.value : getActiveApiModel();
+                    const genAI = new GoogleGenAI({ apiKey: value });
+
+                    const modelTryOrder = [requestedModelId, ...GEMINI_MODEL_PRIORITY.filter(m => m !== requestedModelId)].slice(0, 3);
+                    let response = null;
+                    let lastError = null;
+                    let usedModel = requestedModelId;
+                    for (const modelId of modelTryOrder) {
+                        usedModel = modelId;
+                        showToast(`Testing key ${idx + 1} on ${modelId}...`, 'info');
+                        try {
+                            response = await genAI.models.generateContent({
+                                model: modelId,
+                                contents: [{ parts: [{ text: 'Say "API key is working!" in exactly those words.' }] }]
+                            });
+                            lastError = null;
+                            break;
+                        } catch (e) {
+                            lastError = e;
+                            const msg = (e?.message || '').toLowerCase();
+                            if (msg.includes('quota') || msg.includes('429') || msg.includes('resource exhausted')) {
+                                continue;
+                            }
+                            throw e;
+                        }
+                    }
+                    if (!response && lastError) throw lastError;
+
+                    if (response && response.text) {
+                        showToast(`✅ Key ${idx + 1} working! (${usedModel})`, 'success');
+                    } else {
+                        showToast(`⚠️ Key ${idx + 1} responded with unexpected format.`, 'error');
+                    }
+                } catch (error) {
+                    console.error('API Key Test Error:', error);
+                    const errorMsg = (error.message || '').toLowerCase();
+
+                    if (errorMsg.includes('api key not valid') || errorMsg.includes('invalid')) {
+                        showToast(`❌ Key ${idx + 1} is INVALID.`, 'error');
+                    } else if (errorMsg.includes('quota') || errorMsg.includes('429') || errorMsg.includes('resource exhausted')) {
+                        showToast(`⚠️ Key ${idx + 1} is valid but QUOTA EXHAUSTED.`, 'error');
+                    } else if (errorMsg.includes('not_found') || errorMsg.includes('not found') || errorMsg.includes('unsupported') || errorMsg.includes('v1beta')) {
+                        showToast(`⚠️ Model not supported for Key ${idx + 1}. Try a different model.`, 'error');
+                    } else if (errorMsg.includes('permission') || errorMsg.includes('403')) {
+                        showToast(`❌ Key ${idx + 1} lacks permissions.`, 'error');
+                    } else {
+                        showToast(`❌ Key ${idx + 1} error: ${error.message}`, 'error');
+                    }
+                }
+            }
+
+function rotateApiModel() {
+                const current = getActiveApiModel();
+                const currentIdx = GEMINI_MODEL_PRIORITY.indexOf(current);
+                const nextIdx = currentIdx >= 0 ? currentIdx + 1 : 0;
+                if (nextIdx >= GEMINI_MODEL_PRIORITY.length) return false;
+                const nextModel = GEMINI_MODEL_PRIORITY[nextIdx];
+                state.settings.apiModel = nextModel;
+                localStorage.setItem('appSettings', JSON.stringify(state.settings));
+                const modelSelect = document.getElementById('settings-api-model');
+                if (modelSelect) modelSelect.value = nextModel;
+                showToast(`Model quota likely exceeded. Trying next model (${nextModel})...`, 'info');
+                return true;
+            }
+
+function getActiveApiModel() {
+                const selected = state.settings.apiModel || 'gemini-3.1-flash-lite-preview';
+                if (selected === 'gemini-3.1-flash-lite') return 'gemini-3.1-flash-lite-preview';
+                if (GEMINI_MODEL_PRIORITY.includes(selected)) return selected;
+                return 'gemini-3.1-flash-lite-preview';
+            }
+
+async function refreshSmartIndex() {
+                const smart = ensureSmartState();
+                smart.byTrialId = new Map();
+                smart.byItemKey = new Map();
+                const rows = await loadSmartIndexFromSheet();
+                rows.forEach(r => {
+                    const trialId = String(r.TrialID || '').trim();
+                    const itemType = String(r.ItemType || '').trim();
+                    const itemId = String(r.ItemID || '').trim();
+                    const key = (itemType && itemId) ? `${itemType}:${itemId}` : (trialId ? `trial:${trialId}` : '');
+                    const vectorB64 = r.VectorB64 || '';
+                    if (!vectorB64 || (!trialId && !key)) return;
+                    try {
+                        const vec = base64ToFloat32(vectorB64);
+                        if (trialId) {
+                            smart.byTrialId.set(trialId, {
+                                model: r.Model || '',
+                                dims: parseInt(r.Dims, 10) || vec.length,
+                                textHash: String(r.TextHash || ''),
+                                updatedAt: String(r.UpdatedAt || ''),
+                                vec
+                            });
+                        }
+                        if (key) {
+                            smart.byItemKey.set(key, {
+                                itemType: itemType || 'trial',
+                                itemId: itemId || trialId,
+                                title: String(r.Title || ''),
+                                model: r.Model || '',
+                                dims: parseInt(r.Dims, 10) || vec.length,
+                                textHash: String(r.TextHash || ''),
+                                updatedAt: String(r.UpdatedAt || ''),
+                                vec
+                            });
+                        }
+                    } catch (e) { }
+                });
+                if (smart.byItemKey.size === 0 && smart.byTrialId.size > 0) {
+                    for (const [id, rec] of smart.byTrialId.entries()) {
+                        smart.byItemKey.set(`trial:${id}`, { itemType: 'trial', itemId: id, title: '', ...rec });
+                    }
+                }
+                smart.loadedAt = new Date().toISOString();
+                return smart;
+            }
+
+async function runSmartSearch(query, resultsEl, statusEl) {
+                const smart = ensureSmartState();
+                if (!smart.loadedAt) await refreshSmartIndex();
+
+                const q = String(query || '').trim();
+                if (!q) return;
+
+                if (statusEl) statusEl.textContent = 'Embedding query...';
+                const qVec = await embedTextSmart(q);
+
+                const scored = [];
+                for (const [key, rec] of smart.byItemKey.entries()) {
+                    if (!rec?.vec) continue;
+                    const score = cosineSimilarity(qVec, rec.vec);
+                    scored.push({ key, score, rec });
+                }
+                scored.sort((a, b) => b.score - a.score);
+                const top = scored.slice(0, 15);
+
+                if (resultsEl) {
+                    const renderOpenButton = (type, id) => {
+                        if (type === 'trial') return `<button data-action="edit" data-type="trial" data-id="${sanitizeHTML(id)}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Open</button>`;
+                        if (type === 'formulation') return `<button data-action="edit" data-type="formulation" data-id="${sanitizeHTML(id)}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Open</button>`;
+                        if (type === 'ingredient') return `<button data-action="edit" data-type="ingredient" data-id="${sanitizeHTML(id)}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Open</button>`;
+                        if (type === 'organisation') return `<button data-action="edit" data-type="organisation" data-id="${sanitizeHTML(id)}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Open</button>`;
+                        if (type === 'project') return `<button onclick="openProjectDashboard('${sanitizeHTML(id)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Open</button>`;
+                        return '';
+                    };
+
+                    const fallbackTrials = (state.trials || []).slice().sort((a, b) => new Date(b.Date || 0) - new Date(a.Date || 0)).slice(0, 10);
+                    const html = top.length
+                        ? top.map(r => {
+                            const itemType = r.rec?.itemType || r.key.split(':')[0] || '';
+                            const itemId = r.rec?.itemId || r.key.split(':')[1] || '';
+                            const title = r.rec?.title || `${itemType}: ${itemId}`;
+                            const pct = (r.score * 100).toFixed(1);
+                            return `
+                                <div class="p-3 border rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                    <div>
+                                        <div class="font-semibold text-slate-800">${sanitizeHTML(title)}</div>
+                                        <div class="text-xs text-slate-500 mt-1">${sanitizeHTML(itemType)} • ${sanitizeHTML(itemId)}</div>
+                                        <div class="text-xs text-emerald-700 font-semibold mt-1">Match: ${pct}%</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        ${renderOpenButton(itemType, itemId)}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')
+                        : `
+                            <div class="p-3 border rounded-lg bg-slate-50 text-slate-700">
+                                <div class="font-semibold">Index is empty or not built yet.</div>
+                                <div class="text-sm mt-1">Showing recent trials:</div>
+                            </div>
+                            ${fallbackTrials.map(t => `
+                                <div class="p-3 border rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <div class="font-semibold text-slate-800">${sanitizeHTML(t.FormulationName || 'Trial')}</div>
+                                        <div class="text-xs text-slate-500 mt-1">${sanitizeHTML([t.Date, t.Location, t.WeedSpecies].filter(Boolean).join(' • '))}</div>
+                                    </div>
+                                    <button data-action="edit" data-type="trial" data-id="${sanitizeHTML(String(t.ID))}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Open</button>
+                                </div>
+                            `).join('')}
+                        `;
+                    resultsEl.innerHTML = html;
+                }
+
+                if (statusEl) {
+                    statusEl.textContent = `Index loaded: ${smart.byItemKey.size} items`;
+                }
+                if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+            }
+
+function ensureSmartState() {
+                if (!state.smartSearch) {
+                    state.smartSearch = {
+                        model: SMART_EMBEDDING_MODEL,
+                        dims: SMART_EMBEDDING_DIMS,
+                        loadedAt: null,
+                        byTrialId: new Map(),
+                        byItemKey: new Map()
+                    };
+                }
+                return state.smartSearch;
+            }
+
+async function buildOrUpdateSmartIndex(statusEl) {
+                const smart = await refreshSmartIndex();
+                const trials = Array.isArray(state.trials) ? state.trials : [];
+                const formulations = Array.isArray(state.formulations) ? state.formulations : [];
+                const ingredients = Array.isArray(state.ingredients) ? state.ingredients : [];
+                const projects = Array.isArray(state.projects) ? state.projects : [];
+                const blocks = Array.isArray(state.blocks) ? state.blocks : [];
+                const organisations = Array.isArray(state.organisations) ? state.organisations : [];
+
+                let total = 0;
+                let updated = 0;
+                let skipped = 0;
+                let failed = 0;
+
+                const allItems = [];
+                trials.forEach(t => { if (t?.ID) allItems.push({ type: 'trial', id: String(t.ID), title: t.FormulationName ? `Trial: ${t.FormulationName}` : `Trial: ${t.ID}`, obj: t }); });
+                formulations.forEach(f => { if (f?.ID) allItems.push({ type: 'formulation', id: String(f.ID), title: f.Name ? `Formulation: ${f.Name}` : `Formulation: ${f.ID}`, obj: f }); });
+                ingredients.forEach(i => { if (i?.ID) allItems.push({ type: 'ingredient', id: String(i.ID), title: i.Name ? `Ingredient: ${i.Name}` : `Ingredient: ${i.ID}`, obj: i }); });
+                projects.forEach(p => { if (p?.ID) allItems.push({ type: 'project', id: String(p.ID), title: p.Name ? `Project: ${p.Name}` : `Project: ${p.ID}`, obj: p }); });
+                blocks.forEach(b => { if (b?.ID) allItems.push({ type: 'block', id: String(b.ID), title: b.Name ? `Block: ${b.Name}` : `Block: ${b.ID}`, obj: b }); });
+                organisations.forEach(o => { if (o?.ID) allItems.push({ type: 'organisation', id: String(o.ID), title: o.Name ? `Organisation: ${o.Name}` : `Organisation: ${o.ID}`, obj: o }); });
+
+                const buildItemText = (item) => {
+                    if (item.type === 'trial') return buildTrialEmbeddingText(item.obj);
+                    if (item.type === 'formulation') {
+                        const f = item.obj;
+                        const parts = [];
+                        if (f.Name) parts.push(`Name: ${f.Name}`);
+                        if (f.EstimatedCost) parts.push(`EstimatedCost: ${f.EstimatedCost}`);
+                        if (f.Notes) parts.push(`Notes: ${f.Notes}`);
+                        if (f.IngredientsJSON) parts.push(`Ingredients: ${f.IngredientsJSON}`);
+                        return parts.join('\n');
+                    }
+                    if (item.type === 'ingredient') {
+                        const i = item.obj;
+                        return [`Name: ${i.Name || ''}`, `Cost: ${i.Cost || ''}`, `Unit: ${i.Unit || ''}`].join('\n');
+                    }
+                    if (item.type === 'project') {
+                        const p = item.obj;
+                        const parts = [];
+                        if (p.Name) parts.push(`Name: ${p.Name}`);
+                        if (p.Status) parts.push(`Status: ${p.Status}`);
+                        if (p.Metric) parts.push(`Metric: ${p.Metric}`);
+                        if (p.Location) parts.push(`Location: ${p.Location}`);
+                        if (p.Investigator) parts.push(`Investigator: ${p.Investigator}`);
+                        if (p.StartDate) parts.push(`StartDate: ${p.StartDate}`);
+                        if (p.Notes) parts.push(`Notes: ${p.Notes}`);
+                        if (p.Narrative) parts.push(`Narrative: ${p.Narrative}`);
+                        if (p.ProtocolJSON) parts.push(`Protocol: ${p.ProtocolJSON}`);
+                        if (p.ReportSettingsJSON) parts.push(`ReportSettings: ${p.ReportSettingsJSON}`);
+                        if (p.AnalysisResultsJSON) parts.push(`AnalysisResults: ${p.AnalysisResultsJSON}`);
+                        return parts.join('\n');
+                    }
+                    if (item.type === 'block') {
+                        const b = item.obj;
+                        const parts = [];
+                        if (b.Name) parts.push(`Name: ${b.Name}`);
+                        if (b.ProjectID) parts.push(`ProjectID: ${b.ProjectID}`);
+                        if (b.ReplicationNum) parts.push(`Replication: ${b.ReplicationNum}`);
+                        if (b.RandomizationOrder) parts.push(`Randomization: ${b.RandomizationOrder}`);
+                        return parts.join('\n');
+                    }
+                    if (item.type === 'organisation') {
+                        const o = item.obj;
+                        const parts = [];
+                        if (o.Name) parts.push(`Name: ${o.Name}`);
+                        if (o.TrialIDs) parts.push(`TrialIDs: ${o.TrialIDs}`);
+                        return parts.join('\n');
+                    }
+                    return '';
+                };
+
+                for (let i = 0; i < allItems.length; i++) {
+                    const item = allItems[i];
+                    total++;
+                    const key = `${item.type}:${item.id}`;
+                    const text = buildItemText(item);
+                    const textHash = hashTextFNV1a(text);
+                    const existing = smart.byItemKey.get(key) || smart.byTrialId.get(item.type === 'trial' ? item.id : '');
+
+                    if (existing && existing.textHash === textHash && existing.model === SMART_EMBEDDING_MODEL) {
+                        skipped++;
+                        if (statusEl) statusEl.textContent = `Indexed ${i + 1}/${allItems.length} | Updated ${updated} | Skipped ${skipped} | Failed ${failed}`;
+                        continue;
+                    }
+
+                    if (statusEl) statusEl.textContent = `Embedding ${i + 1}/${allItems.length}...`;
+                    try {
+                        const vec = await embedTextSmart(text);
+                        const vectorB64 = float32ToBase64(vec);
+                        await upsertSmartEmbeddingToSheet({
+                            ItemType: item.type,
+                            ItemID: item.id,
+                            Title: item.title,
+                            Model: SMART_EMBEDDING_MODEL,
+                            Dims: String(vec.length),
+                            VectorB64: vectorB64,
+                            TextHash: textHash,
+                            UpdatedAt: new Date().toISOString()
+                        });
+                        smart.byItemKey.set(key, { itemType: item.type, itemId: item.id, title: item.title, model: SMART_EMBEDDING_MODEL, dims: vec.length, textHash, updatedAt: new Date().toISOString(), vec });
+                        if (item.type === 'trial') smart.byTrialId.set(item.id, { model: SMART_EMBEDDING_MODEL, dims: vec.length, textHash, updatedAt: new Date().toISOString(), vec });
+                        updated++;
+                    } catch (e) {
+                        failed++;
+                    }
+
+                    if (statusEl) statusEl.textContent = `Indexed ${i + 1}/${allItems.length} | Updated ${updated} | Skipped ${skipped} | Failed ${failed}`;
+                    await new Promise(r => setTimeout(r, 200));
+                }
+
+                return { total, updated, skipped, failed };
+            }
+
+async function embedTextSmart(text) {
+                const contents = String(text || '').trim();
+                if (!contents) throw new Error('Empty content');
+
+                const tryWithDims = async (genAI) => genAI.models.embedContent({
+                    model: SMART_EMBEDDING_MODEL,
+                    contents: contents,
+                    config: { outputDimensionality: SMART_EMBEDDING_DIMS }
+                });
+                const tryWithoutDims = async (genAI) => genAI.models.embedContent({
+                    model: SMART_EMBEDDING_MODEL,
+                    contents: contents
+                });
+
+                let res;
+                try {
+                    res = await _callGeminiEmbeddingWithRetries(tryWithDims);
+                } catch (e) {
+                    const msg = (e?.message || '').toLowerCase();
+                    if (msg.includes('outputdimensionality') || msg.includes('unknown') || msg.includes('invalid json')) {
+                        res = await _callGeminiEmbeddingWithRetries(tryWithoutDims);
+                    } else {
+                        throw e;
+                    }
+                }
+
+                const embedding = Array.isArray(res?.embeddings) ? res.embeddings[0] : null;
+                const values = embedding?.values || embedding;
+                if (!Array.isArray(values)) throw new Error('Embedding response missing values');
+                return new Float32Array(values);
+            }
+
+function base64ToFloat32(b64) {
+                const binary = atob(String(b64 || ''));
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                return new Float32Array(bytes.buffer);
+            }
+
+function float32ToBase64(vec) {
+                const f32 = vec instanceof Float32Array ? vec : new Float32Array(vec);
+                const bytes = new Uint8Array(f32.buffer);
+                let binary = '';
+                const chunkSize = 0x8000;
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+                }
+                return btoa(binary);
+            }
+
+async function upsertSmartEmbeddingToSheet(payload) {
+                const action = payload && payload.ItemType ? 'upsertEmbedding' : 'upsertTrialEmbedding';
+                const res = await apiCall(action, payload, false);
+                if (res && res._errType) throw new Error(res.message || 'Failed to save embedding');
+                return res;
+            }
+
+async function loadSmartIndexFromSheet() {
+                const res = await apiCall('getAllEmbeddings', {}, false);
+                if (Array.isArray(res) && res.length) return res;
+                const fallback = await apiCall('getTrialEmbeddings', {}, false);
+                return Array.isArray(fallback) ? fallback : [];
+            }
+
+async function clearSmartEmbeddingsSheet() {
+                const res1 = await apiCall('clearAllEmbeddings', {}, false);
+                const res2 = await apiCall('clearTrialEmbeddings', {}, false);
+                if (res1 && res1._errType) throw new Error(res1.message || 'Failed to clear embeddings');
+                if (res2 && res2._errType) throw new Error(res2.message || 'Failed to clear embeddings');
+                return { success: true };
+            }
+
+function hashTextFNV1a(str) {
+                const s = String(str || '');
+                let h = 2166136261;
+                for (let i = 0; i < s.length; i++) {
+                    h ^= s.charCodeAt(i);
+                    h = Math.imul(h, 16777619);
+                }
+                return (h >>> 0).toString(16).padStart(8, '0');
+            }
+
+function cosineSimilarity(a, b) {
+                const v1 = a instanceof Float32Array ? a : new Float32Array(a);
+                const v2 = b instanceof Float32Array ? b : new Float32Array(b);
+                const n = Math.min(v1.length, v2.length);
+                let dot = 0;
+                let na = 0;
+                let nb = 0;
+                for (let i = 0; i < n; i++) {
+                    const x = v1[i];
+                    const y = v2[i];
+                    dot += x * y;
+                    na += x * x;
+                    nb += y * y;
+                }
+                const denom = Math.sqrt(na) * Math.sqrt(nb);
+                return denom ? dot / denom : 0;
+            }
+
+async function runSmartAsk(question, answerEl, statusEl) {
+                const smart = ensureSmartState();
+                if (!smart.loadedAt) await refreshSmartIndex();
+
+                const q = String(question || '').trim();
+                if (!q) return;
+
+                if (statusEl) statusEl.textContent = 'Preparing answer...';
+                if (answerEl) answerEl.textContent = '';
+
+                const qVec = await embedTextSmart(q);
+                const scored = [];
+                for (const [key, rec] of smart.byItemKey.entries()) {
+                    if (!rec?.vec) continue;
+                    scored.push({ key, rec, score: cosineSimilarity(qVec, rec.vec) });
+                }
+                scored.sort((a, b) => b.score - a.score);
+                const top = scored.slice(0, 10);
+                if (top.length === 0) {
+                    if (statusEl) statusEl.textContent = 'No indexed data found';
+                    if (answerEl) {
+                        answerEl.textContent = [
+                            'Not enough data in your Smart Search index to answer this question.',
+                            '',
+                            'Do this:',
+                            '- Click “Build / Update Full Index”',
+                            '- Then ask again',
+                            '',
+                            'If it still fails:',
+                            '- Check Settings: Script URL + Sheet ID are correct',
+                            '- Ensure the EmbeddingsAll sheet exists and is not empty'
+                        ].join('\n');
+                    }
+                    return;
+                }
+
+                const trialsById = new Map((state.trials || []).map(t => [String(t.ID), t]));
+                const formulationsById = new Map((state.formulations || []).map(f => [String(f.ID), f]));
+                const ingredientsById = new Map((state.ingredients || []).map(i => [String(i.ID), i]));
+                const projectsById = new Map((state.projects || []).map(p => [String(p.ID), p]));
+                const blocksById = new Map((state.blocks || []).map(b => [String(b.ID), b]));
+                const orgsById = new Map((state.organisations || []).map(o => [String(o.ID), o]));
+
+                const itemText = (type, id) => {
+                    if (type === 'trial') {
+                        const t = trialsById.get(String(id));
+                        return t ? buildTrialEmbeddingText(t) : '';
+                    }
+                    if (type === 'formulation') {
+                        const f = formulationsById.get(String(id));
+                        if (!f) return '';
+                        const parts = [];
+                        if (f.Name) parts.push(`Name: ${f.Name}`);
+                        if (f.EstimatedCost) parts.push(`EstimatedCost: ${f.EstimatedCost}`);
+                        if (f.Notes) parts.push(`Notes: ${f.Notes}`);
+                        if (f.IngredientsJSON) parts.push(`Ingredients: ${f.IngredientsJSON}`);
+                        return parts.join('\n');
+                    }
+                    if (type === 'ingredient') {
+                        const i = ingredientsById.get(String(id));
+                        if (!i) return '';
+                        return [`Name: ${i.Name || ''}`, `Cost: ${i.Cost || ''}`, `Unit: ${i.Unit || ''}`].join('\n');
+                    }
+                    if (type === 'project') {
+                        const p = projectsById.get(String(id));
+                        if (!p) return '';
+                        const parts = [];
+                        if (p.Name) parts.push(`Name: ${p.Name}`);
+                        if (p.Status) parts.push(`Status: ${p.Status}`);
+                        if (p.Metric) parts.push(`Metric: ${p.Metric}`);
+                        if (p.Location) parts.push(`Location: ${p.Location}`);
+                        if (p.Investigator) parts.push(`Investigator: ${p.Investigator}`);
+                        if (p.StartDate) parts.push(`StartDate: ${p.StartDate}`);
+                        if (p.Notes) parts.push(`Notes: ${p.Notes}`);
+                        if (p.Narrative) parts.push(`Narrative: ${p.Narrative}`);
+                        if (p.ProtocolJSON) parts.push(`Protocol: ${p.ProtocolJSON}`);
+                        if (p.ReportSettingsJSON) parts.push(`ReportSettings: ${p.ReportSettingsJSON}`);
+                        if (p.AnalysisResultsJSON) parts.push(`AnalysisResults: ${p.AnalysisResultsJSON}`);
+                        return parts.join('\n');
+                    }
+                    if (type === 'block') {
+                        const b = blocksById.get(String(id));
+                        if (!b) return '';
+                        const parts = [];
+                        if (b.Name) parts.push(`Name: ${b.Name}`);
+                        if (b.ProjectID) parts.push(`ProjectID: ${b.ProjectID}`);
+                        if (b.ReplicationNum) parts.push(`Replication: ${b.ReplicationNum}`);
+                        if (b.RandomizationOrder) parts.push(`Randomization: ${b.RandomizationOrder}`);
+                        return parts.join('\n');
+                    }
+                    if (type === 'organisation') {
+                        const o = orgsById.get(String(id));
+                        if (!o) return '';
+                        const parts = [];
+                        if (o.Name) parts.push(`Name: ${o.Name}`);
+                        if (o.TrialIDs) parts.push(`TrialIDs: ${o.TrialIDs}`);
+                        return parts.join('\n');
+                    }
+                    return '';
+                };
+
+                const contextBlocks = top.map((r, idx) => {
+                    const type = r.rec?.itemType || r.key.split(':')[0] || '';
+                    const id = r.rec?.itemId || r.key.split(':')[1] || '';
+                    const title = r.rec?.title || `${type}: ${id}`;
+                    const text = itemText(type, id);
+                    const scorePct = (r.score * 100).toFixed(1);
+                    const excerpt = String(text || '').slice(0, 1800);
+                    return `SOURCE ${idx + 1} (${scorePct}%): [${type} ${id}] ${title}\n${excerpt}`;
+                }).join('\n\n');
+
+                const prompt = [
+                    `You are the Herbicide Trial Manager data analyst.`,
+                    `Answer the user's question using ONLY the DATA SOURCES below.`,
+                    `Do NOT use general knowledge or assumptions.`,
+                    `If the data is not enough, say exactly: "Not enough data in records" and list what fields/records are missing.`,
+                    `Never invent numbers, dates, costs, DAAs, or efficacy values.`,
+                    ``,
+                    `USER QUESTION: ${q}`,
+                    ``,
+                    `DATA SOURCES:`,
+                    contextBlocks,
+                    ``,
+                    `OUTPUT FORMAT:`,
+                    `- Direct answer`,
+                    `- Evidence (mention Trial IDs / Formulation IDs / dates when available)`,
+                    `- Missing data (if any)`
+                ].join('\n');
+
+                if (statusEl) statusEl.textContent = 'Calling Gemini...';
+
+                const response = await callGeminiApi('Smart Search answer', (genAI) => genAI.models.generateContent({
+                    model: getActiveApiModel(),
+                    contents: [{ parts: [{ text: prompt }] }]
+                }));
+
+                const resultText = typeof response?.text === 'function' ? response.text() : response?.text;
+                if (answerEl) answerEl.textContent = String(resultText || 'Answer ready.');
+                if (statusEl) statusEl.textContent = `Answered using ${top.length || 0} sources`;
+            }
+
+function buildTrialEmbeddingText(trial) {
+                const parts = [];
+                if (trial.FormulationName) parts.push(`Formulation: ${trial.FormulationName}`);
+                if (trial.Dosage) parts.push(`Dosage: ${trial.Dosage}`);
+                if (trial.WeedSpecies) parts.push(`Weeds: ${trial.WeedSpecies}`);
+                if (trial.Location) parts.push(`Location: ${trial.Location}`);
+                if (trial.Date) parts.push(`Date: ${trial.Date}`);
+                if (trial.Result) parts.push(`Result: ${trial.Result}`);
+                if (trial.Notes) parts.push(`Notes: ${trial.Notes}`);
+                if (trial.Conclusion) parts.push(`Conclusion: ${trial.Conclusion}`);
+                if (trial.AISummariesJSON) parts.push(`AI: ${trial.AISummariesJSON}`);
+                if (trial.EfficacyDataJSON) parts.push(`Efficacy: ${trial.EfficacyDataJSON}`);
+                return parts.join('\n');
+            }
+
+async function autoFixWeedLinking() {
+                const progressEl = document.getElementById('efficacy-fix-progress');
+                if (progressEl) progressEl.textContent = 'Preparing...';
+
+                const parseJsonAny = (value, fallback) => {
+                    if (!value) return fallback;
+                    if (typeof value !== 'string') return value;
+                    try { return JSON.parse(value); } catch (e) { return fallback; }
+                };
+
+                const trials = state.trials || [];
+                let fixedCount = 0;
+                let skippedCount = 0;
+                let errorCount = 0;
+
+                for (let idx = 0; idx < trials.length; idx++) {
+                    const t = trials[idx];
+                    if (progressEl) progressEl.textContent = `Fixing ${idx + 1}/${trials.length}...`;
+
+                    try {
+                        const raw = parseJsonAny(t.EfficacyDataJSON, []);
+                        const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.observations) ? raw.observations : (Array.isArray(raw?.efficacy) ? raw.efficacy : []));
+                        if (!arr || arr.length === 0) { skippedCount++; continue; }
+
+                        const normalized = validateEfficacyData(arr);
+                        if (!normalized || normalized.length === 0) { skippedCount++; continue; }
+
+                        const existingWeedSpecies = String(t.WeedSpecies || '').trim();
+                        const speciesSet = new Set();
+                        normalized.forEach(o => (o.weedDetails || []).forEach(w => {
+                            const s = String(w.species || '').trim();
+                            if (s && s !== 'Total' && s !== 'Unknown') speciesSet.add(s);
+                        }));
+                        const rebuiltWeedSpecies = [...speciesSet].join(', ');
+
+                        const newEfficacyJson = JSON.stringify(normalized);
+                        const patch = { ID: t.ID };
+                        let willUpdate = false;
+
+                        if ((t.EfficacyDataJSON || '') !== newEfficacyJson) {
+                            patch.EfficacyDataJSON = newEfficacyJson;
+                            willUpdate = true;
+                        }
+
+                        if (!existingWeedSpecies && rebuiltWeedSpecies) {
+                            patch.WeedSpecies = rebuiltWeedSpecies;
+                            willUpdate = true;
+                        }
+
+                        if (!willUpdate) { skippedCount++; continue; }
+
+                        await apiCall('updateTrialRecord', patch, false);
+
+                        if (patch.EfficacyDataJSON) t.EfficacyDataJSON = patch.EfficacyDataJSON;
+                        if (patch.WeedSpecies) t.WeedSpecies = patch.WeedSpecies;
+                        fixedCount++;
+                    } catch (e) {
+                        console.error(e);
+                        errorCount++;
+                    }
+                }
+
+                if (progressEl) progressEl.textContent = '';
+                showToast(`Auto-fix done. Fixed ${fixedCount}, skipped ${skippedCount}, errors ${errorCount}.`, errorCount > 0 ? 'warning' : 'success');
+
+                if (typeof populateWeedSpeciesDropdown === 'function') populateWeedSpeciesDropdown();
+                await renderEfficacyRepairScan();
+            }
+
+async function recalcGridCovers() {
+                const progressEl = document.getElementById('grid-recalc-progress');
+                if (progressEl) progressEl.textContent = 'Preparing...';
+
+                const trials = state.trials || [];
+                let updatedTrials = 0;
+                let updatedObs = 0;
+                let skippedObs = 0;
+                let errorCount = 0;
+
+                const round1 = (n) => Math.round(n * 10) / 10;
+                const isValidCell = (cellId, gridSize) => {
+                    const parts = String(cellId || '').split(',');
+                    if (parts.length !== 2) return false;
+                    const r = parseInt(parts[0], 10);
+                    const c = parseInt(parts[1], 10);
+                    return isFinite(r) && isFinite(c) && r >= 0 && c >= 0 && r < gridSize && c < gridSize;
+                };
+
+                for (let i = 0; i < trials.length; i++) {
+                    const t = trials[i];
+                    if (progressEl) progressEl.textContent = `Recalculating ${i + 1}/${trials.length}...`;
+                    try {
+                        const raw = safeJsonParse(t.EfficacyDataJSON, []);
+                        const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.observations) ? raw.observations : []);
+                        if (!arr || arr.length === 0) continue;
+
+                        let changed = false;
+                        arr.forEach(obs => {
+                            const mode = String(obs?.weedCoverMode || '').toLowerCase();
+                            const cells = Array.isArray(obs?.weedCoverGridCells) ? obs.weedCoverGridCells : null;
+                            if (mode !== 'grid-manual' || !cells || cells.length === 0) {
+                                skippedObs++;
+                                return;
+                            }
+                            const gridSize = parseInt(obs?.weedCoverGridSize, 10) || parseInt(obs?.gridSize, 10) || 10;
+                            const totalCells = gridSize * gridSize;
+                            if (!totalCells) { skippedObs++; return; }
+
+                            const validCells = cells.filter(c => isValidCell(c, gridSize));
+                            const pct = round1((validCells.length / totalCells) * 100);
+
+                            if (obs.weedCover !== pct) { obs.weedCover = pct; changed = true; }
+                            if (obs.weedCoverGrid !== pct) { obs.weedCoverGrid = pct; changed = true; }
+                            if (obs.weedCoverGridSize !== gridSize) { obs.weedCoverGridSize = gridSize; changed = true; }
+                            if (validCells.length !== cells.length) { obs.weedCoverGridCells = validCells; changed = true; }
+                            updatedObs++;
+                        });
+
+                        if (!changed) continue;
+                        const newJson = JSON.stringify(arr);
+                        await apiCall('updateTrialRecord', { ID: t.ID, EfficacyDataJSON: newJson }, false);
+                        t.EfficacyDataJSON = newJson;
+                        updatedTrials++;
+                    } catch (e) {
+                        console.error(e);
+                        errorCount++;
+                    }
+                    await new Promise(r => setTimeout(r, 150));
+                }
+
+                if (progressEl) progressEl.textContent = `Done. Updated trials ${updatedTrials}. Updated observations ${updatedObs}. Skipped ${skippedObs}. Errors ${errorCount}.`;
+                showToast(`Grid recalculation complete. Updated trials ${updatedTrials}.`, updatedTrials > 0 ? 'success' : 'info');
+            }
+
+function scanEfficacyRepairIssues() {
+                const parseJsonAny = (value, fallback) => {
+                    if (!value) return fallback;
+                    if (typeof value !== 'string') return value;
+                    try { return JSON.parse(value); } catch (e) { return fallback; }
+                };
+
+                const trials = state.trials || [];
+                const issues = [];
+                let missingEfficacy = 0;
+                let invalidEfficacy = 0;
+                let hasStringDaa = 0;
+                let missingWeedSpeciesField = 0;
+                let missingWeedDetails = 0;
+                let needsWeedSpeciesFromObs = 0;
+
+                trials.forEach(t => {
+                    const raw = parseJsonAny(t.EfficacyDataJSON, []);
+                    const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.observations) ? raw.observations : (Array.isArray(raw?.efficacy) ? raw.efficacy : []));
+                    if (!arr || arr.length === 0) {
+                        missingEfficacy++;
+                        return;
+                    }
+
+                    const normalized = validateEfficacyData(arr);
+                    if (!normalized || normalized.length === 0) {
+                        invalidEfficacy++;
+                        issues.push({ id: t.ID, formulation: t.FormulationName || '', date: t.Date || '', problem: 'Invalid EfficacyDataJSON (DAA/values)' });
+                        return;
+                    }
+
+                    const anyStringDaa = arr.some(o => o && typeof o.daa === 'string');
+                    if (anyStringDaa) hasStringDaa++;
+
+                    const hasAnyWeedDetails = normalized.some(o => Array.isArray(o.weedDetails) && o.weedDetails.length > 0);
+                    const hasAnyNonTotalWeed = normalized.some(o => (o.weedDetails || []).some(w => String(w.species || '').trim() && String(w.species).trim() !== 'Total'));
+
+                    if (!hasAnyWeedDetails) {
+                        missingWeedDetails++;
+                        issues.push({ id: t.ID, formulation: t.FormulationName || '', date: t.Date || '', problem: 'No weedDetails in observations' });
+                    }
+
+                    if (!(t.WeedSpecies && String(t.WeedSpecies).trim())) {
+                        missingWeedSpeciesField++;
+                        if (hasAnyNonTotalWeed) {
+                            needsWeedSpeciesFromObs++;
+                            issues.push({ id: t.ID, formulation: t.FormulationName || '', date: t.Date || '', problem: 'WeedSpecies empty (can rebuild from observations)' });
+                        }
+                    }
+                });
+
+                return {
+                    totals: { trials: (state.trials || []).length },
+                    counts: { missingEfficacy, invalidEfficacy, hasStringDaa, missingWeedSpeciesField, missingWeedDetails, needsWeedSpeciesFromObs },
+                    issues: issues.slice(0, 50)
+                };
+            }
+
+async function renderEfficacyRepairScan() {
+                const summaryEl = document.getElementById('efficacy-scan-summary');
+                const tableEl = document.getElementById('efficacy-scan-table');
+                if (!summaryEl || !tableEl) return;
+
+                const scan = scanEfficacyRepairIssues();
+                summaryEl.innerHTML = `
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between"><span class="text-slate-600">Trials</span><span class="font-bold text-slate-800">${scan.totals.trials}</span></div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between"><span class="text-slate-600">Missing efficacy</span><span class="font-bold text-amber-700">${scan.counts.missingEfficacy}</span></div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between"><span class="text-slate-600">Invalid efficacy</span><span class="font-bold text-amber-700">${scan.counts.invalidEfficacy}</span></div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between"><span class="text-slate-600">String DAA</span><span class="font-bold text-slate-800">${scan.counts.hasStringDaa}</span></div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between"><span class="text-slate-600">Missing WeedSpecies</span><span class="font-bold text-amber-700">${scan.counts.missingWeedSpeciesField}</span></div>
+                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between"><span class="text-slate-600">No weedDetails</span><span class="font-bold text-amber-700">${scan.counts.missingWeedDetails}</span></div>
+                    </div>
+                `;
+
+                if (scan.issues.length === 0) {
+                    tableEl.innerHTML = `<div class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">No repair issues detected.</div>`;
+                    return;
+                }
+
+                tableEl.innerHTML = `
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                                <tr>
+                                    <th class="p-3">Formulation</th>
+                                    <th class="p-3">Date</th>
+                                    <th class="p-3">Issue</th>
+                                    <th class="p-3 text-right">Open</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${scan.issues.map(i => `
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-3 font-medium text-slate-700">${sanitizeHTML(i.formulation)}</td>
+                                        <td class="p-3">${sanitizeHTML(i.date)}</td>
+                                        <td class="p-3 text-amber-800">${sanitizeHTML(i.problem)}</td>
+                                        <td class="p-3 text-right">
+                                            <button class="text-emerald-700 font-bold hover:underline" data-action="view-trial" data-id="${i.id}">Open</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+function assignCLDByComparator(treatmentStats, isNonSignificant) {
+                const sorted = [...treatmentStats].sort((a, b) => b.mean - a.mean);
+                const n = sorted.length;
+                const cliques = [];
+                for (let i = 0; i < n; i++) {
+                    const clique = [i];
+                    for (let j = 0; j < n; j++) {
+                        if (i === j) continue;
+                        if (clique.every(idx => isNonSignificant(sorted[idx], sorted[j]))) clique.push(j);
+                    }
+                    clique.sort((a, b) => a - b);
+                    if (!cliques.some(c => c.join(',') === clique.join(','))) {
+                        if (!cliques.some(c => clique.every(idx => c.includes(idx)))) {
+                            for (let k = cliques.length - 1; k >= 0; k--) {
+                                if (cliques[k].every(idx => clique.includes(idx))) cliques.splice(k, 1);
+                            }
+                            cliques.push(clique);
+                        }
+                    }
+                }
+                cliques.sort((a, b) => a[0] - b[0]);
+                const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+                sorted.forEach(ts => ts.rank = '');
+                cliques.forEach((c, i) => {
+                    const l = letters[i % 26];
+                    c.forEach(idx => sorted[idx].rank += l);
+                });
+                treatmentStats.forEach(ts => {
+                    const m = sorted.find(s => s.treatmentId === ts.treatmentId);
+                    if (m) ts.rank = m.rank.split('').sort().join('');
+                });
+            }
+
+async function _callGeminiEmbeddingWithRetries(apiCallFunction, retries = 0) {
+                const keyCount = state.settings.apiKeys.length || 1;
+                if (retries >= keyCount) throw new Error('ALL_KEYS_EXHAUSTED');
+
+                try {
+                    const genAI = getGenAIClient();
+                    if (!genAI) throw new Error('No valid API key found. Please add one in Settings.');
+                    return await apiCallFunction(genAI);
+                } catch (error) {
+                    const errorMessage = (error.message || '').toLowerCase();
+                    if (errorMessage.includes('api key not valid') || errorMessage.includes('invalid api key')) {
+                        if (rotateApiKey()) {
+                            await new Promise(r => setTimeout(r, 300));
+                            return _callGeminiEmbeddingWithRetries(apiCallFunction, retries + 1);
+                        }
+                        throw error;
+                    }
+                    if (errorMessage.includes('quota') || errorMessage.includes('resource exhausted') || errorMessage.includes('429')) {
+                        if (rotateApiKey()) {
+                            await new Promise(r => setTimeout(r, 500));
+                            return _callGeminiEmbeddingWithRetries(apiCallFunction, retries + 1);
+                        }
+                        throw error;
+                    }
+                    if (errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('unavailable')) {
+                        const retryDelay = 8000 + (retries * 4000);
+                        await new Promise(r => setTimeout(r, retryDelay));
+                        return _callGeminiEmbeddingWithRetries(apiCallFunction, retries + 1);
+                    }
+                    throw error;
+                }
+            }
 
             // --- INITIALIZATION ---
             async function initializeApp(showOverlay = true) {
