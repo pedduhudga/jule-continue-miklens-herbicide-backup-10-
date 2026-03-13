@@ -7550,9 +7550,15 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             async function handleFormSubmit(form) {
                 if (!form) return;
                 const formId = form.getAttribute('id');
-                // Skip forms that have their own dedicated handlers
-                if (formId === 'login-form') return;
-                if (formId === 'setup-form') return; // handled by handleSetupSave()
+                // Direct routing for forms with dedicated handlers
+                if (formId === 'login-form') {
+                    if (typeof handleLogin === 'function') handleLogin({ target: form, preventDefault: () => {} });
+                    return;
+                }
+                if (formId === 'setup-form') {
+                    if (typeof handleSetupSave === 'function') handleSetupSave({ target: form, preventDefault: () => {} });
+                    return;
+                }
                 const type = formId.replace('-form', '');
 
                 if (formId === 'settings-form') { handleSettingsSave(form); return; }
@@ -9401,6 +9407,10 @@ errorEl.classList.remove('hidden');
                 const logoutBtn = document.getElementById('logout-btn');
                 if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
             });
+
+            // Expose to window for global access
+            window.handleLogin = handleLogin;
+            window.handleLogout = handleLogout;
 
             // --- INITIALIZATION ---
 
