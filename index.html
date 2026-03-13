@@ -593,6 +593,11 @@
             </div>
             
             <form id="login-form" class="space-y-6">
+                <div id="login-error" class="hidden flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl mb-6">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>
+                    <p id="login-error-text" class="text-sm text-red-600 font-medium"></p>
+                </div>
+
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Username</label>
                     <div class="relative">
@@ -810,6 +815,9 @@
             if (window.Chart) {
                 Chart.defaults.devicePixelRatio = 4;
             }
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const mainContent = document.getElementById('main-content');
+            
             // --- STATE MANAGEMENT ---
             let state = {
                 auth: {
@@ -2738,7 +2746,8 @@ IMPORTANT:
 
 
             // --- DOM ELEMENTS ---
-            const mainContent = document.getElementById('main-content');
+            // (Assigned at top of module)
+            // mainContent = document.getElementById('main-content');
             const modalContainer = document.getElementById('modal-container');
 
             // --- PROTOCOL MODAL HTML INJECTION ---
@@ -2827,7 +2836,8 @@ IMPORTANT:
                 document.body.insertAdjacentHTML('beforeend', protocolModalHTML);
             }
 
-            const loadingOverlay = document.getElementById('loading-overlay');
+            // (Assigned at top of module)
+            // loadingOverlay = document.getElementById('loading-overlay');
             const toast = document.getElementById('toast');
             const cropperModal = document.getElementById('cropper-modal-fixed');
             const imageToCrop = document.getElementById('image-to-crop');
