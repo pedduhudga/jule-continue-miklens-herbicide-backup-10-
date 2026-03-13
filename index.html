@@ -526,6 +526,13 @@
                         class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 hover:bg-emerald-50 hover:text-emerald-700">
                         <i data-lucide="settings"></i><span>Settings</span>
                     </a>
+                    <!-- Admin Only Section -->
+                    <div id="admin-sidebar-section" class="hidden border-t border-slate-200/50 mt-4 pt-4">
+                        <a href="#" data-page="users"
+                            class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
+                            <i data-lucide="users" class="w-5 h-5"></i><span>User Management</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- User Profile & Logout -->
@@ -4670,6 +4677,39 @@ IMPORTANT:
                             </div>
                         </div>
                     `,
+                    users: `
+                        <div class="space-y-6">
+                            <div id="admin-view-status" class="hidden bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-amber-100 rounded-lg text-amber-700">
+                                        <i data-lucide="eye" class="h-5 w-5"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold text-amber-900">Admin Mode: Viewing Specific User Data</p>
+                                        <p class="text-xs text-amber-700">Currently showing trials created by <span id="admin-viewing-user-name" class="font-bold">None</span></p>
+                                    </div>
+                                </div>
+                                <button onclick="window.clearAdminView()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all">
+                                    Show All Users
+                                </button>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-xl shadow-lg">
+                                <div class="flex items-center justify-between mb-6">
+                                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                        <i data-lucide="users" class="text-emerald-600"></i> Platform Users
+                                    </h3>
+                                    <div id="users-count-badge" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">0 Users Loaded</div>
+                                </div>
+                                <div id="users-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div class="col-span-full py-10 flex flex-col items-center justify-center text-slate-400">
+                                        <i data-lucide="loader-2" class="w-10 h-10 animate-spin mb-2"></i>
+                                        <p>Fetching user list...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `,
                     dataMgmt: `<div class="space-y-8">
                                     <div><h2 class="text-xl font-semibold text-gray-700 mb-4">Export Data</h2><div class="bg-white p-6 rounded-lg shadow"><p class="text-gray-600 mb-4">Download your data for backup. ZIP includes photos, while Standalone HTML is a complete, viewable offline archive of the app.</p><div class="flex flex-wrap gap-4"><button data-action="export-json" class="bg-green-600 text-white px-4 py-2 rounded-lg">Export to JSON</button><button data-action="export-zip" class="bg-green-700 text-white px-4 py-2 rounded-lg">Export with Photos (ZIP)</button><button data-action="export-standalone" class="bg-blue-700 text-white px-4 py-2 rounded-lg">Export Standalone HTML</button></div></div></div>
                                     <div>
@@ -5117,6 +5157,56 @@ IMPORTANT:
             };
 
             const render = {
+                users: async () => {
+                    const container = document.getElementById('users-list-container');
+                    const countBadge = document.getElementById('users-count-badge');
+                    
+                    // Update admin view banner visibility if needed
+                    const statusBanner = document.getElementById('admin-view-status');
+                    if (statusBanner) {
+                        if (state.adminViewUserId) {
+                            statusBanner.classList.remove('hidden');
+                            document.getElementById('admin-viewing-user-name').textContent = state.adminViewUsername || state.adminViewUserId;
+                        } else {
+                            statusBanner.classList.add('hidden');
+                        }
+                    }
+
+                    try {
+                        const users = await apiCall('getUsersList');
+                        if (!users || !Array.isArray(users)) throw new Error('Invalid user list received.');
+                        
+                        countBadge.textContent = `${users.length} Users Registered`;
+                        
+                        // Map users to trial counts for more useful info (if available)
+                        container.innerHTML = users.map(u => {
+                            const userTrials = (state.trials || []).filter(t => String(t.CreatedBy) === String(u.ID));
+                            const isCurrentView = state.adminViewUserId === u.ID;
+                            
+                            return `
+                                <div class="p-4 border ${isCurrentView ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-slate-50'} rounded-xl hover:shadow-md transition-shadow flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold uppercase">
+                                            ${u.Username ? u.Username[0] : '?'}
+                                        </div>
+                                        <div>
+                                            <p class="font-bold text-slate-800">${sanitizeHTML(u.Username)}</p>
+                                            <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">${sanitizeHTML(u.Role)} • ${userTrials.length} Trials</p>
+                                        </div>
+                                    </div>
+                                    <button onclick="window.viewUserData('${u.ID}', '${sanitizeHTML(u.Username)}')" 
+                                        class="${isCurrentView ? 'bg-amber-100 text-amber-700' : 'text-emerald-600 hover:bg-emerald-100'} p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold ring-1 ring-emerald-600/20">
+                                        <i data-lucide="${isCurrentView ? 'check-circle' : 'eye'}" class="w-4 h-4"></i> ${isCurrentView ? 'Showing' : 'View Data'}
+                                    </button>
+                                </div>
+                            `;
+                        }).join('');
+                        lucide.createIcons();
+                    } catch (err) {
+                        console.error('User list error:', err);
+                        container.innerHTML = `<div class="col-span-full p-6 text-red-500 bg-red-50 rounded-lg border border-red-100 text-center">Failed to load users: ${err.message}</div>`;
+                    }
+                },
                 apiKeyInput: (key = '', index) => {
                     return `
                         <div class="flex items-center gap-2 api-key-row">
@@ -5504,6 +5594,7 @@ IMPORTANT:
                                         <input type="checkbox" data-action="toggle-completed" data-id="${trial.ID}" id="completed-${trial.ID}" class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" ${String(trial.IsCompleted).toLowerCase() === 'true' ? 'checked' : ''}>
                                         <label for="completed-${trial.ID}" class="text-xs font-medium text-gray-700">Mark as Completed</label>
                                     </div>
+                                    ${state.auth?.role === 'Admin' ? `<div class="mt-1 flex items-center gap-1 text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border w-fit font-semibold"><i data-lucide="user" class="w-3 h-3"></i> <span>Creator ID: ${sanitizeHTML(trial.CreatedBy || '-')}</span></div>` : ''}
                                     <div class="mt-4 grid grid-cols-2 gap-x-4 text-sm text-gray-600">
                                         <p><strong>Dosage:</strong> ${sanitizeHTML(trial.Dosage) || 'N/A'}</p>
                                         <button type="button" class="bg-slate-100 border border-slate-300 rounded px-2 py-1 text-slate-700 hover:bg-slate-200 transition text-xs flex items-center gap-1 w-fit relative z-10 cursor-pointer" data-action="edit-control-days" data-id="${trial.ID}" title="Click to edit control days"><strong>Control:</strong> ${controlDuration} <i data-lucide="edit-2" class="h-3 w-3"></i></button>
@@ -7030,7 +7121,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             // --- PAGE NAVIGATION & RENDERING ---
             function switchPage(pageId) {
                 state.currentPage = pageId;
-                const pageTitles = { dashboard: 'Dashboard', formulations: 'My Formulations', trials: 'Trials', projects: 'Projects (RCBD)', projectDashboard: 'Project Dashboard', compareTrials: 'Compare Trials', organisations: 'Trial Organisations', ingredients: 'Ingredient Costs', aiAssistant: 'AI Assistant', smartSearch: 'Smart Search', dataMgmt: 'Data Management', settings: 'Settings' };
+                const pageTitles = { dashboard: 'Dashboard', formulations: 'My Formulations', trials: 'Trials', projects: 'Projects (RCBD)', projectDashboard: 'Project Dashboard', compareTrials: 'Compare Trials', organisations: 'Trial Organisations', ingredients: 'Ingredient Costs', aiAssistant: 'AI Assistant', smartSearch: 'Smart Search', dataMgmt: 'Data Management', users: 'User Management', settings: 'Settings' };
 
                 document.querySelectorAll('#sidebar-nav a').forEach(link => {
                     link.classList.toggle('bg-emerald-50', link.dataset.page === pageId);
@@ -7051,6 +7142,9 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         case 'dashboard':
                             render.dashboard();
                             if (typeof populateWeedSpeciesDropdown === 'function') populateWeedSpeciesDropdown();
+                            break;
+                        case 'users':
+                            render.users();
                             break;
                         case 'formulations':
                             render.formulations(state.formulations);
@@ -7175,6 +7269,20 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     lucide.createIcons();
                 }, 50);
             }
+
+            window.viewUserData = (userId, username) => {
+                state.adminViewUserId = userId;
+                state.adminViewUsername = username;
+                showToast(`Filtering for user: ${username}`, 'info');
+                switchPage('dashboard');
+            };
+
+            window.clearAdminView = () => {
+                state.adminViewUserId = null;
+                state.adminViewUsername = null;
+                showToast(`Showing all users data`, 'info');
+                switchPage('users');
+            };
 
             // Expose globally for HTML onclick
             window.switchPage = switchPage;
@@ -9416,6 +9524,16 @@ errorEl.classList.remove('hidden');
                     }
                 } else {
                     if (profileSection) profileSection.classList.add('hidden');
+                }
+                
+                // Show Admin sidebar section
+                const adminSection = document.getElementById('admin-sidebar-section');
+                if (adminSection) {
+                    if (state.auth && state.auth.role === 'Admin') {
+                        adminSection.classList.remove('hidden');
+                    } else {
+                        adminSection.classList.add('hidden');
+                    }
                 }
             }
 
@@ -15319,7 +15437,14 @@ Style Guidelines:
 
                 state.filterState = { search, formulationText, formulation, startDate: start, endDate: end, sortBy };
 
-                let filtered = state.trials.filter(t => {
+                let filtered = state.trials;
+
+                // Admin Individual User Filter
+                if (state.auth?.role === 'Admin' && state.adminViewUserId) {
+                    filtered = filtered.filter(t => String(t.CreatedBy) === String(state.adminViewUserId));
+                }
+
+                filtered = filtered.filter(t => {
                     const matchesSearch = !search || (t.InvestigatorName || '').toLowerCase().includes(search) || (t.WeedSpecies || '').toLowerCase().includes(search);
                     const matchesFormText = !formulationText || (t.FormulationName || '').toLowerCase().includes(formulationText);
                     const matchesForm = !formulation || t.FormulationID === formulation || t.FormulationName === formulation;
