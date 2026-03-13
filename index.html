@@ -7550,8 +7550,9 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             async function handleFormSubmit(form) {
                 if (!form) return;
                 const formId = form.getAttribute('id');
-                // Skip login form — it has its own handleLogin handler
+                // Skip forms that have their own dedicated handlers
                 if (formId === 'login-form') return;
+                if (formId === 'setup-form') return; // handled by handleSetupSave()
                 const type = formId.replace('-form', '');
 
                 if (formId === 'settings-form') { handleSettingsSave(form); return; }
