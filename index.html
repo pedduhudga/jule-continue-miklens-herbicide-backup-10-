@@ -338,33 +338,40 @@
     <div id="login-overlay" class="fixed inset-0 bg-slate-900 z-[10000] flex items-center justify-center p-4 hidden">
         <div class="bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-white/50 animate-in fade-in zoom-in duration-300">
             <div class="text-center mb-8">
-                <div class="w-20 h-20 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
-                    <i data-lucide="flask-conical" class="text-emerald-600 w-10 h-10"></i>
+                <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+                    <i data-lucide="flask-conical" class="text-emerald-600 w-8 h-8"></i>
                 </div>
                 <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Welcome Back</h2>
-                <p class="text-slate-500 text-sm mt-1">Please sign in to your account</p>
+                <p class="text-slate-500 text-xs mt-1">Please sign in to your account</p>
             </div>
             <form id="login-form" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Username</label>
-                    <div class="relative">
-                        <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                        <input type="text" id="login-username" required class="w-full form-input pl-10 pr-4 py-3 border border-slate-200 focus:border-emerald-500 outline-none transition" placeholder="Enter username">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Username</label>
+                    <div class="relative group">
+                        <i data-lucide="user" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
+                        <input type="text" id="login-username" required class="w-full bg-slate-50/50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm focus:bg-white focus:border-emerald-500 outline-none transition-all" placeholder="Enter username">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Password</label>
-                    <div class="relative">
-                        <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                        <input type="password" id="login-password" required class="w-full form-input pl-10 pr-4 py-3 border border-slate-200 focus:border-emerald-500 outline-none transition" placeholder="••••••••">
+                    <div class="flex justify-between items-center mb-1.5 ml-1">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Password</label>
+                        <button type="button" onclick="showToast('Please contact your administrator (Pavan@miklensbio.com) to reset your password.', 'info')" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-widest">Forgot?</button>
+                    </div>
+                    <div class="relative group">
+                        <i data-lucide="lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"></i>
+                        <input type="password" id="login-password" required class="w-full bg-slate-50/50 border border-slate-200 rounded-xl pl-10 pr-10 py-3 text-sm focus:bg-white focus:border-emerald-500 outline-none transition-all" placeholder="••••••••">
+                        <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <i data-lucide="eye" class="w-4 h-4" id="eye-icon"></i>
+                        </button>
                     </div>
                 </div>
-                <button type="submit" class="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 mt-4 flex items-center justify-center gap-2">
+                <button type="submit" class="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 mt-6 flex items-center justify-center gap-2">
                     Sign In <i data-lucide="arrow-right" class="w-4 h-4"></i>
                 </button>
             </form>
             <div class="mt-8 pt-6 border-t border-slate-100 text-center">
                 <p class="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Herbicide Trial Manager v1.0</p>
+                <p class="text-[8px] text-slate-300 mt-1 uppercase tracking-tight">© 2026 Miklens Bio</p>
             </div>
         </div>
     </div>
@@ -3554,7 +3561,10 @@ IMPORTANT:
 
                     try {
                         const users = await apiCall('getUsersList');
-                        if (!users || !Array.isArray(users)) throw new Error("Could not fetch users");
+                        if (!users || !Array.isArray(users)) {
+                            console.error('Invalid users response:', users);
+                            throw new Error("Could not fetch users list. Please check your data source.");
+                        }
 
                         const trials = state.trials || [];
                         const trialsByUser = {};
@@ -5348,13 +5358,32 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         state.adminViewUserId = null;
                         
                         // Initial data load
-                        await loadAllData();
+                        showToast('Restoring session...', 'success');
+                        await initializeApp(false); 
                         switchPage('dashboard');
                     }
                 } catch (err) {
+                    console.error('Login Error:', err);
                     showToast(err.message || 'Login failed', 'error');
                 }
             }
+
+            // Password Toggle Handler
+            document.body.addEventListener('click', e => {
+                const toggle = e.target.closest('#toggle-password');
+                if (toggle) {
+                    const input = document.getElementById('login-password');
+                    const icon = document.getElementById('eye-icon');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.setAttribute('data-lucide', 'eye-off');
+                    } else {
+                        input.type = 'password';
+                        icon.setAttribute('data-lucide', 'eye');
+                    }
+                    if (window.lucide) lucide.createIcons();
+                }
+            });
 
             function handleLogout() {
                 state.auth = null;
@@ -8341,7 +8370,11 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     }
                 });
 
-                document.body.addEventListener('submit', e => { e.preventDefault(); handleFormSubmit(e.target); });
+                document.body.addEventListener('submit', e => { 
+                    if (e.defaultPrevented) return;
+                    e.preventDefault(); 
+                    handleFormSubmit(e.target); 
+                });
             }
 
             function updateSelectionBar() {
@@ -12880,6 +12913,7 @@ Style Guidelines:
                 }
 
                 render.trials(filtered);
+                return filtered;
             }
 
             function getGeoLocation(callback) {
