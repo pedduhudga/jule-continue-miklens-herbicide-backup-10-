@@ -3125,8 +3125,90 @@ IMPORTANT:
                             </form>
                         </div>
                     `,
+                    smartSearch: `
+                        <div class="space-y-6">
+                            <div class="bg-white p-6 rounded-lg shadow">
+                                <h2 class="text-xl font-semibold text-gray-700 mb-2">Smart Search (Gemini Embeddings)</h2>
+                                <p class="text-sm text-gray-600 mb-4">Build a semantic index for your trials and search by meaning (not keywords).</p>
+
+                                <div class="flex flex-col md:flex-row md:items-end gap-3">
+                                    <div class="flex-grow">
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1">Query</label>
+                                        <input id="smart-query" type="text" class="w-full form-input px-4 py-2 border rounded-lg" placeholder="e.g., fast burn-down but regrowth after 14 DAA">
+                                    </div>
+                                    <button id="smart-search-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2">
+                                        <i data-lucide="search" class="h-4 w-4"></i> Search
+                                    </button>
+                                </div>
+
+                                <div class="mt-4 flex flex-col md:flex-row md:items-center gap-3">
+                                    <div class="flex flex-wrap gap-2">
+                                        <button id="smart-build-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">Build / Update Full Index</button>
+                                        <button id="smart-refresh-btn" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">Refresh Index</button>
+                                        <button id="smart-clear-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">Clear Index</button>
+                                    </div>
+                                    <div id="smart-index-status" class="text-sm text-gray-600"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-lg shadow">
+                                <h3 class="text-sm font-bold text-slate-700 mb-3">Ask Anything (Answers from your data)</h3>
+                                <div class="flex flex-col gap-3">
+                                    <textarea id="smart-ask-input" rows="3" class="w-full form-input px-4 py-2 border rounded-lg" placeholder="Ask anything, e.g. Which formulation worked on Cyperus? When regrowth started? Which trial gave highest control?"></textarea>
+                                    <div class="flex flex-wrap gap-2 items-center">
+                                        <button id="smart-ask-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-bold flex items-center gap-2">
+                                            <i data-lucide="sparkles" class="h-4 w-4"></i> Answer
+                                        </button>
+                                        <div id="smart-ask-status" class="text-sm text-gray-600"></div>
+                                    </div>
+                                    <div id="smart-answer" class="text-sm text-slate-700 whitespace-pre-wrap"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-lg shadow">
+                                <h3 class="text-sm font-bold text-slate-700 mb-3">Weed Insights</h3>
+                                <div class="flex flex-col md:flex-row md:items-end gap-3">
+                                    <div class="flex-grow">
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1">Weed name</label>
+                                        <input id="smart-weed-name" list="smart-weed-datalist" type="text" class="w-full form-input px-4 py-2 border rounded-lg" placeholder="Type weed name...">
+                                        <datalist id="smart-weed-datalist"></datalist>
+                                    </div>
+                                    <div class="w-full md:w-44">
+                                        <label class="block text-xs font-semibold text-gray-700 mb-1">Min control (%)</label>
+                                        <input id="smart-weed-min-efficacy" type="number" value="80" min="0" max="100" class="w-full form-input px-4 py-2 border rounded-lg">
+                                    </div>
+                                    <button id="smart-weed-find-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2">
+                                        <i data-lucide="leaf" class="h-4 w-4"></i> Find Formulas
+                                    </button>
+                                </div>
+                                <div id="smart-weed-status" class="mt-3 text-sm text-gray-600"></div>
+                                <div id="smart-weed-results" class="mt-4 space-y-3 text-sm text-slate-700"></div>
+                                <div id="smart-weed-weather" class="mt-4"></div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-lg shadow">
+                                <h3 class="text-sm font-bold text-slate-700 mb-3">Results</h3>
+                                <div id="smart-results" class="space-y-3 text-sm text-slate-700"></div>
+                            </div>
+                        </div>
+                    `,
                     dataMgmt: `<div class="space-y-8">
                                     <div><h2 class="text-xl font-semibold text-gray-700 mb-4">Export Data</h2><div class="bg-white p-6 rounded-lg shadow"><p class="text-gray-600 mb-4">Download your data for backup. ZIP includes photos, while Standalone HTML is a complete, viewable offline archive of the app.</p><div class="flex flex-wrap gap-4"><button data-action="export-json" class="bg-green-600 text-white px-4 py-2 rounded-lg">Export to JSON</button><button data-action="export-zip" class="bg-green-700 text-white px-4 py-2 rounded-lg">Export with Photos (ZIP)</button><button data-action="export-standalone" class="bg-blue-700 text-white px-4 py-2 rounded-lg">Export Standalone HTML</button></div></div></div>
+                                    <div>
+                                        <h2 class="text-xl font-semibold text-gray-700 mb-4">Efficacy Repair & Weed Linking</h2>
+                                        <div class="bg-white p-6 rounded-lg shadow">
+                                            <p class="text-gray-600 mb-4">Fix common issues that block weed × formulation insights: string DAA values, missing weedDetails, and missing WeedSpecies field.</p>
+                                            <div class="flex flex-wrap gap-3 items-center">
+                                                <button data-action="scan-efficacy-data" class="bg-slate-700 text-white px-4 py-2 rounded-lg">Scan Trials</button>
+                                                <button data-action="fix-efficacy-data" class="bg-emerald-600 text-white px-4 py-2 rounded-lg">Auto-Fix Weed Linking</button>
+                                                <button data-action="recalc-grid-covers" class="bg-indigo-600 text-white px-4 py-2 rounded-lg">Recalculate Grid Covers</button>
+                                                <div id="efficacy-fix-progress" class="text-sm text-gray-600"></div>
+                                            </div>
+                                            <div id="grid-recalc-progress" class="mt-3 text-sm text-gray-600"></div>
+                                            <div id="efficacy-scan-summary" class="mt-4"></div>
+                                            <div id="efficacy-scan-table" class="mt-4"></div>
+                                        </div>
+                                    </div>
                                     <div>
                                         <h2 class="text-xl font-semibold text-gray-700 mb-4">AI Analysis</h2>
                                         <div class="bg-white p-6 rounded-lg shadow">
@@ -3192,7 +3274,9 @@ IMPORTANT:
                                     <div class="flex items-center gap-3 mt-3">
                                         <button type="button" data-action="add-api-key" class="text-sm text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1"><i data-lucide="plus-circle" class="h-4 w-4"></i> Add Another API Key</button>
                                         <button type="button" data-action="test-api-key" class="text-sm bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1 rounded-md hover:bg-blue-200 font-semibold flex items-center gap-1"><i data-lucide="zap" class="h-4 w-4"></i> Test API Key</button>
+                                        <button type="button" data-action="test-all-api-keys" class="text-sm bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-md hover:bg-indigo-200 font-semibold flex items-center gap-1"><i data-lucide="list-checks" class="h-4 w-4"></i> Test All Keys</button>
                                     </div>
+                                    <div id="api-key-test-results" class="mt-4"></div>
                                     
                                     <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                                         <h4 class="text-sm font-semibold text-amber-800 mb-2">API Quota Saver</h4>
@@ -8489,7 +8573,372 @@ async function _callGeminiEmbeddingWithRetries(apiCallFunction, retries = 0) {
                 }
             }
 
-            // --- INITIALIZATION ---
+            
+
+function renderSmartSearch() {
+                const statusEl = document.getElementById('smart-index-status');
+                const resultsEl = document.getElementById('smart-results');
+                const queryEl = document.getElementById('smart-query');
+                const searchBtn = document.getElementById('smart-search-btn');
+                const buildBtn = document.getElementById('smart-build-btn');
+                const refreshBtn = document.getElementById('smart-refresh-btn');
+                const clearBtn = document.getElementById('smart-clear-btn');
+                const askEl = document.getElementById('smart-ask-input');
+                const askBtn = document.getElementById('smart-ask-btn');
+                const askStatusEl = document.getElementById('smart-ask-status');
+                const answerEl = document.getElementById('smart-answer');
+                const weedEl = document.getElementById('smart-weed-name');
+                const weedListEl = document.getElementById('smart-weed-datalist');
+                const weedMinEl = document.getElementById('smart-weed-min-efficacy');
+                const weedBtn = document.getElementById('smart-weed-find-btn');
+                const weedStatusEl = document.getElementById('smart-weed-status');
+                const weedResultsEl = document.getElementById('smart-weed-results');
+                const weedWeatherEl = document.getElementById('smart-weed-weather');
+
+                if (statusEl) statusEl.textContent = 'Loading index...';
+                refreshSmartIndex()
+                    .then(s => { if (statusEl) statusEl.textContent = `Index loaded: ${s.byItemKey.size} items`; })
+                    .catch(() => { if (statusEl) statusEl.textContent = 'Index not loaded yet. Click Build / Update Full Index.'; });
+
+                if (weedListEl) {
+                    const weeds = new Set();
+                    (state.trials || []).forEach(t => {
+                        String(t?.WeedSpecies || '')
+                            .split(',')
+                            .map(w => w.trim())
+                            .filter(Boolean)
+                            .forEach(w => weeds.add(w));
+                    });
+                    weedListEl.innerHTML = Array.from(weeds).sort().map(w => `<option value="${sanitizeHTML(w)}"></option>`).join('');
+                }
+
+                if (searchBtn) {
+                    searchBtn.onclick = async () => {
+                        try {
+                            await runSmartSearch(queryEl?.value || '', resultsEl, statusEl);
+                        } catch (e) {
+                            showToast(`Search failed: ${e.message}`, 'error');
+                        }
+                    };
+                }
+                if (queryEl) {
+                    queryEl.onkeydown = async (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (searchBtn) searchBtn.click();
+                        }
+                    };
+                }
+                if (refreshBtn) {
+                    refreshBtn.onclick = async () => {
+                        try {
+                            if (statusEl) statusEl.textContent = 'Refreshing index...';
+                            const s = await refreshSmartIndex();
+                            if (statusEl) statusEl.textContent = `Index loaded: ${s.byItemKey.size} items`;
+                        } catch (e) {
+                            showToast(`Refresh failed: ${e.message}`, 'error');
+                        }
+                    };
+                }
+                if (askBtn) {
+                    askBtn.onclick = async () => {
+                        try {
+                            await runSmartAsk(askEl?.value || '', answerEl, askStatusEl);
+                        } catch (e) {
+                            if (askStatusEl) askStatusEl.textContent = '';
+                            showToast(`Answer failed: ${e.message}`, 'error');
+                        }
+                    };
+                }
+                if (askEl) {
+                    askEl.onkeydown = (e) => {
+                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            if (askBtn) askBtn.click();
+                        }
+                    };
+                }
+                if (buildBtn) {
+                    buildBtn.onclick = async () => {
+                        try {
+                            showToast('Building index...', 'info');
+                            const r = await buildOrUpdateSmartIndex(statusEl);
+                            showToast(`Index build complete. Updated ${r.updated}, skipped ${r.skipped}, failed ${r.failed}.`, r.failed ? 'warning' : 'success');
+                        } catch (e) {
+                            showToast(`Build failed: ${e.message}`, 'error');
+                        }
+                    };
+                }
+                if (clearBtn) {
+                    clearBtn.onclick = async () => {
+                        showConfirmation('Clear Embedding Index?', 'This will clear the Embeddings sheet and remove the semantic index. You can rebuild it anytime.', async () => {
+                            try {
+                                await clearSmartEmbeddingsSheet();
+                                ensureSmartState().byTrialId = new Map();
+                                if (resultsEl) resultsEl.innerHTML = '';
+                                if (statusEl) statusEl.textContent = 'Index cleared.';
+                                showToast('Index cleared.', 'success');
+                            } catch (e) {
+                                showToast(`Clear failed: ${e.message}`, 'error');
+                            }
+                        });
+                    };
+                }
+
+                const safeJsonParseLocal = (s) => {
+                    if (!s || s === "null" || s === "undefined") return [];
+                    try {
+                        const p = JSON.parse(s);
+                        return Array.isArray(p) ? p : [];
+                    } catch (e) {
+                        return [];
+                    }
+                };
+
+                const getWeedTimeline = (trial, weedName) => {
+                    const weedLower = String(weedName || '').toLowerCase().trim();
+                    const data = safeJsonParseLocal(trial?.EfficacyDataJSON || trial?.efficacyDataJSON);
+                    if (!Array.isArray(data) || data.length === 0) return [];
+                    const parsed = validateEfficacyData(Array.isArray(data) ? data : []);
+                    if (!Array.isArray(parsed) || parsed.length === 0) return [];
+
+                    const getWeedCover = (o) => {
+                        const weedDetails = Array.isArray(o?.weedDetails) ? o.weedDetails : [];
+                        const matching = weedLower ? weedDetails.find(w => String(w?.species || '').toLowerCase().includes(weedLower)) : null;
+                        return matching
+                            ? (parseFloat(matching?.cover || 0) || 0)
+                            : weedDetails.reduce((sum, w) => sum + (parseFloat(w?.cover || 0) || 0), 0);
+                    };
+
+                    const isProjectPlot = String(trial?.ProjectID || '').trim() !== '';
+                    const baselineObs = parsed.find(o => String(o?.isBaseline).toLowerCase() === 'true') ||
+                        (parsed.filter(o => o?.date).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)))[0] || parsed.slice().sort((a, b) => (a?.daa || 0) - (b?.daa || 0))[0]);
+                    const baselineWeedCover = baselineObs ? getWeedCover(baselineObs) : null;
+
+                    const getControlWeedCoverRef = (daa) => {
+                        if (!isProjectPlot) return null;
+                        const pid = String(trial?.ProjectID || '').trim();
+                        if (!pid) return null;
+                        const target = typeof daa === 'number' ? daa : parseFloat(daa);
+                        if (!isFinite(target)) return null;
+                        const controls = (state.trials || []).filter(t =>
+                            String(t?.ProjectID || '').trim() === pid &&
+                            String(t?.IsControl || '').toLowerCase() === 'true' &&
+                            String(t?.ID || '') !== String(trial?.ID || '')
+                        );
+                        if (!controls.length) return null;
+                        const vals = [];
+                        controls.forEach(ct => {
+                            const eff = validateEfficacyData(safeJsonParseLocal(ct.EfficacyDataJSON));
+                            if (!eff.length) return;
+                            let best = null;
+                            let bestDelta = Infinity;
+                            eff.forEach(o => {
+                                const d = parseFloat(o?.daa);
+                                if (!isFinite(d)) return;
+                                const delta = Math.abs(d - target);
+                                if (delta < bestDelta) {
+                                    bestDelta = delta;
+                                    best = o;
+                                }
+                            });
+                            if (!best || bestDelta > 1) return;
+                            vals.push(getWeedCover(best));
+                        });
+                        if (!vals.length) return null;
+                        return vals.reduce((a, b) => a + b, 0) / vals.length;
+                    };
+
+                    const timeline = parsed
+                        .map(o => {
+                            const daa = parseFloat(o?.daa ?? o?.DAA ?? 0) || 0;
+                            const coverPct = getWeedCover(o);
+                            const ref = getControlWeedCoverRef(daa);
+                            const base = ref !== null && ref !== undefined ? ref : baselineWeedCover;
+                            const control = base && base > 0 ? Math.max(0, Math.min(100, (1 - (coverPct / base)) * 100)) : null;
+                            return { daa, control, coverPct };
+                        })
+                        .filter(x => isFinite(x.daa))
+                        .sort((a, b) => a.daa - b.daa);
+                    return timeline;
+                };
+
+                const getWeedMetrics = (trial, weedName) => {
+                    const timeline = getWeedTimeline(trial, weedName);
+                    if (timeline.length === 0) return null;
+                    let best = timeline[0];
+                    let bestIndex = 0;
+                    for (let i = 0; i < timeline.length; i++) {
+                        if ((timeline[i].control ?? -1) > (best.control ?? -1)) {
+                            best = timeline[i];
+                            bestIndex = i;
+                        }
+                    }
+                    const last = timeline[timeline.length - 1];
+                    let regrowth = null;
+                    const dropThreshold = Math.max(10, (best.control ?? 0) * 0.15);
+                    for (let i = bestIndex + 1; i < timeline.length; i++) {
+                        const drop = (best.control ?? 0) - (timeline[i].control ?? 0);
+                        if (drop >= dropThreshold || (timeline[i].control ?? 0) <= 70) {
+                            regrowth = timeline[i];
+                            break;
+                        }
+                    }
+                    return {
+                        bestDAA: best.daa,
+                        bestEfficacy: best.control,
+                        lastDAA: last.daa,
+                        lastEfficacy: last.control,
+                        regrowthDAA: regrowth ? regrowth.daa : null,
+                        regrowthEfficacy: regrowth ? regrowth.control : null
+                    };
+                };
+
+                const estimateFormulationCost = (trial) => {
+                    const formulationId = trial?.FormulationID || trial?.FormulationId || trial?.formulationId;
+                    const formulation = (state.formulations || []).find(f => String(f.ID) === String(formulationId)) || null;
+                    const direct = parseFloat(formulation?.EstimatedCost || formulation?.estimatedCost || '');
+                    if (isFinite(direct)) return direct;
+
+                    const ingredients = safeJsonParseLocal(formulation?.IngredientsJSON || formulation?.ingredientsJSON);
+                    if (!Array.isArray(ingredients) || ingredients.length === 0) return null;
+
+                    const costs = state.ingredients || [];
+                    const byName = new Map(costs.map(i => [String(i?.Name || '').toLowerCase().trim(), i]));
+                    let sum = 0;
+                    let any = false;
+                    for (const ing of ingredients) {
+                        const name = String(ing?.name || ing?.Name || '').toLowerCase().trim();
+                        const qty = parseFloat(ing?.quantity || ing?.Quantity || 0) || 0;
+                        const costRow = byName.get(name);
+                        const unitCost = parseFloat(costRow?.Cost || costRow?.cost || '');
+                        if (name && isFinite(unitCost) && isFinite(qty)) {
+                            sum += unitCost * qty;
+                            any = true;
+                        }
+                    }
+                    return any ? sum : null;
+                };
+
+                const formatNum = (v, suffix = '') => {
+                    const n = parseFloat(v);
+                    if (!isFinite(n)) return 'N/A';
+                    return `${n.toFixed(1)}${suffix}`;
+                };
+
+                if (weedBtn) {
+                    weedBtn.onclick = async () => {
+                        const weedName = String(weedEl?.value || '').trim();
+                        const minEff = parseFloat(weedMinEl?.value || 0) || 0;
+                        if (!weedName) return showToast('Please enter weed name.', 'error');
+
+                        if (weedStatusEl) weedStatusEl.textContent = 'Searching trials...';
+                        if (weedResultsEl) weedResultsEl.innerHTML = '';
+                        if (weedWeatherEl) weedWeatherEl.innerHTML = '';
+
+                        try {
+                            const res = await apiCall('getTrialsByWeed', { weedName, minEfficacy: minEff }, false);
+                            const matches = res?.matches || [];
+                            const total = res?.total ?? matches.length;
+
+                            const trialsById = new Map((state.trials || []).map(t => [String(t.ID), t]));
+                            const byFormulation = new Map();
+
+                            matches.forEach(m => {
+                                const key = String(m.formulationId || m.formulationName || '');
+                                if (!key) return;
+                                const existing = byFormulation.get(key) || { formulationId: m.formulationId || '', formulationName: m.formulationName || 'Unknown', trials: [] };
+                                existing.trials.push(m);
+                                byFormulation.set(key, existing);
+                            });
+
+                            const ranked = Array.from(byFormulation.values()).map(g => {
+                                const effs = g.trials.map(t => parseFloat(t.efficacy || 0) || 0);
+                                const avgE = effs.length ? effs.reduce((a, b) => a + b, 0) / effs.length : 0;
+                                const maxE = effs.length ? Math.max(...effs) : 0;
+                                const sampleTrial = trialsById.get(String(g.trials[0]?.trialId || ''));
+                                const cost = sampleTrial ? estimateFormulationCost(sampleTrial) : null;
+                                return { ...g, avgE, maxE, cost };
+                            }).sort((a, b) => b.avgE - a.avgE);
+
+                            if (weedStatusEl) weedStatusEl.textContent = `Found ${total} trial(s). Showing top ${ranked.length} formula group(s).`;
+
+                            if (weedResultsEl) {
+                                weedResultsEl.innerHTML = ranked.map(g => {
+                                    const costStr = g.cost != null ? `${formatNum(g.cost, '')} ${sanitizeHTML(CURRENCY_SYMBOL)}` : 'N/A';
+                                    const trialsHtml = g.trials
+                                        .sort((a, b) => (parseFloat(b.efficacy || 0) || 0) - (parseFloat(a.efficacy || 0) || 0))
+                                        .slice(0, 5)
+                                        .map(t => {
+                                            const tr = trialsById.get(String(t.trialId)) || {};
+                                            const metrics = getWeedMetrics(tr, weedName);
+                                            const best = metrics ? `${formatNum(metrics.bestEfficacy, '%')} @ ${formatNum(metrics.bestDAA, ' DAA')}` : 'N/A';
+                                            const regrowth = metrics?.regrowthDAA != null ? `${formatNum(metrics.regrowthDAA, ' DAA')}` : 'Not detected';
+                                            const wx = [tr.Temperature ? `${sanitizeHTML(tr.Temperature)}°C` : null, tr.Humidity ? `${sanitizeHTML(tr.Humidity)}%` : null, tr.Windspeed ? `${sanitizeHTML(tr.Windspeed)} km/h` : null, tr.Rain ? `${sanitizeHTML(tr.Rain)} mm` : null].filter(Boolean).join(' • ') || 'N/A';
+                                            return `
+                                                <div class="mt-2 p-3 rounded-lg border bg-slate-50">
+                                                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                        <div>
+                                                            <div class="font-semibold text-slate-800">${sanitizeHTML(t.dosage || 'N/A')} • ${sanitizeHTML(String(t.date || '').slice(0, 10))}</div>
+                                                            <div class="text-xs text-slate-600 mt-1">Latest control: ${sanitizeHTML(String(t.efficacy))}% (DAA ${sanitizeHTML(String(t.daa || ''))})</div>
+                                                            <div class="text-xs text-slate-600 mt-1">Best control: ${sanitizeHTML(best)} • Regrowth after: ${sanitizeHTML(regrowth)}</div>
+                                                            <div class="text-xs text-slate-500 mt-1">Weather: ${sanitizeHTML(wx)}</div>
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+                                                            <button data-action="edit" data-type="trial" data-id="${sanitizeHTML(String(t.trialId))}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Open</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }).join('');
+
+                                    return `
+                                        <div class="p-4 border rounded-lg bg-white">
+                                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                <div>
+                                                    <div class="font-bold text-slate-800">${sanitizeHTML(g.formulationName)}</div>
+                                                    <div class="text-xs text-slate-600 mt-1">Avg latest control: ${formatNum(g.avgE, '%')} • Best latest control: ${formatNum(g.maxE, '%')} • Trials: ${sanitizeHTML(String(g.trials.length))} • Cost: ${sanitizeHTML(costStr)}</div>
+                                                </div>
+                                            </div>
+                                            ${trialsHtml}
+                                        </div>
+                                    `;
+                                }).join('') || `<div class="text-sm text-slate-500">No matching trials found.</div>`;
+                            }
+
+                            if (weedWeatherEl) {
+                                const wxRows = matches
+                                    .map(m => trialsById.get(String(m.trialId)))
+                                    .filter(Boolean)
+                                    .slice(0, 10);
+                                if (wxRows.length) {
+                                    const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+                                    const temps = wxRows.map(t => parseFloat(t.Temperature)).filter(isFinite);
+                                    const hums = wxRows.map(t => parseFloat(t.Humidity)).filter(isFinite);
+                                    const winds = wxRows.map(t => parseFloat(t.Windspeed)).filter(isFinite);
+                                    const rains = wxRows.map(t => parseFloat(t.Rain)).filter(isFinite);
+                                    weedWeatherEl.innerHTML = `
+                                        <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm">
+                                            <div class="font-semibold text-slate-700 mb-1">Weather summary (top ${wxRows.length} trials)</div>
+                                            <div class="text-slate-600">Temp avg: ${formatNum(avg(temps), '°C')} • Hum avg: ${formatNum(avg(hums), '%')} • Wind avg: ${formatNum(avg(winds), ' km/h')} • Rain avg: ${formatNum(avg(rains), ' mm')}</div>
+                                        </div>
+                                    `;
+                                } else {
+                                    weedWeatherEl.innerHTML = '';
+                                }
+                            }
+
+                            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+                        } catch (e) {
+                            if (weedStatusEl) weedStatusEl.textContent = '';
+                            showToast(`Weed search failed: ${e.message}`, 'error');
+                        }
+                    };
+                }
+                if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+            }
+
+// --- INITIALIZATION ---
             async function initializeApp(showOverlay = true) {
                 // --- RESTORE SYNC QUEUE ---
                 try {
