@@ -368,6 +368,15 @@
                 <button type="submit" class="w-full py-3.5 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 mt-6 flex items-center justify-center gap-2">
                     Sign In <i data-lucide="arrow-right" class="w-4 h-4"></i>
                 </button>
+
+                <div class="mt-4 flex flex-col gap-2">
+                    <button type="button" data-action="reset-data-sources" class="text-[10px] font-bold text-slate-400 hover:text-red-500 uppercase tracking-widest text-center py-2 transition-colors">
+                        Reset App Data & Data Sources
+                    </button>
+                    <button type="button" onclick="document.getElementById('login-overlay').classList.add('hidden'); switchPage('settings');" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-widest text-center py-2 transition-colors">
+                        Configure Settings
+                    </button>
+                </div>
             </form>
             <div class="mt-8 pt-6 border-t border-slate-100 text-center">
                 <p class="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Herbicide Trial Manager v1.0</p>
@@ -860,8 +869,10 @@
                         return;
                     }
 
-                    // Check for Google Apps Script environment
-                    if (window.google && window.google.script) {
+                    // Check for Google Apps Script environment (Strict check)
+                    const isGAS = (window.google && window.google.script && window.google.script.run && location.protocol !== 'file:');
+                    
+                    if (isGAS) {
                         // Use google.script.run via handleRequest so backend executeAction is used
                         const runner = google.script.run
                             .withSuccessHandler((response) => {
@@ -876,15 +887,26 @@
                         return;
                     } else {
                         // Fallback for independent/local testing
-                        console.warn(`[Offline/Dev] Mocking API call: ${functionName} (Data will NOT persist after reload)`, data);
+                        console.warn(`[Offline/Dev] Mocking API call: ${functionName}`, data);
 
                         // Simulate delay
                         setTimeout(() => {
-                            // Simple mock responses for critical paths to prevent crashes
-                            if (functionName === 'updateProject' || functionName === 'updateTrialRecord' || functionName === 'addTrial') {
+                            if (functionName === 'login') {
+                                // For local testing, ALWAYS allow login if not in GAS env
+                                resolve({ 
+                                    ID: 'mock-user-id', 
+                                    Username: data.username, 
+                                    Role: 'Admin', 
+                                    Name: data.username ? data.username.split('@')[0] : 'Admin' 
+                                });
+                            } else if (functionName === 'getAllData') {
+                                resolve({
+                                    ingredients: [], formulations: [], trials: [], organisations: [], projects: [], blocks: []
+                                });
+                            } else if (functionName === 'updateProject' || functionName === 'updateTrialRecord' || functionName === 'addTrial') {
                                 resolve({ success: true, mock: true, ...data });
                             } else {
-                                resolve({});
+                                resolve({ success: true, mock: true });
                             }
                         }, 500);
                     }
@@ -5433,6 +5455,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 
                 try {
                     const result = await apiCall('login', { username, password }, true);
+                    console.log('Attempting Login:', username, result);
                     if (result && result.ID) {
                         state.auth = result;
                         localStorage.setItem('herbicide_auth', JSON.stringify(result));
@@ -5453,10 +5476,12 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         showToast('Restoring session...', 'success');
                         await initializeApp(false); 
                         switchPage('dashboard');
+                    } else {
+                        showToast('Invalid username or password.', 'error');
                     }
                 } catch (err) {
                     console.error('Login Error:', err);
-                    showToast(err.message || 'Login failed', 'error');
+                    showToast(err.message || 'Error communicating with server', 'error');
                 }
             }
 
@@ -5511,7 +5536,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             if (adminSection) adminSection.classList.remove('hidden');
                         }
                         
-                        loadAllData();
+                        initializeApp(false);
                     } catch (e) {
                         document.getElementById('login-overlay').classList.remove('hidden');
                     }
@@ -9673,7 +9698,15 @@ function renderSmartSearch() {
                         'capture-photo': capturePhoto,
                         'remove-ingredient-row': () => { target.closest('.formulation-ingredient-row').remove(); updateFormulationCost(); },
                         'remove-photo': () => { state.croppedPhotosData.splice(parseInt(index, 10), 1); updatePhotoPreview(); },
-                        'reset-data-sources': () => { localStorage.removeItem('appSettings'); loadSettings(); showToast('Data sources reset.', 'success'); initializeApp(); },
+                        'reset-data-sources': () => { 
+                            localStorage.removeItem('appSettings'); 
+                            localStorage.removeItem('herbicide_auth');
+                            state.auth = null;
+                            loadSettings(); 
+                            document.getElementById('login-overlay').classList.add('hidden');
+                            showToast('App data and sources reset.', 'success'); 
+                            initializeApp(); 
+                        },
                         'organize-drive-photos': () => {
                             showConfirmation(
                                 'Organize Drive Photos?',
