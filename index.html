@@ -342,6 +342,12 @@
             align-items: center;
             justify-content: center;
             padding: 1rem;
+            /* Override slide-up (translateY causes mobile scroll expansion) with a simple fade */
+            animation: cameraFadeIn 0.2s ease;
+        }
+        @keyframes cameraFadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
         }
 
         .camera-shell {
@@ -632,7 +638,7 @@
                 </button>
                 <h1 id="page-title" class="text-2xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
                 <div id="sync-status"
-                    class="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm backdrop-blur-sm" style="position:relative;">
+                    class="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm backdrop-blur-sm">
                 </div>
                 <div><!-- Placeholder for any header actions --></div>
             </header>
@@ -661,6 +667,9 @@
             </div>
         </main>
     </div>
+
+    <!-- Sync items floating panel (fixed, never affects layout) -->
+    <div id="sync-items-panel" style="display:none;position:fixed;top:72px;right:16px;z-index:9990;min-width:260px;max-width:340px;background:#fff;border:1px solid rgba(0,0,0,0.13);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:10px;display:none;flex-direction:column;gap:6px;"></div>
 
     <!-- Overlays and Modals -->
     <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 z-40 overflow-y-auto hidden"></div>
@@ -17708,63 +17717,64 @@ Style Guidelines:
 
             function renderSyncStatus() {
                 const el = document.getElementById('sync-status');
+                const panel = document.getElementById('sync-items-panel');
                 if (!el) return;
 
                 const pending = state.syncQueue.filter(s => s.status === 'pending' || s.status === 'failed').length;
                 const uploading = state.syncQueue.filter(s => s.status === 'uploading').length;
-                const visibleItems = state.syncQueue.filter(s => ['pending', 'failed', 'uploading', 'cancelled'].includes(s.status)).slice(0, 6);
+                const visibleItems = state.syncQueue.filter(s => ['pending', 'failed', 'uploading'].includes(s.status)).slice(0, 6);
 
                 if (pending === 0 && uploading === 0) {
                     el.innerHTML = '';
                     el.classList.add('hidden');
+                    if (panel) panel.style.display = 'none';
                     return;
                 }
 
+                // --- Pill: compact, single line, never grows ---
                 el.classList.remove('hidden');
-
-                // Pill content — stays compact, no block layout changes
-                let pillHtml = '';
                 if (uploading > 0) {
-                    pillHtml = `<i data-lucide="upload-cloud" class="h-4 w-4 text-emerald-600"></i><span class="text-emerald-600 font-bold animate-pulse">Syncing ${uploading}...</span>`;
-                } else if (pending > 0) {
-                    pillHtml = `<i data-lucide="alert-circle" class="h-4 w-4 text-amber-600"></i><span class="text-amber-600">${pending} waiting</span><button onclick="processSyncQueue()" class="ml-1 px-2 py-0.5 bg-amber-600 text-white text-[11px] rounded hover:bg-amber-700">Sync Now</button>`;
+                    el.innerHTML = `<i data-lucide="upload-cloud" class="h-4 w-4 text-emerald-600"></i><span class="text-emerald-600 font-bold animate-pulse">Syncing ${uploading}...</span>`;
+                } else {
+                    el.innerHTML = `<i data-lucide="alert-circle" class="h-4 w-4 text-amber-600"></i><span class="text-amber-600">${pending} waiting</span><button onclick="processSyncQueue()" class="ml-1 px-2 py-0.5 bg-amber-600 text-white text-[11px] rounded hover:bg-amber-700">Sync Now</button>`;
                 }
 
-                // Item list — absolutely-positioned dropdown, does NOT affect header height
-                let dropdownHtml = '';
-                if (visibleItems.length > 0) {
-                    const rows = visibleItems.map(item => {
-                        const tone = item.status === 'failed'
-                            ? 'border-red-200 bg-red-50 text-red-700'
-                            : item.status === 'uploading'
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                : 'border-amber-200 bg-amber-50 text-amber-700';
-                        const meta = item.action
-                            ? 'Queued data update'
-                            : `${item.type === 'weed_upload' ? 'Weed photo' : 'Trial photo'}${item.photo?.date ? ` • ${item.photo.date}` : ''}`;
-                        const errorText = item.lastError ? `<div class="text-[11px] opacity-70 truncate">${sanitizeHTML(item.lastError)}</div>` : '';
-                        const retryButton = item.status === 'failed'
-                            ? `<button data-action="retry-sync" data-id="${item.id}" class="px-2 py-1 text-[11px] rounded bg-white border border-current/20 hover:bg-white/80">Retry</button>`
-                            : '';
-                        const stopLabel = item.status === 'uploading' ? 'Stop' : 'Remove';
-                        return `<div class="rounded-lg border ${tone} px-3 py-2 flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <div class="text-xs font-semibold truncate">${sanitizeHTML(getSyncItemLabel(item))}</div>
-                                <div class="text-[11px] opacity-80">${sanitizeHTML(meta)}</div>
-                                ${errorText}
-                            </div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                ${retryButton}
-                                <button data-action="stop-sync-item" data-id="${item.id}" class="px-2 py-1 text-[11px] rounded bg-white border border-current/20 hover:bg-white/80">${stopLabel}</button>
-                            </div>
-                        </div>`;
-                    }).join('');
-                    dropdownHtml = `<div id="sync-dropdown" style="position:absolute;top:calc(100% + 8px);right:0;z-index:9999;min-width:280px;max-width:360px;background:#fff;border:1px solid rgba(0,0,0,0.12);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:10px;display:flex;flex-direction:column;gap:6px;">
-                        ${rows}
-                    </div>`;
+                // --- Detail panel: fixed-position, completely outside document flow ---
+                if (panel) {
+                    if (visibleItems.length === 0) {
+                        panel.style.display = 'none';
+                    } else {
+                        const rows = visibleItems.map(item => {
+                            const tone = item.status === 'failed'
+                                ? 'border-red-200 bg-red-50 text-red-700'
+                                : item.status === 'uploading'
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                    : 'border-amber-200 bg-amber-50 text-amber-700';
+                            const meta = item.action
+                                ? 'Queued data update'
+                                : `${item.type === 'weed_upload' ? 'Weed photo' : 'Trial photo'}${item.photo?.date ? ` • ${item.photo.date}` : ''}`;
+                            const errorText = item.lastError ? `<div style="font-size:11px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sanitizeHTML(item.lastError)}</div>` : '';
+                            const retryButton = item.status === 'failed'
+                                ? `<button data-action="retry-sync" data-id="${item.id}" style="padding:2px 8px;font-size:11px;border-radius:6px;background:#fff;border:1px solid currentColor;opacity:.7;cursor:pointer;">Retry</button>`
+                                : '';
+                            const stopLabel = item.status === 'uploading' ? 'Stop' : 'Remove';
+                            return `<div style="border-radius:8px;border:1px solid;padding:8px 10px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;" class="${tone}">
+                                <div style="min-width:0;flex:1;">
+                                    <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sanitizeHTML(getSyncItemLabel(item))}</div>
+                                    <div style="font-size:11px;opacity:.8;">${sanitizeHTML(meta)}</div>
+                                    ${errorText}
+                                </div>
+                                <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                                    ${retryButton}
+                                    <button data-action="stop-sync-item" data-id="${item.id}" style="padding:2px 8px;font-size:11px;border-radius:6px;background:#fff;border:1px solid currentColor;opacity:.7;cursor:pointer;">${stopLabel}</button>
+                                </div>
+                            </div>`;
+                        }).join('');
+                        panel.innerHTML = rows;
+                        panel.style.display = 'flex';
+                    }
                 }
 
-                el.innerHTML = pillHtml + dropdownHtml;
                 if (window.lucide) lucide.createIcons();
             }
 
