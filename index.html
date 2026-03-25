@@ -354,11 +354,13 @@
             position: relative;
             width: min(98vw, 760px);
             max-height: min(94vh, 960px);
+            height: min(94vh, 960px);
             border-radius: 24px;
             overflow: hidden;
             background: #020617;
             border: 1px solid rgba(255, 255, 255, 0.12);
             box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+            flex-shrink: 0;
         }
 
         .camera-preview-wrap {
@@ -9452,7 +9454,9 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 }
 
                 try {
-                    // 3. Show modal with loading state
+                    // 3. Show modal — lock body scroll to prevent mobile viewport expansion
+                    document.documentElement.style.overflow = 'hidden';
+                    document.body.style.overflow = 'hidden';
                     modal.classList.remove('hidden');
                     modal.style.display = 'flex'; // Explicitly set display for robustness
                     
@@ -9495,6 +9499,8 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 } catch (err) {
                     console.error("Camera Error:", err);
                     showToast("Could not access camera: " + err.message, 'error');
+                    document.documentElement.style.overflow = '';
+                    document.body.style.overflow = '';
                     modal.classList.add('hidden');
                     modal.style.display = 'none';
                     state.currentTrialIdForCamera = null;
@@ -9510,6 +9516,10 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     cameraStream = null;
                 }
                 
+                // Restore body scroll
+                document.documentElement.style.overflow = '';
+                document.body.style.overflow = '';
+
                 if (modal) {
                     modal.classList.add('hidden');
                     modal.style.display = 'none';
