@@ -632,7 +632,7 @@
                 </button>
                 <h1 id="page-title" class="text-2xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
                 <div id="sync-status"
-                    class="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm backdrop-blur-sm">
+                    class="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm backdrop-blur-sm" style="position:relative;">
                 </div>
                 <div><!-- Placeholder for any header actions --></div>
             </header>
@@ -11485,10 +11485,14 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         'retry-sync': () => {
                             const item = state.syncQueue.find(s => s.id === id);
                             if (item) {
+                                item.cancelRequested = false;
                                 item.status = 'pending';
+                                saveSyncQueue();
+                                renderSyncStatus();
                                 processSyncQueue();
                             }
                         },
+                        'stop-sync-item': () => stopSyncItem(id),
                         'open-project-modal': () => handleOpenModal('project'),
                         'delete-selected': () => handleBulkDelete(),
                     };
@@ -17654,12 +17658,61 @@ Style Guidelines:
                 }
             }
 
+            function getSyncItemLabel(item) {
+                if (!item) return 'Unknown item';
+                if (item.action) return `Action: ${item.action}`;
+                return item.photo?.fileName || item.photo?.label || item.photo?.date || item.id || 'Photo upload';
+            }
+
+            function removeSyncPlaceholderFromTrial(item) {
+                if (!item || !item.trialId || !item.photo?.tempId) return;
+
+                const trial = state.trials.find(t => t.ID === item.trialId);
+                if (!trial) return;
+
+                const isWeed = item.type === 'weed_upload';
+                const field = isWeed ? 'WeedPhotosJSON' : 'PhotoURLs';
+                const photos = safeJsonParse(trial[field], []);
+                const nextPhotos = photos.filter(photo => {
+                    if (photo?.tempId !== item.photo.tempId) return true;
+                    return !!photo.url;
+                });
+
+                if (nextPhotos.length !== photos.length) {
+                    trial[field] = JSON.stringify(nextPhotos);
+                    refreshRelevantUI(item.trialId, item.type);
+                }
+            }
+
+            function stopSyncItem(itemId) {
+                const item = state.syncQueue.find(s => s.id === itemId);
+                if (!item) {
+                    showToast('Sync item not found.', 'warning');
+                    return;
+                }
+
+                const isUploading = item.status === 'uploading';
+                item.cancelRequested = true;
+                item.cancelledAt = new Date().toISOString();
+                item.status = 'cancelled';
+
+                if (!isUploading) {
+                    removeSyncPlaceholderFromTrial(item);
+                    state.syncQueue = state.syncQueue.filter(s => s.id !== itemId);
+                }
+
+                saveSyncQueue();
+                renderSyncStatus();
+                showToast(isUploading ? 'Sync will stop after the current upload step.' : 'Sync item stopped.', 'info');
+            }
+
             function renderSyncStatus() {
                 const el = document.getElementById('sync-status');
                 if (!el) return;
 
                 const pending = state.syncQueue.filter(s => s.status === 'pending' || s.status === 'failed').length;
                 const uploading = state.syncQueue.filter(s => s.status === 'uploading').length;
+                const visibleItems = state.syncQueue.filter(s => ['pending', 'failed', 'uploading', 'cancelled'].includes(s.status)).slice(0, 6);
 
                 if (pending === 0 && uploading === 0) {
                     el.innerHTML = '';
@@ -17668,23 +17721,50 @@ Style Guidelines:
                 }
 
                 el.classList.remove('hidden');
-                let html = '';
+
+                // Pill content — stays compact, no block layout changes
+                let pillHtml = '';
                 if (uploading > 0) {
-                    html = `<div class="flex items-center gap-2 text-emerald-600 font-bold animate-pulse">
-                        <i data-lucide="upload-cloud" class="h-4 w-4"></i>
-                        <span>Syncing ${uploading} items...</span>
-                    </div>`;
+                    pillHtml = `<i data-lucide="upload-cloud" class="h-4 w-4 text-emerald-600"></i><span class="text-emerald-600 font-bold animate-pulse">Syncing ${uploading}...</span>`;
                 } else if (pending > 0) {
-                    html = `<div class="flex items-center gap-2 text-amber-600 font-medium">
-                        <i data-lucide="alert-circle" class="h-4 w-4"></i>
-                        <span>${pending} photo(s) waiting to upload</span>
-                        <button onclick="processSyncQueue()" title="Manually trigger sync now" class="ml-2 px-2 py-1 bg-amber-600 text-white text-xs rounded hover:bg-amber-700 transition">
-                            Sync Now
-                        </button>
+                    pillHtml = `<i data-lucide="alert-circle" class="h-4 w-4 text-amber-600"></i><span class="text-amber-600">${pending} waiting</span><button onclick="processSyncQueue()" class="ml-1 px-2 py-0.5 bg-amber-600 text-white text-[11px] rounded hover:bg-amber-700">Sync Now</button>`;
+                }
+
+                // Item list — absolutely-positioned dropdown, does NOT affect header height
+                let dropdownHtml = '';
+                if (visibleItems.length > 0) {
+                    const rows = visibleItems.map(item => {
+                        const tone = item.status === 'failed'
+                            ? 'border-red-200 bg-red-50 text-red-700'
+                            : item.status === 'uploading'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-amber-200 bg-amber-50 text-amber-700';
+                        const meta = item.action
+                            ? 'Queued data update'
+                            : `${item.type === 'weed_upload' ? 'Weed photo' : 'Trial photo'}${item.photo?.date ? ` • ${item.photo.date}` : ''}`;
+                        const errorText = item.lastError ? `<div class="text-[11px] opacity-70 truncate">${sanitizeHTML(item.lastError)}</div>` : '';
+                        const retryButton = item.status === 'failed'
+                            ? `<button data-action="retry-sync" data-id="${item.id}" class="px-2 py-1 text-[11px] rounded bg-white border border-current/20 hover:bg-white/80">Retry</button>`
+                            : '';
+                        const stopLabel = item.status === 'uploading' ? 'Stop' : 'Remove';
+                        return `<div class="rounded-lg border ${tone} px-3 py-2 flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="text-xs font-semibold truncate">${sanitizeHTML(getSyncItemLabel(item))}</div>
+                                <div class="text-[11px] opacity-80">${sanitizeHTML(meta)}</div>
+                                ${errorText}
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                ${retryButton}
+                                <button data-action="stop-sync-item" data-id="${item.id}" class="px-2 py-1 text-[11px] rounded bg-white border border-current/20 hover:bg-white/80">${stopLabel}</button>
+                            </div>
+                        </div>`;
+                    }).join('');
+                    dropdownHtml = `<div id="sync-dropdown" style="position:absolute;top:calc(100% + 8px);right:0;z-index:9999;min-width:280px;max-width:360px;background:#fff;border:1px solid rgba(0,0,0,0.12);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:10px;display:flex;flex-direction:column;gap:6px;">
+                        ${rows}
                     </div>`;
                 }
 
-                el.innerHTML = html;
+                el.innerHTML = pillHtml + dropdownHtml;
                 if (window.lucide) lucide.createIcons();
             }
 
@@ -17732,6 +17812,15 @@ Style Guidelines:
                 let isFirstItem = true;
 
                 for (const item of itemsToProcess) {
+                    if (item.cancelRequested || item.status === 'cancelled') {
+                        console.log(`[HighTechSync] ⛔ Skipping cancelled item: ${getSyncItemLabel(item)}`);
+                        removeSyncPlaceholderFromTrial(item);
+                        state.syncQueue = state.syncQueue.filter(i => i.id !== item.id);
+                        saveSyncQueue();
+                        renderSyncStatus();
+                        continue;
+                    }
+
                     if (!navigator.onLine) {
                         console.warn("[HighTechSync] 📵 Offline detected. Pausing sync.");
                         break;
@@ -17764,6 +17853,13 @@ Style Guidelines:
                             
                             console.log(`[HighTechSync] ☁️ Syncing Action: ${item.action}`);
                             const result = await apiCall(item.action, item.payload, false);
+
+                            if (item.cancelRequested) {
+                                console.log(`[HighTechSync] ⛔ Cancelled after request: ${item.action}`);
+                                state.syncQueue = state.syncQueue.filter(i => i.id !== item.id);
+                                saveSyncQueue();
+                                continue;
+                            }
                             
                             if (result && result._errType) throw new Error(result.message);
                             
@@ -17872,6 +17968,15 @@ Style Guidelines:
                                 continue;
                             }
                             throw timeoutErr;
+                        }
+
+                        if (item.cancelRequested) {
+                            console.warn(`[HighTechSync] ⛔ Upload finished but item was cancelled: ${itemLabel}`);
+                            removeSyncPlaceholderFromTrial(item);
+                            state.syncQueue = state.syncQueue.filter(i => i.id !== item.id);
+                            saveSyncQueue();
+                            renderSyncStatus();
+                            continue;
                         }
 
                         const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(2);
