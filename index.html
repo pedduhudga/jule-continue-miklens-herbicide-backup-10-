@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Herbicide Trial Manager</title>
 
     <!-- External Libraries -->
@@ -342,19 +342,17 @@
             align-items: center;
             justify-content: center;
             padding: 1rem;
-            /* Override slide-up (translateY causes mobile scroll expansion) with a simple fade */
-            animation: cameraFadeIn 0.2s ease;
-        }
-        @keyframes cameraFadeIn {
-            from { opacity: 0; }
-            to   { opacity: 1; }
+            animation: none;
+            /* Prevent any content from escaping the viewport */
+            overflow: hidden;
         }
 
         .camera-shell {
             position: relative;
             width: min(98vw, 760px);
-            max-height: min(94vh, 960px);
-            height: min(94vh, 960px);
+            /* Use % of the overlay (which is fixed inset:0) instead of vh to avoid mobile viewport bugs */
+            height: 92%;
+            max-height: 960px;
             border-radius: 24px;
             overflow: hidden;
             background: #020617;
@@ -364,9 +362,8 @@
         }
 
         .camera-preview-wrap {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 4 / 5;
+            position: absolute;
+            inset: 0;
             background: #000;
         }
 
@@ -479,11 +476,8 @@
         @media (max-width: 640px) {
             .camera-shell {
                 width: min(99vw, 620px);
+                height: 94%;
                 border-radius: 18px;
-            }
-
-            .camera-preview-wrap {
-                aspect-ratio: 3 / 4;
             }
 
             .scanner-guide {
@@ -9454,11 +9448,9 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 }
 
                 try {
-                    // 3. Show modal — lock body scroll to prevent mobile viewport expansion
-                    document.documentElement.style.overflow = 'hidden';
-                    document.body.style.overflow = 'hidden';
+                    // 3. Show modal
                     modal.classList.remove('hidden');
-                    modal.style.display = 'flex'; // Explicitly set display for robustness
+                    modal.style.display = 'flex';
                     
                     const constraints = {
                         video: {
@@ -9499,8 +9491,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 } catch (err) {
                     console.error("Camera Error:", err);
                     showToast("Could not access camera: " + err.message, 'error');
-                    document.documentElement.style.overflow = '';
-                    document.body.style.overflow = '';
                     modal.classList.add('hidden');
                     modal.style.display = 'none';
                     state.currentTrialIdForCamera = null;
@@ -9515,10 +9505,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     cameraStream.getTracks().forEach(track => track.stop()); 
                     cameraStream = null;
                 }
-                
-                // Restore body scroll
-                document.documentElement.style.overflow = '';
-                document.body.style.overflow = '';
 
                 if (modal) {
                     modal.classList.add('hidden');
