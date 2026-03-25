@@ -207,6 +207,29 @@
             background-color: #3b82f6;
         }
 
+        .toast.warning {
+            background-color: #f59e0b;
+        }
+
+        .issue-banner {
+            position: fixed;
+            left: 12px;
+            right: 12px;
+            bottom: 86px;
+            z-index: 10001;
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        }
+
+        .issue-banner.error { background: rgba(220, 38, 38, 0.96); }
+        .issue-banner.warning { background: rgba(217, 119, 6, 0.96); }
+
         /* blue-500 */
 
         /* Loading Overlay */
@@ -675,6 +698,10 @@
     </div>
 
     <div id="toast" class="toast"></div>
+    <div id="issue-banner" class="issue-banner hidden">
+        <span id="issue-banner-text" class="text-sm font-medium">Issue detected</span>
+        <button onclick="window.dismissIssueBanner && window.dismissIssueBanner()" class="text-white/90 hover:text-white font-bold px-2">x</button>
+    </div>
 
     <!-- Login Overlay -->
     <div id="login-overlay" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-[20000] hidden">
@@ -3126,8 +3153,8 @@ IMPORTANT:
             function getGenAIClient() {
                 const activeKey = getActiveApiKey();
                 if (!activeKey) {
-                    showToast('Gemini API key is not set. Please configure it in Settings.', 'error');
-                    switchPage('settings');
+                    console.warn('Gemini API key is not set.');
+                    showToast('Gemini API key not configured. Add it in Settings to enable AI features.', 'warning');
                     return null;
                 }
                 return new GoogleGenAI({ apiKey: activeKey });
@@ -4387,11 +4414,31 @@ IMPORTANT:
                             await new Promise(resolve => setTimeout(resolve, 300));
                             return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                         }
-                        showToast('API key is invalid. Please check your key in Settings.', 'error');
                         throw new Error('INVALID_API_KEY: Your Gemini API key is not valid. Generate a new one at ai.google.dev');
                     }
 
                     if (errorMessage.includes('quota') || errorMessage.includes('resource exhausted') || errorMessage.includes('429')) {
+                        const parseRetryDelaySec = (msg) => {
+                            const m1 = String(msg || '').match(/retry in\s+([\d.]+)s/i);
+                            if (m1 && m1[1]) return Math.max(1, Math.ceil(parseFloat(m1[1])));
+                            const m2 = String(msg || '').match(/"retryDelay"\s*:\s*"(\d+)s"/i);
+                            if (m2 && m2[1]) return Math.max(1, parseInt(m2[1], 10));
+                            return 60;
+                        };
+                        const retryDelaySec = parseRetryDelaySec(error.message || '');
+                        window.geminiQuotaBackoffUntil = Math.max(window.geminiQuotaBackoffUntil || 0, Date.now() + (retryDelaySec * 1000));
+
+                        // Fast fallback: free tier often has 0 quota for 2.5-pro; switch to flash-lite first.
+                        if ((state.settings.apiModel || '').includes('gemini-2.5-pro')) {
+                            state.settings.apiModel = 'gemini-3.1-flash-lite-preview';
+                            localStorage.setItem('appSettings', JSON.stringify(state.settings));
+                            const modelSelect = document.getElementById('settings-api-model');
+                            if (modelSelect) modelSelect.value = state.settings.apiModel;
+                            console.warn('Quota hit on gemini-2.5-pro. Switching to gemini-3.1-flash-lite-preview.');
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                        }
+
                         console.warn(`Quota error with key index ${state.settings.currentApiKeyIndex}. Attempting model/key rollover.`);
                         if (rotateApiModel()) {
                             await new Promise(resolve => setTimeout(resolve, 500));
@@ -4401,7 +4448,7 @@ IMPORTANT:
                             await new Promise(resolve => setTimeout(resolve, 500));
                             return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                         }
-                        throw new Error('QUOTA_EXCEEDED: API quota exhausted. Wait a few minutes or add another API key from a different Google account.');
+                        throw new Error(`QUOTA_EXCEEDED: API quota exhausted. Retry after ~${retryDelaySec}s or use another key/model.`);
                     }
 
                     if (errorMessage.includes('permission denied') || errorMessage.includes('403')) {
@@ -4416,7 +4463,6 @@ IMPORTANT:
                     if (errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('unavailable')) {
                         const retryDelay = 10000 + (retries * 5000); // 10s, 15s, 20s...
                         console.warn(`Model overloaded (503). Retrying in ${retryDelay / 1000}s... (attempt ${retries + 1})`);
-                        showToast(`Server busy. Retrying in ${retryDelay / 1000} seconds...`, 'info');
                         await new Promise(resolve => setTimeout(resolve, retryDelay));
                         return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                     }
@@ -4439,7 +4485,6 @@ IMPORTANT:
                         if (retries < 3) { // Limit 500 retries to 3 attempts
                             const retryDelay = 5000 + (retries * 3000); // 5s, 8s, 11s
                             console.warn(`Gemini internal error (500). Retrying in ${retryDelay / 1000}s... (attempt ${retries + 1}/3)`);
-                            showToast(`AI server error. Retrying in ${retryDelay / 1000} seconds...`, 'info');
                             await new Promise(resolve => setTimeout(resolve, retryDelay));
                             return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                         } else {
@@ -4457,6 +4502,8 @@ IMPORTANT:
             const apiCallTimestamps = [];
             const MAX_REQUESTS_PER_MINUTE = 15;
             const MIN_DELAY_MS = 4000; // 4 seconds = max 15 requests/minute
+            window.geminiQuotaBackoffUntil = window.geminiQuotaBackoffUntil || 0;
+            window.geminiQuotaToastAt = window.geminiQuotaToastAt || 0;
 
             function getRateLimitDelay() {
                 const now = Date.now();
@@ -4490,6 +4537,11 @@ IMPORTANT:
                 state.isAiQueueRunning = true;
 
                 while (state.aiQueue.length > 0) {
+                    if (Date.now() < (window.geminiQuotaBackoffUntil || 0)) {
+                        const waitMs = Math.max(250, window.geminiQuotaBackoffUntil - Date.now());
+                        await new Promise(resolve => setTimeout(resolve, waitMs));
+                    }
+
                     // Check rate limit before making request
                     const delay = getRateLimitDelay();
                     if (delay > 0) {
@@ -4505,7 +4557,16 @@ IMPORTANT:
                         const result = await _callGeminiApiWithRetries(task.apiCallFunction);
                         task.resolve(result);
                     } catch (error) {
-                        showToast(`Error in '${task.description}': ${error.message}`, 'error');
+                        const errMsg = String(error?.message || 'Unknown AI error');
+                        console.warn(`[AI Queue] ${task.description} failed: ${errMsg}`);
+                        const now = Date.now();
+                        if (!window._lastAiUiErrorAt || (now - window._lastAiUiErrorAt) > 12000) {
+                            const compactMsg = errMsg.includes('QUOTA_EXCEEDED') || errMsg.includes('ALL_KEYS_EXHAUSTED')
+                                ? 'AI request limit reached. Trying fallback or waiting before retry.'
+                                : `AI request failed: ${errMsg.replace(/^API_ERROR:\s*/i, '')}`;
+                            showToast(compactMsg, 'warning');
+                            window._lastAiUiErrorAt = now;
+                        }
                         task.reject(error);
                     }
                     state.aiQueue.shift();
@@ -7907,9 +7968,30 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             function showToast(message, type = 'success') {
                 toast.textContent = message;
                 toast.className = `toast show ${type} `;
+
+                // Mobile-friendly persistent alert strip for failures.
+                if (type === 'error' || type === 'warning') {
+                    const issueBanner = document.getElementById('issue-banner');
+                    const issueText = document.getElementById('issue-banner-text');
+                    if (issueBanner && issueText) {
+                        issueText.textContent = message;
+                        issueBanner.classList.remove('hidden', 'error', 'warning');
+                        issueBanner.classList.add(type);
+                        clearTimeout(window._issueBannerTimer);
+                        window._issueBannerTimer = setTimeout(() => {
+                            issueBanner.classList.add('hidden');
+                        }, 20000);
+                    }
+                }
+
                 setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 5000);
             }
             window.showToast = showToast; // Make globally accessible
+
+            window.dismissIssueBanner = function () {
+                const issueBanner = document.getElementById('issue-banner');
+                if (issueBanner) issueBanner.classList.add('hidden');
+            };
 
             function hideToast() {
                 if (toast) toast.className = toast.className.replace('show', '');
@@ -10127,7 +10209,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     if (error.message === 'ALL_KEYS_EXHAUSTED' || error.message.includes('quota')) {
                         throw new Error('QUOTA_EXCEEDED');
                     }
-                    showToast(`Efficacy analysis failed: ${error.message}`, 'error');
                     return null;
                 }
             }
@@ -10202,7 +10283,6 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     return parsed.identifications || parsed.results || [];
                 } catch (error) {
                     console.error('Weed identification via Gemini failed:', error);
-                    showToast(`Weed identification failed: ${error.message}`, 'error');
                     return [];
                 }
             }
@@ -18024,11 +18104,11 @@ Style Guidelines:
                             continue;
                         }
 
-                        const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(2);
-                        console.log(`%c✔ Drive Upload Complete (${uploadTime}s)`, "color: #16a34a;");
-
                         if (result && result._errType) throw new Error(`Server Error: ${result.message}`);
                         if (!result?.url && !result?.id) throw new Error('Empty response from script.');
+
+                        const uploadTime = ((Date.now() - uploadStart) / 1000).toFixed(2);
+                        console.log(`%c✔ Drive Upload Complete (${uploadTime}s)`, "color: #16a34a;");
 
                         const publicUrl = result.url || result.fileUrl;
                         console.log(`Cloud URL: ${publicUrl}`);
@@ -18227,10 +18307,15 @@ Style Guidelines:
                         console.log(`%cTotal Item Process Time: ${totalItemTime}s`, "font-weight: bold; color: #0d9488;");
                         console.groupEnd();
                     } catch (error) {
-                        console.error(`%c[Sync Error] ${itemLabel} Failed: ${error.message}`, "color: #dc2626; font-weight: bold;");
+                        const errMsg = String(error?.message || 'Unknown error');
+                        console.error(`%c[Sync Error] ${itemLabel} Failed: ${errMsg}`, "color: #dc2626; font-weight: bold;");
                         item.attempts = (item.attempts || 0) + 1;
-                        item.status = error.message.includes('Timeout') || error.message.includes('fetch') ? 'pending' : 'failed';
-                        item.lastError = error.message;
+                        item.status = errMsg.includes('Timeout') || errMsg.includes('fetch') ? 'pending' : 'failed';
+                        item.lastError = errMsg;
+
+                        if (errMsg.toLowerCase().includes('driveapp') || errMsg.toLowerCase().includes('access denied')) {
+                            showToast('Drive permission denied by server. Run triggerDrivePermissions() in Apps Script and redeploy the web app.', 'error');
+                        }
                         console.groupEnd();
                     }
                     saveSyncQueue();
