@@ -9568,16 +9568,55 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             }
 
             async function capturePhoto() {
-                canvasElement.width = videoElement.videoWidth;
-                canvasElement.height = videoElement.videoHeight;
-                canvasElement.getContext('2d').drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-                closeCamera();
+                try {
+                    if (!videoElement || !canvasElement) {
+                        showToast('Camera components are missing. Please reload and try again.', 'error');
+                        return;
+                    }
 
-                // CRITICAL: Compress image before opening cropper
-                const rawImage = canvasElement.toDataURL('image/jpeg', 1.0);
-                const compressed = await compressImage(rawImage, 2);  // Max 2MB
+                    // Wait briefly if user taps capture before the camera feed is fully ready.
+                    if (videoElement.readyState < 2 || !videoElement.videoWidth || !videoElement.videoHeight) {
+                        await new Promise(resolve => {
+                            let settled = false;
+                            const done = () => {
+                                if (settled) return;
+                                settled = true;
+                                videoElement.removeEventListener('loadedmetadata', done);
+                                videoElement.removeEventListener('loadeddata', done);
+                                resolve();
+                            };
+                            videoElement.addEventListener('loadedmetadata', done, { once: true });
+                            videoElement.addEventListener('loadeddata', done, { once: true });
+                            setTimeout(done, 1200);
+                        });
+                    }
 
-                openCropper(compressed, state.currentTrialIdForCamera);
+                    const width = videoElement.videoWidth;
+                    const height = videoElement.videoHeight;
+                    if (!width || !height) {
+                        showToast('Camera is still initializing. Please wait a moment and capture again.', 'warning');
+                        return;
+                    }
+
+                    canvasElement.width = width;
+                    canvasElement.height = height;
+                    const ctx = canvasElement.getContext('2d');
+                    if (!ctx) {
+                        showToast('Could not initialize image capture. Please try again.', 'error');
+                        return;
+                    }
+
+                    ctx.drawImage(videoElement, 0, 0, width, height);
+
+                    // CRITICAL: Compress image before opening cropper
+                    const rawImage = canvasElement.toDataURL('image/jpeg', 1.0);
+                    closeCamera();
+                    const compressed = await compressImage(rawImage, 2); // Max 2MB
+                    openCropper(compressed, state.currentTrialIdForCamera);
+                } catch (err) {
+                    console.error('Capture photo failed:', err);
+                    showToast(`Capture failed: ${err?.message || 'Unknown error'}`, 'error');
+                }
             }
 
             function updatePhotoPreview() {
