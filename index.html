@@ -529,7 +529,7 @@
     <script type="importmap">
     {
       "imports": {
-        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0"
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.46.0"
       }
     }
     </script>
@@ -1670,9 +1670,9 @@ IMPORTANT:
                     const data = imageDataUrl.split(',')[1];
                     const response = await genAI.models.generateContent({
                         model: getActiveApiModel(),
-                        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data } }] }]
+                        contents: [{ text: prompt }, { inlineData: { mimeType, data } }]
                     });
-                    return response.text;
+                    return extractResponseText(response);
                 };
 
                 try {
@@ -1692,7 +1692,24 @@ IMPORTANT:
                         throw new Error('Could not parse AI response: ' + result);
                     }
                 } catch (error) {
-                    console.error('[AI Weed Cover] Error:', error);
+                    console.warn('[AI Weed Cover] Gemini failed, trying vision fallback...', error.message);
+                    try {
+                        const mimeType = imageDataUrl.split(';')[0].split(':')[1];
+                        const base64Data = imageDataUrl.split(',')[1];
+                        const fallbackResult = await callVisionFallback(prompt, base64Data, mimeType);
+                        const match = fallbackResult.match(/\d+/);
+                        if (match) {
+                            const cover = parseInt(match[0]);
+                            return {
+                                cover: Math.min(100, Math.max(0, cover)),
+                                confidence: 80,
+                                source: 'AI-Fallback',
+                                rawResponse: fallbackResult
+                            };
+                        }
+                    } catch (fallbackErr) {
+                        console.error('[AI Weed Cover] All providers failed:', fallbackErr.message);
+                    }
                     throw error;
                 }
             };
@@ -3128,10 +3145,11 @@ IMPORTANT:
 
             // --- GEMINI AI SETUP ---
             const GEMINI_MODEL_PRIORITY = [
+                'gemini-2.5-flash',
+                'gemini-2.5-flash-lite',
                 'gemini-3.1-flash-lite-preview',
                 'gemini-3-flash-preview',
                 'gemini-3.1-pro-preview',
-                'gemini-2.5-flash',
                 'gemini-2.5-pro'
             ];
 
@@ -3144,10 +3162,21 @@ IMPORTANT:
             }
 
             function getActiveApiModel() {
-                const selected = state.settings.apiModel || 'gemini-3.1-flash-lite-preview';
-                if (selected === 'gemini-3.1-flash-lite') return 'gemini-3.1-flash-lite-preview';
+                let selected = state.settings.apiModel || 'gemini-2.5-flash';
+                // Map known aliases / old names to current valid model IDs
+                const MODEL_ALIASES = {
+                    'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite-preview',
+                    'gemini-3-flash': 'gemini-3-flash-preview',
+                    'gemini-3.1-pro': 'gemini-3.1-pro-preview',
+                    'gemini-3-pro-preview': 'gemini-3.1-pro-preview',
+                    'gemini-2.0-flash': 'gemini-2.5-flash',
+                    'gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
+                    'gemini-1.5-flash': 'gemini-2.5-flash',
+                    'gemini-1.5-pro': 'gemini-2.5-pro',
+                };
+                if (MODEL_ALIASES[selected]) selected = MODEL_ALIASES[selected];
                 if (GEMINI_MODEL_PRIORITY.includes(selected)) return selected;
-                return 'gemini-3.1-flash-lite-preview';
+                return 'gemini-2.5-flash';
             }
 
             function getGenAIClient() {
@@ -3157,7 +3186,120 @@ IMPORTANT:
                     showToast('Gemini API key not configured. Add it in Settings to enable AI features.', 'warning');
                     return null;
                 }
-                return new GoogleGenAI({ apiKey: activeKey });
+                return new GoogleGenAI({ apiKey: activeKey, apiVersion: 'v1beta' });
+            }
+
+            /** Safely extract text from any Gemini SDK response format */
+            function extractResponseText(response) {
+                if (!response) return '';
+                if (typeof response === 'string') return response;
+                if (typeof response.text === 'function') return response.text();
+                if (typeof response.text === 'string') return response.text;
+                if (response.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    return response.candidates[0].content.parts[0].text;
+                }
+                return '';
+            }
+
+            /**
+             * Vision fallback: calls Groq/Pixtral/Qwen vision APIs when Gemini fails.
+             * @param {string} prompt - Text prompt
+             * @param {string} base64Data - Base64 image data (no prefix)
+             * @param {string} mimeType - e.g. 'image/jpeg'
+             * @returns {string} AI response text
+             */
+            async function callVisionFallback(prompt, base64Data, mimeType) {
+                const visionProviders = [
+                    {
+                        name: 'Groq LLaMA 4 Scout',
+                        keyName: 'AI_KEY_GROQ',
+                        altKeyPrefix: 'gsk_',
+                        url: 'https://api.groq.com/openai/v1/chat/completions',
+                        model: 'meta-llama/llama-4-scout-17b-16e-instruct'
+                    },
+                    {
+                        name: 'Pixtral (Mistral)',
+                        keyName: 'AI_KEY_PIXTRAL',
+                        altKeyPrefix: null,
+                        url: 'https://api.mistral.ai/v1/chat/completions',
+                        model: 'pixtral-12b-2409'
+                    },
+                    {
+                        name: 'Qwen2.5-VL',
+                        keyName: 'AI_KEY_QWEN',
+                        altKeyPrefix: null,
+                        url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+                        model: 'qwen-vl-max'
+                    }
+                ];
+
+                // Also check numbered keys (AI_KEY_GROQ_1 etc) and sync from main settings
+                function getKeys(provider) {
+                    const keys = [];
+                    const base = localStorage.getItem(provider.keyName);
+                    if (base) keys.push(base);
+                    for (let i = 1; i <= 5; i++) {
+                        const k = localStorage.getItem(`${provider.keyName}_${i}`);
+                        if (k) keys.push(k);
+                    }
+                    // Try syncing from main apiKeys array
+                    if (keys.length === 0 && provider.altKeyPrefix) {
+                        const settingsKeys = state.settings?.apiKeys || [];
+                        const match = settingsKeys.find(k => k.startsWith(provider.altKeyPrefix));
+                        if (match) keys.push(match);
+                    }
+                    return keys;
+                }
+
+                for (const provider of visionProviders) {
+                    const apiKeys = getKeys(provider);
+                    if (!apiKeys.length) {
+                        console.log(`[Vision Fallback] Skipping ${provider.name} - no key`);
+                        continue;
+                    }
+
+                    for (const apiKey of apiKeys) {
+                        try {
+                            console.log(`[Vision Fallback] Trying ${provider.name}...`);
+                            const resp = await fetch(provider.url, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${apiKey}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    model: provider.model,
+                                    messages: [{
+                                        role: 'user',
+                                        content: [
+                                            { type: 'text', text: prompt },
+                                            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } }
+                                        ]
+                                    }],
+                                    temperature: 0.2,
+                                    max_tokens: 1000
+                                })
+                            });
+
+                            if (!resp.ok) {
+                                const errText = await resp.text();
+                                console.warn(`[Vision Fallback] ${provider.name} returned ${resp.status}`);
+                                continue;
+                            }
+
+                            const data = await resp.json();
+                            const text = data.choices?.[0]?.message?.content;
+                            if (text) {
+                                console.log(`[Vision Fallback] ${provider.name} succeeded`);
+                                showToast(`Gemini unavailable — used ${provider.name} instead`, 'info');
+                                return text;
+                            }
+                        } catch (e) {
+                            console.warn(`[Vision Fallback] ${provider.name} error:`, e.message);
+                        }
+                    }
+                }
+                throw new Error('All vision AI providers failed. Please check your API keys.');
             }
 
             function rotateApiModel() {
@@ -3205,9 +3347,9 @@ IMPORTANT:
                     const modelInput = document.getElementById('settings-api-model');
                     const requestedModelId = modelInput ? modelInput.value : getActiveApiModel();
 
-                    const genAI = new GoogleGenAI({ apiKey: testKey });
+                    const genAI = new GoogleGenAI({ apiKey: testKey, apiVersion: 'v1beta' });
 
-                    const modelTryOrder = [requestedModelId, ...GEMINI_MODEL_PRIORITY.filter(m => m !== requestedModelId)].slice(0, 3);
+                    const modelTryOrder = [requestedModelId, ...GEMINI_MODEL_PRIORITY.filter(m => m !== requestedModelId)].slice(0, 4);
                     let response = null;
                     let lastError = null;
                     let usedModel = requestedModelId;
@@ -3217,7 +3359,7 @@ IMPORTANT:
                         try {
                             response = await genAI.models.generateContent({
                                 model: modelId,
-                                contents: [{ parts: [{ text: 'Say "API key is working!" in exactly those words.' }] }]
+                                contents: 'Say "API key is working!" in exactly those words.'
                             });
                             lastError = null;
                             break;
@@ -3227,14 +3369,17 @@ IMPORTANT:
                             if (msg.includes('quota') || msg.includes('429') || msg.includes('resource exhausted')) {
                                 continue;
                             }
+                            if (msg.includes('not_found') || msg.includes('not found') || msg.includes('unsupported') || msg.includes('deprecated')) {
+                                continue;
+                            }
                             throw e;
                         }
                     }
                     if (!response && lastError) throw lastError;
 
-                    if (response && response.text) {
+                    if (response && extractResponseText(response)) {
                         showToast(`✅ API key is valid and working! (${usedModel})`, 'success');
-                        console.log('API Test Response:', response.text);
+                        console.log('API Test Response:', extractResponseText(response));
                     } else {
                         showToast('⚠️ API responded but with unexpected format.', 'error');
                     }
@@ -3273,9 +3418,9 @@ IMPORTANT:
                 try {
                     const modelInput = document.getElementById('settings-api-model');
                     const requestedModelId = modelInput ? modelInput.value : getActiveApiModel();
-                    const genAI = new GoogleGenAI({ apiKey: value });
+                    const genAI = new GoogleGenAI({ apiKey: value, apiVersion: 'v1beta' });
 
-                    const modelTryOrder = [requestedModelId, ...GEMINI_MODEL_PRIORITY.filter(m => m !== requestedModelId)].slice(0, 3);
+                    const modelTryOrder = [requestedModelId, ...GEMINI_MODEL_PRIORITY.filter(m => m !== requestedModelId)].slice(0, 4);
                     let response = null;
                     let lastError = null;
                     let usedModel = requestedModelId;
@@ -3285,7 +3430,7 @@ IMPORTANT:
                         try {
                             response = await genAI.models.generateContent({
                                 model: modelId,
-                                contents: [{ parts: [{ text: 'Say "API key is working!" in exactly those words.' }] }]
+                                contents: 'Say "API key is working!" in exactly those words.'
                             });
                             lastError = null;
                             break;
@@ -3295,12 +3440,15 @@ IMPORTANT:
                             if (msg.includes('quota') || msg.includes('429') || msg.includes('resource exhausted')) {
                                 continue;
                             }
+                            if (msg.includes('not_found') || msg.includes('not found') || msg.includes('unsupported') || msg.includes('deprecated')) {
+                                continue;
+                            }
                             throw e;
                         }
                     }
                     if (!response && lastError) throw lastError;
 
-                    if (response && response.text) {
+                    if (response && extractResponseText(response)) {
                         showToast(`✅ Key ${idx + 1} working! (${usedModel})`, 'success');
                     } else {
                         showToast(`⚠️ Key ${idx + 1} responded with unexpected format.`, 'error');
@@ -3308,12 +3456,13 @@ IMPORTANT:
                 } catch (error) {
                     console.error('API Key Test Error:', error);
                     const errorMsg = (error.message || '').toLowerCase();
+                    const errStatus = error.status || 0;
 
-                    if (errorMsg.includes('api key not valid') || errorMsg.includes('invalid')) {
+                    if (errStatus === 400 || errorMsg.includes('api key not valid') || errorMsg.includes('invalid')) {
                         showToast(`❌ Key ${idx + 1} is INVALID.`, 'error');
-                    } else if (errorMsg.includes('quota') || errorMsg.includes('429') || errorMsg.includes('resource exhausted')) {
+                    } else if (errStatus === 429 || errorMsg.includes('quota') || errorMsg.includes('429') || errorMsg.includes('resource exhausted')) {
                         showToast(`⚠️ Key ${idx + 1} is valid but QUOTA EXHAUSTED.`, 'error');
-                    } else if (errorMsg.includes('not_found') || errorMsg.includes('not found') || errorMsg.includes('unsupported') || errorMsg.includes('v1beta')) {
+                    } else if (errStatus === 404 || errorMsg.includes('not_found') || errorMsg.includes('not found') || errorMsg.includes('unsupported') || errorMsg.includes('v1beta')) {
                         showToast(`⚠️ Model not supported for Key ${idx + 1}. Try a different model.`, 'error');
                     } else if (errorMsg.includes('permission') || errorMsg.includes('403')) {
                         showToast(`❌ Key ${idx + 1} lacks permissions.`, 'error');
@@ -3343,7 +3492,7 @@ IMPORTANT:
 
                 const modelInput = document.getElementById('settings-api-model');
                 const requestedModelId = modelInput ? modelInput.value : getActiveApiModel();
-                const modelTryOrder = [requestedModelId, ...GEMINI_MODEL_PRIORITY.filter(m => m !== requestedModelId)].slice(0, 3);
+                const modelTryOrder = [requestedModelId, ...GEMINI_MODEL_PRIORITY.filter(m => m !== requestedModelId)].slice(0, 4);
 
                 const summary = [];
                 let okCount = 0;
@@ -3362,7 +3511,7 @@ IMPORTANT:
                     let usedModel = '';
 
                     try {
-                        const genAI = new GoogleGenAI({ apiKey: key });
+                        const genAI = new GoogleGenAI({ apiKey: key, apiVersion: 'v1beta' });
                         let response = null;
                         let lastError = null;
                         for (const modelId of modelTryOrder) {
@@ -3370,7 +3519,7 @@ IMPORTANT:
                             try {
                                 response = await genAI.models.generateContent({
                                     model: modelId,
-                                    contents: [{ parts: [{ text: 'Say "API key is working!" in exactly those words.' }] }]
+                                    contents: 'Say "API key is working!" in exactly those words.'
                                 });
                                 lastError = null;
                                 break;
@@ -3384,7 +3533,7 @@ IMPORTANT:
                         }
                         if (!response && lastError) throw lastError;
 
-                        if (response && response.text) {
+                        if (response && extractResponseText(response)) {
                             status = 'ok';
                             message = `Working (${usedModel})`;
                             okCount++;
@@ -4003,14 +4152,26 @@ IMPORTANT:
                     `- Missing data (if any)`
                 ].join('\n');
 
-                if (statusEl) statusEl.textContent = 'Calling Gemini...';
+                if (statusEl) statusEl.textContent = 'Calling AI...';
 
-                const response = await callGeminiApi('Smart Search answer', (genAI) => genAI.models.generateContent({
-                    model: getActiveApiModel(),
-                    contents: [{ parts: [{ text: prompt }] }]
-                }));
-
-                const resultText = typeof response?.text === 'function' ? response.text() : response?.text;
+                let resultText;
+                try {
+                    const response = await callGeminiApi('Smart Search answer', (genAI) => genAI.models.generateContent({
+                        model: getActiveApiModel(),
+                        contents: prompt
+                    }));
+                    resultText = extractResponseText(response);
+                } catch (geminiErr) {
+                    console.warn('[Smart Search] Gemini failed, trying other providers...', geminiErr.message);
+                    if (statusEl) statusEl.textContent = 'Gemini failed, trying backup AI...';
+                    try {
+                        resultText = await window.aiAnalyzer.generateText(prompt);
+                    } catch (fallbackErr) {
+                        console.warn('[Smart Search] aiAnalyzer failed, trying MultiProviderAI...', fallbackErr.message);
+                        const mp = new MultiProviderAI();
+                        resultText = await mp.generateText(prompt);
+                    }
+                }
                 if (answerEl) answerEl.textContent = String(resultText || 'Answer ready.');
                 if (statusEl) statusEl.textContent = `Answered using ${top.length || 0} sources`;
             }
@@ -4392,8 +4553,19 @@ IMPORTANT:
 
             async function _callGeminiApiWithRetries(apiCallFunction, retries = 0) {
                 const keyCount = state.settings.apiKeys.length || 1;
-                const maxRetries = keyCount * GEMINI_MODEL_PRIORITY.length;
+                const maxRetries = keyCount * GEMINI_MODEL_PRIORITY.length + 3;
                 if (retries >= maxRetries) {
+                    throw new Error('ALL_KEYS_EXHAUSTED');
+                }
+
+                // Skip models known to be exhausted this session
+                const blockedModels = window._geminiBlockedModels || (window._geminiBlockedModels = {});
+                const currentModel = getActiveApiModel();
+                if (blockedModels[currentModel] && Date.now() < blockedModels[currentModel]) {
+                    console.warn(`Skipping ${currentModel} (blocked until ${new Date(blockedModels[currentModel]).toLocaleTimeString()})`);
+                    if (rotateApiModel()) {
+                        return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                    }
                     throw new Error('ALL_KEYS_EXHAUSTED');
                 }
 
@@ -4405,10 +4577,11 @@ IMPORTANT:
                     return await apiCallFunction(genAI);
                 } catch (error) {
                     const errorMessage = (error.message || '').toLowerCase();
-                    console.error('Gemini API Error:', error.message, 'Full error:', error);
+                    const statusCode = error.status || error.httpStatusCode || 0;
+                    console.error('Gemini API Error:', error.message, 'status:', statusCode, 'Full error:', error);
 
-                    // Check for specific error types
-                    if (errorMessage.includes('api key not valid') || errorMessage.includes('invalid api key')) {
+                    // Check for specific error types using both message and status code
+                    if (statusCode === 400 || errorMessage.includes('api key not valid') || errorMessage.includes('invalid api key') || errorMessage.includes('api_key_invalid')) {
                         console.warn(`Invalid API key at index ${state.settings.currentApiKeyIndex}. Attempting rotation.`);
                         if (rotateApiKey()) {
                             await new Promise(resolve => setTimeout(resolve, 300));
@@ -4417,7 +4590,7 @@ IMPORTANT:
                         throw new Error('INVALID_API_KEY: Your Gemini API key is not valid. Generate a new one at ai.google.dev');
                     }
 
-                    if (errorMessage.includes('quota') || errorMessage.includes('resource exhausted') || errorMessage.includes('429')) {
+                    if (statusCode === 429 || errorMessage.includes('quota') || errorMessage.includes('resource exhausted') || errorMessage.includes('429') || errorMessage.includes('rate limit')) {
                         const parseRetryDelaySec = (msg) => {
                             const m1 = String(msg || '').match(/retry in\s+([\d.]+)s/i);
                             if (m1 && m1[1]) return Math.max(1, Math.ceil(parseFloat(m1[1])));
@@ -4428,13 +4601,21 @@ IMPORTANT:
                         const retryDelaySec = parseRetryDelaySec(error.message || '');
                         window.geminiQuotaBackoffUntil = Math.max(window.geminiQuotaBackoffUntil || 0, Date.now() + (retryDelaySec * 1000));
 
-                        // Fast fallback: free tier often has 0 quota for 2.5-pro; switch to flash-lite first.
-                        if ((state.settings.apiModel || '').includes('gemini-2.5-pro')) {
-                            state.settings.apiModel = 'gemini-3.1-flash-lite-preview';
+                        // Block this model for the retry delay so we don't waste calls on it
+                        const currentModel = getActiveApiModel();
+                        const blockedModels = window._geminiBlockedModels || (window._geminiBlockedModels = {});
+                        // If limit:0 detected (daily quota fully depleted), block for 1 hour
+                        const isZeroQuota = errorMessage.includes('limit: 0');
+                        blockedModels[currentModel] = Date.now() + ((isZeroQuota ? 3600 : retryDelaySec) * 1000);
+                        console.warn(`Blocked ${currentModel} for ${isZeroQuota ? '1 hour (zero quota)' : retryDelaySec + 's'}`);
+
+                        // Fast fallback: free tier often has 0 quota for Pro models; switch to stable flash.
+                        if (currentModel.includes('pro')) {
+                            state.settings.apiModel = 'gemini-2.5-flash';
                             localStorage.setItem('appSettings', JSON.stringify(state.settings));
                             const modelSelect = document.getElementById('settings-api-model');
                             if (modelSelect) modelSelect.value = state.settings.apiModel;
-                            console.warn('Quota hit on gemini-2.5-pro. Switching to gemini-3.1-flash-lite-preview.');
+                            console.warn(`Quota hit on ${currentModel}. Switching to gemini-2.5-flash.`);
                             await new Promise(resolve => setTimeout(resolve, 300));
                             return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                         }
@@ -4451,39 +4632,50 @@ IMPORTANT:
                         throw new Error(`QUOTA_EXCEEDED: API quota exhausted. Retry after ~${retryDelaySec}s or use another key/model.`);
                     }
 
-                    if (errorMessage.includes('permission denied') || errorMessage.includes('403')) {
+                    if (statusCode === 403 || errorMessage.includes('permission denied') || errorMessage.includes('403')) {
                         throw new Error('API_PERMISSION_DENIED: The API key does not have permission for this operation. Enable the Generative Language API in Google Cloud Console.');
                     }
 
-                    if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+                    if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('failed to fetch') || errorMessage.includes('networkerror')) {
                         throw new Error('NETWORK_ERROR: Cannot connect to Gemini API. Check your internet connection.');
                     }
 
-                    // Handle 503 - Model overloaded (temporary error, retry after delay)
-                    if (errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('unavailable')) {
-                        const retryDelay = 10000 + (retries * 5000); // 10s, 15s, 20s...
-                        console.warn(`Model overloaded (503). Retrying in ${retryDelay / 1000}s... (attempt ${retries + 1})`);
-                        await new Promise(resolve => setTimeout(resolve, retryDelay));
-                        return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                    // Handle 503 - Model overloaded (temporary error, retry quickly then rotate)
+                    if (statusCode === 503 || errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('unavailable') || errorMessage.includes('service_unavailable')) {
+                        if (retries < 2) {
+                            const retryDelay = 4000 + (retries * 4000);
+                            console.warn(`Model overloaded (503). Retrying in ${retryDelay / 1000}s... (attempt ${retries + 1})`);
+                            await new Promise(resolve => setTimeout(resolve, retryDelay));
+                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                        }
+                        // After 2 quick retries, try a different model immediately
+                        console.warn('Model still overloaded after 2 retries. Rotating model...');
+                        if (rotateApiModel()) {
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                        }
+                        throw new Error('ALL_KEYS_EXHAUSTED');
                     }
 
-                    // Handle NOT_FOUND / unsupported (e.g., v1beta doesn't support selected model)
-                    if (errorMessage.includes('not_found') || errorMessage.includes('not found') || errorMessage.includes('unsupported') || errorMessage.includes('v1beta')) {
-                        console.warn('Model not found/unsupported for this API. Rotating to a compatible model.');
+                    // Handle NOT_FOUND / unsupported / deprecated model
+                    if (statusCode === 404 || errorMessage.includes('not_found') || errorMessage.includes('not found') || errorMessage.includes('is not found') || errorMessage.includes('unsupported') || errorMessage.includes('deprecated') || errorMessage.includes('does not exist') || errorMessage.includes('invalid model')) {
+                        console.warn(`Model "${getActiveApiModel()}" not found/unsupported. Rotating to a compatible model.`);
                         if (rotateApiModel()) {
                             await new Promise(resolve => setTimeout(resolve, 300));
                             return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                         }
-                        // As a last resort, force to the last fallback model
-                        state.settings.apiModel = GEMINI_MODEL_PRIORITY[GEMINI_MODEL_PRIORITY.length - 1] || 'gemini-2.5-flash';
+                        // As a last resort, force to gemini-2.5-flash (always available)
+                        state.settings.apiModel = 'gemini-2.5-flash';
                         localStorage.setItem('appSettings', JSON.stringify(state.settings));
+                        const modelSelect = document.getElementById('settings-api-model');
+                        if (modelSelect) modelSelect.value = 'gemini-2.5-flash';
                         return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                     }
 
                     // Handle 500 - Internal server error (temporary error, retry after delay)
-                    if (errorMessage.includes('500') || errorMessage.includes('internal error') || errorMessage.includes('internal')) {
-                        if (retries < 3) { // Limit 500 retries to 3 attempts
-                            const retryDelay = 5000 + (retries * 3000); // 5s, 8s, 11s
+                    if (statusCode === 500 || errorMessage.includes('500') || errorMessage.includes('internal error') || errorMessage.includes('internal')) {
+                        if (retries < 3) {
+                            const retryDelay = 5000 + (retries * 3000);
                             console.warn(`Gemini internal error (500). Retrying in ${retryDelay / 1000}s... (attempt ${retries + 1}/3)`);
                             await new Promise(resolve => setTimeout(resolve, retryDelay));
                             return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
@@ -5177,21 +5369,22 @@ IMPORTANT:
                                                 Gemini API Model
                                             </label>
                                             <select id="settings-api-model" class="w-full border rounded-md shadow-sm p-2 bg-white text-sm">
-                                                <optgroup label="Recommended (Free / High Limit)">
-                                                    <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash-Lite (Highest free quota)</option>
-                                                    <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (General)</option>
+                                                <optgroup label="Recommended (Stable &amp; Reliable)">
+                                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Best all-round, stable)</option>
+                                                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite (Cheapest, fastest)</option>
                                                 </optgroup>
 
-                                                <optgroup label="Gemini 3.1 (Newest)">
+                                                <optgroup label="Gemini 3 (Preview - Newest)">
+                                                    <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash-Lite Preview (High free quota)</option>
+                                                    <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Frontier)</option>
                                                     <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Complex reasoning)</option>
                                                 </optgroup>
 
-                                                <optgroup label="Gemini 2.5 (Fallback until Jun 2026)">
-                                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                                <optgroup label="Pro (Heavy reasoning)">
+                                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep reasoning, stable)</option>
                                                 </optgroup>
                                             </select>
-                                            <p class="text-xs text-gray-500 mt-1">Recommended: <b>Flash-Lite</b> for free high limits.</p>
+                                            <p class="text-xs text-gray-500 mt-1">Recommended: <b>2.5 Flash</b> (stable) or <b>3.1 Flash-Lite</b> (newest free).</p>
                                         </div>
                                         <div>
                                             <label class="block text-gray-700 text-sm font-bold mb-2" for="settings-soil-provider">
@@ -8106,7 +8299,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             // API Model Selection
                             const modelSelect = document.getElementById('settings-api-model');
                             if (modelSelect) {
-                                modelSelect.value = state.settings.apiModel || 'gemini-3.1-flash-lite-preview';
+                                modelSelect.value = state.settings.apiModel || 'gemini-2.5-flash';
                             }
 
                             // API Quota Saver toggle
@@ -10149,7 +10342,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
                         const geminiCall = (genAI) => genAI.models.generateContent({
                         model: getActiveApiModel(),
-                        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: fileData.split(',')[1] } }] }],
+                        contents: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: fileData.split(',')[1] } }],
                         config: {
                             responseMimeType: "application/json",
                             responseSchema: {
@@ -10175,7 +10368,14 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         }
                     });
 
-                    const response = await callGeminiApi('Analyzing photo for efficacy', geminiCall);
+                    let aiResponseText;
+                    try {
+                        const response = await callGeminiApi('Analyzing photo for efficacy', geminiCall);
+                        aiResponseText = extractResponseText(response);
+                    } catch (geminiErr) {
+                        console.warn('[Efficacy] Gemini failed, trying vision fallback...', geminiErr.message);
+                        aiResponseText = await callVisionFallback(prompt, fileData.split(',')[1], mimeType);
+                    }
 
                     // ALSO run offline weed cover detection in parallel
                     // Use GREEN-ONLY mode to avoid counting pre-existing burnt weeds
@@ -10198,14 +10398,14 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         console.warn('[Weed Cover] Offline analysis failed:', error);
                     }
 
-                    const parsed = JSON.parse(response.text);
+                    const parsed = JSON.parse(aiResponseText);
                     return {
                         phyto: parsed.percentPhytotoxicity || 0,
                         weedDetails: parsed.weedDetails || [],
-                        weedCoverEstimate: weedCoverEstimate  // NEW: Add offline estimate
+                        weedCoverEstimate: weedCoverEstimate
                     };
                 } catch (error) {
-                    console.error('Efficacy analysis via Gemini failed:', error);
+                    console.error('Efficacy analysis failed (all providers):', error);
                     if (error.message === 'ALL_KEYS_EXHAUSTED' || error.message.includes('quota')) {
                         throw new Error('QUOTA_EXCEEDED');
                     }
@@ -10230,7 +10430,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                     const geminiCall = (genAI) => genAI.models.generateContent({
                         model: getActiveApiModel(),
-                        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: fileData.split(',')[1] } }] }],
+                        contents: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: fileData.split(',')[1] } }],
                         config: {
                             responseMimeType: "application/json",
                             responseSchema: {
@@ -10255,17 +10455,14 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         }
                     });
 
-                    const response = await callGeminiApi('Identifying weeds from photo', geminiCall);
-                    console.log('Weed identification raw response:', response);
-
-                    // Handle different response formats from the SDK
-                    let resultText = '';
-                    if (typeof response === 'string') {
-                        resultText = response;
-                    } else if (response?.text) {
-                        resultText = typeof response.text === 'function' ? response.text() : response.text;
-                    } else if (response?.candidates?.[0]?.content?.parts?.[0]?.text) {
-                        resultText = response.candidates[0].content.parts[0].text;
+                    let resultText;
+                    try {
+                        const response = await callGeminiApi('Identifying weeds from photo', geminiCall);
+                        console.log('Weed identification raw response:', response);
+                        resultText = extractResponseText(response);
+                    } catch (geminiErr) {
+                        console.warn('[Weed ID] Gemini failed, trying vision fallback...', geminiErr.message);
+                        resultText = await callVisionFallback(prompt, fileData.split(',')[1], mimeType);
                     }
 
                     console.log('Weed identification result text:', resultText);
@@ -10282,7 +10479,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                     return parsed.identifications || parsed.results || [];
                 } catch (error) {
-                    console.error('Weed identification via Gemini failed:', error);
+                    console.error('Weed identification failed (all providers):', error);
                     return [];
                 }
             }
@@ -12655,13 +12852,23 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     - **Result Paragraph**: A single, dense paragraph summarizing the trial's performance based on the DA-A (Days After Application) timeline. Incorporate the environmental logic if relevant (e.g., "High humidity optimized uptake...").
                     - **Conclusion**: A technical summary of the formula's efficacy, specifically referencing the WCE values and species-specific susceptibility.`;
 
-                    const geminiCall = (genAI) => genAI.models.generateContent({
-                        model: getActiveApiModel(),
-                        contents: [{ parts: [{ text: prompt }] }]
-                    });
-
-                    const response = await callGeminiApi(`Summarizing chart: ${chartTitle}`, geminiCall);
-                    const summaryText = response.text;
+                    let summaryText;
+                    try {
+                        const geminiCall = (genAI) => genAI.models.generateContent({
+                            model: getActiveApiModel(),
+                            contents: prompt
+                        });
+                        const response = await callGeminiApi(`Summarizing chart: ${chartTitle}`, geminiCall);
+                        summaryText = extractResponseText(response);
+                    } catch (geminiErr) {
+                        console.warn('[Chart Summary] Gemini failed, trying other providers...', geminiErr.message);
+                        try {
+                            summaryText = await window.aiAnalyzer.generateText(prompt);
+                        } catch (fallbackErr) {
+                            const mp = new MultiProviderAI();
+                            summaryText = await mp.generateText(prompt);
+                        }
+                    }
 
                     // Cache the result
                     aiSummaryCache.set(cacheKey, summaryText);
@@ -16741,15 +16948,27 @@ Style Guidelines:
 
                         const geminiCall = (genAI) => genAI.models.generateContent({
                             model: getActiveApiModel(),
-                        contents: [{ parts: [{ text: prompt }] }]
+                        contents: prompt
                     });
 
-                    const response = await callGeminiApi(`AI Chat: ${query.substring(0, 30)}...`, geminiCall);
+                    let aiResponse;
+                    try {
+                        const response = await callGeminiApi(`AI Chat: ${query.substring(0, 30)}...`, geminiCall);
+                        aiResponse = extractResponseText(response);
+                    } catch (geminiErr) {
+                        console.warn('[AI Chat] Gemini failed, trying other providers...', geminiErr.message);
+                        try {
+                            aiResponse = await window.aiAnalyzer.generateText(prompt);
+                        } catch (fallbackErr) {
+                            const mp = new MultiProviderAI();
+                            aiResponse = await mp.generateText(prompt);
+                        }
+                    }
 
                     // Remove loading
                     if (chatBox.lastChild) chatBox.lastChild.remove();
 
-                    appendMessageToChat(response.text, 'ai');
+                    appendMessageToChat(aiResponse, 'ai');
                 } catch (e) {
                     console.error("AI Query Error:", e);
                     if (chatBox.lastChild) chatBox.lastChild.remove();
@@ -19206,14 +19425,25 @@ INSTRUCTIONS:
 
 Format your response with clear headers and bullet points. Be precise with numbers.`;
 
-                        const geminiCall = (genAI) => genAI.models.generateContent({
-                            model: getActiveApiModel(),
-                            contents: [{ parts: [{ text: optimizerPrompt }] }]
-                        });
-
-                        const response = await callGeminiApi('Formulation Optimizer', geminiCall);
+                        let optimizerResult;
+                        try {
+                            const geminiCall = (genAI) => genAI.models.generateContent({
+                                model: getActiveApiModel(),
+                                contents: optimizerPrompt
+                            });
+                            const response = await callGeminiApi('Formulation Optimizer', geminiCall);
+                            optimizerResult = extractResponseText(response);
+                        } catch (geminiErr) {
+                            console.warn('[Optimizer] Gemini failed, trying other providers...', geminiErr.message);
+                            try {
+                                optimizerResult = await window.aiAnalyzer.generateText(optimizerPrompt);
+                            } catch (fallbackErr) {
+                                const mp = new MultiProviderAI();
+                                optimizerResult = await mp.generateText(optimizerPrompt);
+                            }
+                        }
                         if (chatBox.lastChild) chatBox.lastChild.remove();
-                        appendMessageToChat(response.text, 'ai');
+                        appendMessageToChat(optimizerResult, 'ai');
                     } catch (e) {
                         console.error("Optimizer Error:", e);
                         if (chatBox.lastChild) chatBox.lastChild.remove();
@@ -19340,14 +19570,25 @@ INSTRUCTIONS:
 4. Highlight any statistically significant or interesting patterns.
 Be specific, reference the actual data, and output using beautiful markdown with headers and bullet points.`;
 
-                        const geminiCall = (genAI) => genAI.models.generateContent({
-                            model: getActiveApiModel(),
-                            contents: [{ parts: [{ text: insightsPrompt }] }]
-                        });
-
-                        const response = await callGeminiApi('Hidden Insights', geminiCall);
+                        let insightsResult;
+                        try {
+                            const geminiCall = (genAI) => genAI.models.generateContent({
+                                model: getActiveApiModel(),
+                                contents: insightsPrompt
+                            });
+                            const response = await callGeminiApi('Hidden Insights', geminiCall);
+                            insightsResult = extractResponseText(response);
+                        } catch (geminiErr) {
+                            console.warn('[Insights] Gemini failed, trying other providers...', geminiErr.message);
+                            try {
+                                insightsResult = await window.aiAnalyzer.generateText(insightsPrompt);
+                            } catch (fallbackErr) {
+                                const mp = new MultiProviderAI();
+                                insightsResult = await mp.generateText(insightsPrompt);
+                            }
+                        }
                         if (chatBox.lastChild) chatBox.lastChild.remove();
-                        appendMessageToChat(response.text, 'ai');
+                        appendMessageToChat(insightsResult, 'ai');
                     } catch (e) {
                         console.error("Insights Error:", e);
                         if (chatBox.lastChild) chatBox.lastChild.remove();
@@ -20116,15 +20357,15 @@ Respond in structured JSON format:
                         },
                         {
                             id: 'gemini-flash',
-                            name: 'Gemini 3.1 Flash-Lite',
-                            endpoint: 'https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash-lite-preview:generateContent',
+                            name: 'Gemini 2.5 Flash',
+                            endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
                             dailyLimit: 1000,
                             speed: 1
                         },
                         {
                             id: 'gemini',
-                            name: 'Gemini 3.1 Pro Preview',
-                            endpoint: 'https://generativelanguage.googleapis.com/v1/models/gemini-3.1-pro-preview:generateContent',
+                            name: 'Gemini 2.5 Pro',
+                            endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
                             dailyLimit: 25,
                             speed: 3
                         },
@@ -21955,7 +22196,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
         window.aiAnalyzer = {
             providers: [
                 { id: 'gemini', name: 'Google Gemini', keyName: 'GEMINI_API_KEY', type: 'google' },
-                { id: 'groq', name: 'Groq', keyName: 'GROQ_API_KEY', type: 'openai-compatible', url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
+                { id: 'groq', name: 'Groq', keyName: 'GROQ_API_KEY', type: 'openai-compatible', url: 'https://api.groq.com/openai/v1/chat/completions', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
                 { id: 'openai', name: 'OpenAI', keyName: 'OPENAI_API_KEY', type: 'openai-compatible', url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' }
             ],
 
@@ -22060,16 +22301,17 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
             async callGemini(apiKey, prompt) {
                 console.log('Loading Gemini SDK...');
                 try {
-                    const { GoogleGenerativeAI } = await import("https://esm.run/@google/generative-ai");
-                    const genAI = new GoogleGenerativeAI(apiKey);
+                    const { GoogleGenAI } = await import('@google/genai');
+                    const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
                     const modelName = getActiveApiModel();
-                    const model = genAI.getGenerativeModel({ model: modelName });
 
                     console.log(`🤖 Sending prompt to ${modelName}...`);
-                    const result = await model.generateContent(prompt);
-                    const response = await result.response;
+                    const response = await ai.models.generateContent({
+                        model: modelName,
+                        contents: prompt
+                    });
                     console.log('Gemini response received.');
-                    return response.text();
+                    return extractResponseText(response);
                 } catch (e) {
                     console.error("Gemini Internal Error:", e);
                     throw e;
@@ -22105,19 +22347,18 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     throw new Error("Missing API Key");
                 }
 
-                // Import Gemini SDK from the CDN defined in importmap
                 try {
-                    const { GoogleGenerativeAI } = await import("https://esm.run/@google/generative-ai");
-                    const genAI = new GoogleGenerativeAI(apiKey);
-                    const model = genAI.getGenerativeModel({ model: getActiveApiModel() });
-
-                    const result = await model.generateContent(prompt);
-                    const response = await result.response;
-                    return response.text();
+                    const { GoogleGenAI } = await import('@google/genai');
+                    const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
+                    const response = await ai.models.generateContent({
+                        model: getActiveApiModel(),
+                        contents: prompt
+                    });
+                    return extractResponseText(response);
                 } catch (e) {
                     console.error("AI Error:", e);
-                    // Handle invalid key specifically
-                    if (e.message.includes('400') || e.message.includes('key')) {
+                    const status = e.status || 0;
+                    if (status === 400 || status === 403 || e.message.includes('key')) {
                         localStorage.removeItem('GEMINI_API_KEY');
                         showToast("Invalid API Key. Please try again.", "error");
                     }
