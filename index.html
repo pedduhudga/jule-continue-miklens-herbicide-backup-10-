@@ -6176,21 +6176,21 @@ IMPORTANT:
                             if (stats && (stats.wce || stats.anovaResults)) {
                                 let wceTable = '';
                                 if (stats.wce && stats.wce.length > 0) {
-                                    wceTable = `<div class="mb-6"><h4 class="text-md font-bold text-slate-800 mb-2">Weed Control Efficiency (WCE)</h4><div class="overflow-x-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Species</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Init Cover</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Final Cover</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">WCE %</th><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rating</th></tr></thead><tbody class="divide-y divide-gray-200 bg-white">${stats.wce.map(w => `<tr><td class="px-3 py-2 font-medium">${sanitizeHTML(w.species)}</td><td class="px-3 py-2 text-right text-gray-500">${w.initialCover}%</td><td class="px-3 py-2 text-right text-gray-500">${w.finalCover}%</td><td class="px-3 py-2 text-right font-bold ${w.wce >= 80 ? 'text-green-600' : 'text-amber-600'}">${w.wce.toFixed(1)}%</td><td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs ${w.controlRating === 'Excellent' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${w.controlRating}</span></td></tr>`).join('')}</tbody></table></div></div>`;
+                                    wceTable = `<div class="mb-6"><h4 class="text-md font-bold text-slate-800 mb-2">Weed Control Efficiency (WCE)</h4><div class="overflow-x-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Species</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Init Cover</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Final Cover</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">WCE %</th><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rating</th></tr></thead><tbody class="divide-y divide-gray-200 bg-white">${stats.wce.map(w => `<tr><td class="px-3 py-2 font-medium">${sanitizeHTML(w.species)}</td><td class="px-3 py-2 text-right text-gray-500">${w.initialCover}%</td><td class="px-3 py-2 text-right text-gray-500">${w.finalCover}%</td><td class="px-3 py-2 text-right font-bold ${w.wce >= 80 ? 'text-green-600' : 'text-amber-600'}">${Number.isFinite(w.wce) ? w.wce.toFixed(1) : '-'}%</td><td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs ${w.controlRating === 'Excellent' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${w.controlRating}</span></td></tr>`).join('')}</tbody></table></div></div>`;
                                 }
 
                                 let anovaContent = '';
                                 if (stats.anovaResults && stats.anovaResults.anovaTable) {
                                     const at = stats.anovaResults.anovaTable;
                                     anovaContent = `<div class="mb-6"><h4 class="text-md font-bold text-slate-800 mb-2 flex items-center gap-2">ANOVA Results (WCE) <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full uppercase">Computed: ${new Date(stats.calculatedAt).toLocaleDateString()}</span></h4><div class="overflow-x-auto border rounded-lg mb-4"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Source</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">DF</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">SS</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">MS</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">F</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">P > F</th><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sig</th></tr></thead><tbody class="divide-y divide-gray-200 bg-white">
-                                    ${[at.treatment, at.block, at.error, at.total].map(row => `<tr><td class="px-3 py-2 font-medium">${row.source}</td><td class="px-3 py-2 text-right text-gray-500">${row.df}</td><td class="px-3 py-2 text-right text-gray-500">${row.ss.toFixed(2)}</td><td class="px-3 py-2 text-right text-gray-500">${row.ms ? row.ms.toFixed(2) : ''}</td><td class="px-3 py-2 text-right text-gray-500">${row.f ? row.f.toFixed(2) : ''}</td><td class="px-3 py-2 text-right text-gray-500">${row.p ? row.p.toFixed(4) : ''}</td><td class="px-3 py-2 font-bold">${row.sig || ''}</td></tr>`).join('')}
-                                    </tbody></table></div><div class="grid grid-cols-2 gap-4 text-xs text-gray-600 mb-4"><div class="p-2 bg-slate-50 rounded"><strong>CV:</strong> ${stats.anovaResults.diagnostics.cv.toFixed(2)}%</div><div class="p-2 bg-slate-50 rounded"><strong>R²:</strong> ${stats.anovaResults.diagnostics.r_squared.toFixed(4)}</div></div>`;
+                                    ${[at.treatment, at.block, at.error, at.total].filter(Boolean).map(row => `<tr><td class="px-3 py-2 font-medium">${row.source}</td><td class="px-3 py-2 text-right text-gray-500">${row.df}</td><td class="px-3 py-2 text-right text-gray-500">${Number.isFinite(row.ss) ? row.ss.toFixed(2) : ''}</td><td class="px-3 py-2 text-right text-gray-500">${Number.isFinite(row.ms) ? row.ms.toFixed(2) : ''}</td><td class="px-3 py-2 text-right text-gray-500">${Number.isFinite(row.f) ? row.f.toFixed(2) : ''}</td><td class="px-3 py-2 text-right text-gray-500">${Number.isFinite(row.p) ? row.p.toFixed(4) : ''}</td><td class="px-3 py-2 font-bold">${row.sig || ''}</td></tr>`).join('')}
+                                    </tbody></table></div><div class="grid grid-cols-2 gap-4 text-xs text-gray-600 mb-4"><div class="p-2 bg-slate-50 rounded"><strong>CV:</strong> ${Number.isFinite(stats.anovaResults.diagnostics?.cv) ? stats.anovaResults.diagnostics.cv.toFixed(2) : '-'}%</div><div class="p-2 bg-slate-50 rounded"><strong>R²:</strong> ${Number.isFinite(stats.anovaResults.diagnostics?.r_squared) ? stats.anovaResults.diagnostics.r_squared.toFixed(4) : '-'}</div></div>`;
                                 }
 
                                 statsContent = `<div class="p-4">${wceTable}${anovaContent}${lsdContent}`;
                                 
                                 if (stats.tukeyResults && stats.tukeyResults.groupings) {
-                                    const tukeyContent = `<div class="mb-6"><h4 class="text-md font-bold text-slate-800 mb-2">Detailed Groupings (Tukey HSD)</h4><p class="text-xs text-gray-500 mb-2">Alpha = ${stats.tukeyResults.alpha}, HSD = ${stats.tukeyResults.hsd.toFixed(2)}</p><div class="overflow-x-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Treatment</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Mean WCE</th><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Group</th></tr></thead><tbody class="divide-y divide-gray-200 bg-white">${stats.tukeyResults.groupings.map(g => `<tr><td class="px-3 py-2 font-medium">${sanitizeHTML(g.name)}</td><td class="px-3 py-2 text-right">${g.mean.toFixed(2)}%</td><td class="px-3 py-2 font-bold text-indigo-700">${g.grouping}</td></tr>`).join('')}</tbody></table></div></div>`;
+                                    const tukeyContent = `<div class="mb-6"><h4 class="text-md font-bold text-slate-800 mb-2">Detailed Groupings (Tukey HSD)</h4><p class="text-xs text-gray-500 mb-2">Alpha = ${stats.tukeyResults.alpha}, HSD = ${Number.isFinite(stats.tukeyResults.hsd) ? stats.tukeyResults.hsd.toFixed(2) : '-'}</p><div class="overflow-x-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Treatment</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Mean WCE</th><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Group</th></tr></thead><tbody class="divide-y divide-gray-200 bg-white">${stats.tukeyResults.groupings.map(g => `<tr><td class="px-3 py-2 font-medium">${sanitizeHTML(g.name)}</td><td class="px-3 py-2 text-right">${Number.isFinite(g.mean) ? g.mean.toFixed(2) : '-'}%</td><td class="px-3 py-2 font-bold text-indigo-700">${g.grouping}</td></tr>`).join('')}</tbody></table></div></div>`;
                                     statsContent += tukeyContent;
                                 }
 
@@ -7670,7 +7670,8 @@ IMPORTANT:
                             </div>
                         `;
 
-                        Object.entries(project.AnalysisResults).forEach(([dat, result]) => {
+                        const _analysisResults = project.AnalysisResults && typeof project.AnalysisResults === 'object' ? project.AnalysisResults : {};
+                        Object.entries(_analysisResults).forEach(([dat, result]) => {
                             if (!result || typeof result !== 'object') return;
                             const datCard = document.createElement('div');
                             datCard.className = 'bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden';
@@ -7706,15 +7707,15 @@ IMPORTANT:
                                                 ${isOutlier ? `<span class="text-[9px] text-orange-600 font-bold flex items-center gap-0.5"><i data-lucide="info" class="h-2 w-2"></i> Potential Outlier in Reps</span>` : ''}
                                             </td>
                                             <td class="p-4 text-center">
-                                                <div class="font-medium">${ts.mean.toFixed(2)}</div>
-                                                <div class="text-[10px] text-slate-400">± ${ts.sd.toFixed(2)} (SD)</div>
+                                                <div class="font-medium">${Number.isFinite(ts.mean) ? ts.mean.toFixed(2) : '-'}</div>
+                                                <div class="text-[10px] text-slate-400">± ${Number.isFinite(ts.sd) ? ts.sd.toFixed(2) : '-'} (SD)</div>
                                             </td>
                                             <td class="p-4 text-center">
-                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ts.cv < 15 ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50'}">
-                                                    ${ts.cv.toFixed(1)}%
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${(ts.cv || 0) < 15 ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50'}">
+                                                    ${Number.isFinite(ts.cv) ? ts.cv.toFixed(1) : '-'}%
                                                 </span>
                                             </td>
-                                            <td class="p-4 text-center font-bold text-slate-700">${ts.wce.toFixed(1)}%</td>
+                                            <td class="p-4 text-center font-bold text-slate-700">${Number.isFinite(ts.wce) ? ts.wce.toFixed(1) : '-'}%</td>
                                             <td class="p-4 text-right">
                                                 <span class="px-3 py-1 rounded-md text-sm font-black tracking-widest bg-slate-100 text-slate-800 border border-slate-200">${ts.rank || '-'}</span>
                                             </td>
@@ -7973,10 +7974,10 @@ IMPORTANT:
                                                 </tr>
                                             </thead>
                                             <tbody id="means-tbody" class="divide-y divide-slate-100">
-                                                ${results.grouping.map(g => `
+                                                ${(results.grouping || []).map(g => `
                                                     <tr class="hover:bg-slate-50">
                                                         <td class="p-3 font-medium text-slate-700">${g.name}</td>
-                                                        <td class="p-3 text-center">${g.mean.toFixed(2)}</td>
+                                                        <td class="p-3 text-center">${Number.isFinite(g.mean) ? g.mean.toFixed(2) : '-'}</td>
                                                         <td class="p-3 text-center font-bold text-emerald-700">${g.grouping}</td>
                                                     </tr>
                                                 `).join('')}
@@ -8004,17 +8005,17 @@ IMPORTANT:
                                             <tbody class="divide-y divide-slate-100">
                                                 <tr>
                                                     <td class="p-3 font-medium">Treatment</td>
-                                                    <td class="p-3 text-right">${results.anova.dfTreat}</td>
-                                                    <td class="p-3 text-right">${results.anova.ssTreat.toFixed(2)}</td>
-                                                    <td class="p-3 text-right">${results.anova.msTreat.toFixed(2)}</td>
-                                                    <td class="p-3 text-right font-bold">${results.anova.fVal.toFixed(2)}</td>
-                                                    <td class="p-3 text-right ${results.anova.pVal < 0.05 ? 'text-green-600 font-bold' : ''}">${results.anova.pVal.toFixed(4)}</td>
+                                                    <td class="p-3 text-right">${results.anova?.dfTreat ?? '-'}</td>
+                                                    <td class="p-3 text-right">${Number.isFinite(results.anova?.ssTreat) ? results.anova.ssTreat.toFixed(2) : '-'}</td>
+                                                    <td class="p-3 text-right">${Number.isFinite(results.anova?.msTreat) ? results.anova.msTreat.toFixed(2) : '-'}</td>
+                                                    <td class="p-3 text-right font-bold">${Number.isFinite(results.anova?.fVal) ? results.anova.fVal.toFixed(2) : '-'}</td>
+                                                    <td class="p-3 text-right ${(results.anova?.pVal ?? 1) < 0.05 ? 'text-green-600 font-bold' : ''}">${Number.isFinite(results.anova?.pVal) ? results.anova.pVal.toFixed(4) : '-'}</td>
                                                 </tr>
                                                 <tr>
                                                     <td class="p-3 font-medium">Error</td>
-                                                    <td class="p-3 text-right">${results.anova.dfError}</td>
-                                                    <td class="p-3 text-right">${results.anova.ssError.toFixed(2)}</td>
-                                                    <td class="p-3 text-right">${results.anova.msError.toFixed(2)}</td>
+                                                    <td class="p-3 text-right">${results.anova?.dfError ?? '-'}</td>
+                                                    <td class="p-3 text-right">${Number.isFinite(results.anova?.ssError) ? results.anova.ssError.toFixed(2) : '-'}</td>
+                                                    <td class="p-3 text-right">${Number.isFinite(results.anova?.msError) ? results.anova.msError.toFixed(2) : '-'}</td>
                                                     <td class="p-3 text-right"></td>
                                                     <td class="p-3 text-right"></td>
                                                 </tr>
@@ -8040,7 +8041,7 @@ IMPORTANT:
                                     <div class="space-y-4">
                                         <div class="flex justify-between items-center">
                                             <span class="text-slate-600">CV (%)</span>
-                                            <span class="font-bold text-slate-800">${(Math.sqrt(results.anova.msError) / jStat.mean(Object.values(results.means)) * 100).toFixed(2)}%</span>
+                                            <span class="font-bold text-slate-800">${(Number.isFinite(results.anova?.msError) && results.means && Object.values(results.means).length) ? (Math.sqrt(results.anova.msError) / jStat.mean(Object.values(results.means)) * 100).toFixed(2) : '-'}%</span>
                                         </div>
                                          <div class="flex justify-between items-center">
                                             <span id="posthoc-stat-label" class="text-slate-600">${(results.postHoc?.method === 'tukey') ? 'HSD (0.05)' : 'LSD (0.05)'}</span>
@@ -8049,7 +8050,7 @@ IMPORTANT:
                                          ${(results.postHoc?.method === 'tukey' && results.postHoc?.qCrit) ? `
                                          <div class="flex justify-between items-center">
                                             <span class="text-slate-600">q critical</span>
-                                            <span class="font-bold text-slate-800">${results.postHoc.qCrit.toFixed(3)}</span> 
+                                            <span class="font-bold text-slate-800">${Number.isFinite(results.postHoc?.qCrit) ? results.postHoc.qCrit.toFixed(3) : '-'}</span> 
                                          </div>` : ''}
                                          <div class="flex justify-between items-center">
                                             <span class="text-slate-600">Design</span>
@@ -8087,7 +8088,7 @@ IMPORTANT:
                                 tbody.innerHTML = (res.grouping || []).map(g => `
                                     <tr class="hover:bg-slate-50">
                                         <td class="p-3 font-medium text-slate-700">${g.name}</td>
-                                        <td class="p-3 text-center">${g.mean.toFixed(2)}</td>
+                                        <td class="p-3 text-center">${Number.isFinite(g.mean) ? g.mean.toFixed(2) : '-'}</td>
                                         <td class="p-3 text-center font-bold text-emerald-700">${g.grouping}</td>
                                     </tr>
                                 `).join('');
@@ -8131,11 +8132,11 @@ IMPORTANT:
 Metric: ${primaryMetric}
 
 Treatments & Means:
-${currentResults.grouping.map(g => `- ${g.name}: ${g.mean.toFixed(2)} (Group ${g.grouping})`).join('\n')}
+${(currentResults.grouping || []).map(g => `- ${g.name}: ${Number.isFinite(g.mean) ? g.mean.toFixed(2) : 'N/A'} (Group ${g.grouping})`).join('\n')}
 
 Post-hoc: ${(currentResults.postHoc && currentResults.postHoc.method === 'tukey') ? 'Tukey HSD' : 'Fisher’s LSD'} (alpha=${(currentResults.postHoc?.alpha ?? 0.05)})
-ANOVA P-Value: ${currentResults.anova.pVal.toFixed(5)}
-CV: ${(Math.sqrt(currentResults.anova.msError) / jStat.mean(Object.values(currentResults.means)) * 100).toFixed(2)}%
+ANOVA P-Value: ${Number.isFinite(currentResults.anova?.pVal) ? currentResults.anova.pVal.toFixed(5) : 'N/A'}
+CV: ${(Number.isFinite(currentResults.anova?.msError) && currentResults.means && Object.values(currentResults.means).length) ? (Math.sqrt(currentResults.anova.msError) / jStat.mean(Object.values(currentResults.means)) * 100).toFixed(2) : 'N/A'}%
 
 Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Focus on key significant differences and trend analysis (e.g. dose response).`;
 
@@ -15038,9 +15039,18 @@ Style Guidelines:
             window.buildPublicationCaption = buildPublicationCaption;
             window.applyReportStyleGuard = applyReportStyleGuard;
             window.normalizeReportText = normalizeReportText;
+            window.formatReportNarrativeHtml = formatReportNarrativeHtml;
             window.getTrialTotalControlDays = getTrialTotalControlDays;
             window.summarizeProjectControlDays = summarizeProjectControlDays;
             window.calculateWeedControlEfficiency = calculateWeedControlEfficiency;
+
+            // Expose additional module-scoped functions for non-module script blocks
+            window.sanitizeHTML = sanitizeHTML;
+            window.renderSimpleHtmlTable = renderSimpleHtmlTable;
+            window.buildProjectConclusionFromResults = buildProjectConclusionFromResults;
+            window.getImageAsResizedBase64 = getImageAsResizedBase64;
+            window.addImageToPdfSafe = addImageToPdfSafe;
+            window.getControlRating = getControlRating;
 
             const REPORT_SECTIONS = {
                 trial: {
@@ -15062,6 +15072,7 @@ Style Guidelines:
                     photo: '7. Photo Documentation'
                 }
             };
+            window.REPORT_SECTIONS = REPORT_SECTIONS;
 
             function buildProjectConclusionFromResults(project, analysisResults, projectTrials) {
                 const daas = Object.keys(analysisResults || {}).sort((a, b) => parseFloat(a) - parseFloat(b));
@@ -15812,7 +15823,7 @@ Style Guidelines:
                 const slideConfidence = pptx.addSlide();
                 slideConfidence.addText('Continuity and Confidence Snapshot', { x: 0.5, y: 0.4, fontSize: 18, color: '008080', bold: true });
                 const continuityText = continuity.rows.length
-                    ? continuity.rows.slice(0, 4).map(r => `${r.species}: continuity ${r.continuityScore.toFixed(1)}%, first ${r.firstDaa} DA-A, last ${r.lastDaa} DA-A`).join('\n')
+                    ? continuity.rows.slice(0, 4).map(r => `${r.species}: continuity ${Number.isFinite(r.continuityScore) ? r.continuityScore.toFixed(1) : '-'}%, first ${r.firstDaa} DA-A, last ${r.lastDaa} DA-A`).join('\n')
                     : 'No species continuity table was available.';
                 slideConfidence.addText(
                     `Statistical significance: ${significance.significant ? 'Significant' : 'Not significant'}\n` +
@@ -24372,7 +24383,7 @@ Conclusions
 Specific agronomic recommendation based on treatment performance trends and weed suppression outcomes.`;
 
             try {
-                const conclusion = normalizeReportText(await window.aiAnalyzer.generateText(prompt));
+                const conclusion = (window.normalizeReportText || (t => String(t||'').trim()))(await window.aiAnalyzer.generateText(prompt));
 
                 // Update Local State
                 project.Conclusion = conclusion;
@@ -25219,7 +25230,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     <p>${sanitizeHTML(continuity.summary)}</p>
                     ${renderSimpleHtmlTable(
                         ['Species', 'First DAA', 'Last DAA', 'Observations', 'Reappearance', 'Continuity %'],
-                        continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, r.continuityScore.toFixed(1)])
+                        continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, Number.isFinite(r.continuityScore) ? r.continuityScore.toFixed(1) : '-'])
                     )}
                 `
                 : '';
@@ -25494,7 +25505,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                             <h4 style="margin-top: 12px;">Species-wise Efficacy Confidence Bands</h4>
                             ${renderSimpleHtmlTable(
                                 ['Treatment', 'Mean WCE%', 'Lower 95% band', 'Upper 95% band'],
-                                confidenceBands.map(r => [state.formulations.find(f => f.ID === r.treatmentId)?.Name || r.treatmentId, r.mean.toFixed(1), r.low.toFixed(1), r.high.toFixed(1)])
+                                confidenceBands.map(r => [state.formulations.find(f => f.ID === r.treatmentId)?.Name || r.treatmentId, Number.isFinite(r.mean) ? r.mean.toFixed(1) : '-', Number.isFinite(r.low) ? r.low.toFixed(1) : '-', Number.isFinite(r.high) ? r.high.toFixed(1) : '-'])
                             )}
                         ` : ''}
 
@@ -25516,7 +25527,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                             <p>${sanitizeHTML(continuity.summary)}</p>
                             ${renderSimpleHtmlTable(
                                 ['Species', 'First DAA', 'Last DAA', 'Observations', 'Reappearance', 'Continuity %'],
-                                continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, r.continuityScore.toFixed(1)])
+                                continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, Number.isFinite(r.continuityScore) ? r.continuityScore.toFixed(1) : '-'])
                             )}
                         ` : ''}
 
