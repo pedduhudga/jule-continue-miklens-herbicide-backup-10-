@@ -13443,6 +13443,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
                 const trialDate = new Date(trial.Date).toLocaleDateString();
                 const maxPhyto = efficacyData.reduce((max, obs) => Math.max(max, parseFloat(obs.phyto || 0)), 0);
+                const derivedInterpretation = buildTrialDataInterpretation(trial);
 
                 const narrativeContext = `Generate a professional, human-like technical executive summary for an individual herbicide trial report.
                 
@@ -13465,8 +13466,9 @@ Style Guidelines:
                 try {
                     scientificNarrative = await window.aiAnalyzer.generateText(narrativeContext);
                 } catch (e) {
-                    scientificNarrative = `**Methodology**\nTrial conducted on ${trialDate} at ${trial.Location || 'site'} by ${trial.InvestigatorName || 'investigator'}.\n\n**Results**\n${summaries.cover || 'Observations recorded over time.'} ${summaries.phyto || ''}\n\n**Conclusions**\nExperimental results indicate a status of ${trial.Result || 'completed'}.`;
+                    scientificNarrative = `Methodology\nTrial conducted on ${trialDate} at ${trial.Location || 'site'} by ${trial.InvestigatorName || 'investigator'}.\n\nResults\n${(summaries.cover || '').trim() || derivedInterpretation.coverSummary} ${(summaries.phyto || '').trim() || derivedInterpretation.phytoSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`;
                 }
+                scientificNarrative = normalizeReportText(scientificNarrative);
 
                 // --- NOW GENERATE THE FULL REPORT PDF AND ADD NARRATIVE ---
                 const { jsPDF } = window.jspdf;
@@ -13508,7 +13510,7 @@ Style Guidelines:
                 // AI NARRATIVE SECTION
                 doc.setFontSize(14);
                 doc.setFont(undefined, 'bold');
-                doc.text("Executive Agronomist Narrative", 14, y);
+                doc.text(REPORT_SECTIONS.trial.executiveSummary, 14, y);
                 y += 5;
                 doc.setDrawColor(13, 148, 136);
                 doc.line(14, y, pageWidth - 14, y);
@@ -13527,15 +13529,11 @@ Style Guidelines:
 
                     if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
 
-                    if (cleanLine.startsWith('**') && cleanLine.endsWith('**')) {
+                    const headingMatch = cleanLine.match(/^(Methodology|Results|Conclusions?|Conclusion and Recommendation)\s*:?\s*$/i);
+                    if (headingMatch) {
+                        let headerText = headingMatch[1];
+                        if (headerText.toLowerCase().startsWith('conclusion')) headerText = 'Conclusions';
                         doc.setFont(undefined, 'bold');
-                        const headerText = cleanLine.replace(/\*\*/g, '');
-                        doc.text(headerText, 14, y);
-                        doc.setFont(undefined, 'normal');
-                        y += 6;
-                    } else if (cleanLine.startsWith('#')) {
-                        doc.setFont(undefined, 'bold');
-                        const headerText = cleanLine.replace(/^#+\s*/, '');
                         doc.setFontSize(11);
                         doc.text(headerText, 14, y);
                         doc.setFontSize(10);
@@ -13549,7 +13547,7 @@ Style Guidelines:
                         const textHeight = lines.length * 5 + 2;
                         if (y + textHeight > 220) { doc.addPage(); y = 20; }
 
-                        doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'justify' });
+                        doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'left' });
                         y += (lines.length * 5) + 2;
                     }
                 });
@@ -13566,7 +13564,7 @@ Style Guidelines:
 
                 doc.setFontSize(16);
                 doc.setFont(undefined, 'bold');
-                doc.text("Trial Details", 14, y);
+                doc.text(REPORT_SECTIONS.trial.trialDesign, 14, y);
                 y += 10;
                 doc.setFontSize(10);
                 doc.setFont(undefined, 'normal');
@@ -13615,7 +13613,7 @@ Style Guidelines:
                     const textHeight = conclusionLines.length * 5 + 8;
                     if (y + textHeight > 220) { doc.addPage(); y = 20; doc.setFont(undefined, 'bold'); doc.text("Conclusion:", 14, y); doc.setFont(undefined, 'normal'); }
 
-                    doc.text(conclusionLines, 14, y + 5, { maxWidth: maxWidth, align: 'justify' });
+                    doc.text(conclusionLines, 14, y + 5, { maxWidth: maxWidth, align: 'left' });
                     y += (conclusionLines.length * 5) + 8;
                 }
 
@@ -13632,7 +13630,7 @@ Style Guidelines:
                     const textHeight = notesLines.length * 5 + 12;
                     if (y + textHeight > 220) { doc.addPage(); y = 20; doc.setFont(undefined, 'bold'); doc.text("Notes:", 14, y); doc.setFont(undefined, 'normal'); }
 
-                    doc.text(notesLines, 14, y + 5, { maxWidth: maxWidth, align: 'justify' });
+                    doc.text(notesLines, 14, y + 5, { maxWidth: maxWidth, align: 'left' });
                     y += (notesLines.length * 5) + 12;
                 }
 
@@ -13672,12 +13670,15 @@ Style Guidelines:
                 }
 
                 // --- EFFICACY ANALYSIS (with chart) ---
-                if (summaries.cover || coverChartImg) {
+                const coverSummaryText = (summaries.cover || '').trim() || derivedInterpretation.coverSummary;
+                const phytoSummaryText = (summaries.phyto || '').trim() || derivedInterpretation.phytoSummary;
+
+                if (coverSummaryText || coverChartImg) {
                     // Ensure header has room for content (60mm = header + chart/text)
                     if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
                     doc.setFont(undefined, 'bold');
                     doc.setFontSize(14);
-                    doc.text("Efficacy Analysis:", 14, y);
+                    doc.text(REPORT_SECTIONS.trial.efficacy, 14, y);
                     y += 8;
 
                     // Add chart image
@@ -13691,27 +13692,27 @@ Style Guidelines:
                     }
 
                     // Add AI summary text
-                    if (summaries.cover) {
+                    if (coverSummaryText) {
                         doc.setFont(undefined, 'normal');
                         doc.setFontSize(9);
                         const maxWidth = pageWidth - 28;
-                        const lines = doc.splitTextToSize("Analysis: " + summaries.cover, maxWidth);
+                        const lines = doc.splitTextToSize("Analysis: " + coverSummaryText, maxWidth);
 
                         // Check if we need a new page before adding text
                         const textHeight = lines.length * 4 + 10;
                         if (y + textHeight > 220) { doc.addPage(); y = 20; }
 
-                        doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'justify' });
+                        doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'left' });
                         y += (lines.length * 4) + 10;
                     }
                 }
 
                 // --- PHYTOTOXICITY ANALYSIS (with chart) ---
-                if (summaries.phyto || phytoChartImg) {
+                if (phytoSummaryText || phytoChartImg) {
                     if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
                     doc.setFont(undefined, 'bold');
                     doc.setFontSize(14);
-                    doc.text("Phytotoxicity Analysis:", 14, y);
+                    doc.text(REPORT_SECTIONS.trial.phytotoxicity, 14, y);
                     y += 8;
 
                     // Add chart image
@@ -13725,17 +13726,17 @@ Style Guidelines:
                     }
 
                     // Add AI summary text
-                    if (summaries.phyto) {
+                    if (phytoSummaryText) {
                         doc.setFont(undefined, 'normal');
                         doc.setFontSize(9);
                         const maxWidth = pageWidth - 28;
-                        const lines = doc.splitTextToSize("Analysis: " + summaries.phyto, maxWidth);
+                        const lines = doc.splitTextToSize("Analysis: " + phytoSummaryText, maxWidth);
 
                         // Check if we need a new page before adding text
                         const textHeight = lines.length * 4 + 10;
                         if (y + textHeight > 220) { doc.addPage(); y = 20; }
 
-                        doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'justify' });
+                        doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'left' });
                         y += (lines.length * 4) + 10;
                     }
                 }
@@ -13747,7 +13748,7 @@ Style Guidelines:
                         if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
                         doc.setFontSize(14);
                         doc.setFont(undefined, 'bold');
-                        doc.text("Weed Status Timeline", 14, y);
+                        doc.text(REPORT_SECTIONS.trial.timeline, 14, y);
                         y += 8;
 
                         const timelineRows = timelineData.flatMap(obs => (Array.isArray(obs.weedDetails) ? obs.weedDetails : []).map(wd => [
@@ -13796,7 +13797,7 @@ Style Guidelines:
                     if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
                     doc.setFontSize(14);
                     doc.setFont(undefined, 'bold');
-                    doc.text("Photo Log", 14, y);
+                    doc.text(REPORT_SECTIONS.trial.photo, 14, y);
                     y += 10;
 
                     let xOffset = 14;
@@ -13849,7 +13850,7 @@ Style Guidelines:
                     doc.addPage();
                     doc.setFontSize(16);
                     doc.setFont(undefined, 'bold');
-                    doc.text("Weed Identification", 14, 20);
+                    doc.text(REPORT_SECTIONS.trial.weedIdentification, 14, 20);
                     let weedY = 30;
 
                     // Add weed species list at the top
@@ -14018,7 +14019,7 @@ Style Guidelines:
                         if (stats.anovaResults) {
                             if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
                             doc.setFont(undefined, 'bold');
-                            doc.text("Statistical Analysis (ANOVA):", 14, y);
+                            doc.text(REPORT_SECTIONS.trial.statistical, 14, y);
                             y += 6;
 
                             // Render ANOVA Table
@@ -14065,12 +14066,15 @@ Style Guidelines:
 
                 // --- Efficacy Logic ---
                 const summaries = safeJsonParse(trial.AISummariesJSON, {});
+                const derivedInterpretation = buildTrialDataInterpretation(trial);
+                const coverSummaryText = (summaries.cover || '').trim() || derivedInterpretation.coverSummary;
+                const phytoSummaryText = (summaries.phyto || '').trim() || derivedInterpretation.phytoSummary;
                 if (options.withEfficacy !== false) {
-                    if (summaries.cover || options.chartImages?.cover) {
+                    if (coverSummaryText || options.chartImages?.cover) {
                         // Ensure header has room for content (60mm = header + chart)
                         if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
                         doc.setFont(undefined, 'bold');
-                        doc.text("Efficacy Analysis:", 14, y);
+                        doc.text(REPORT_SECTIONS.trial.efficacy, 14, y);
                         y += 8;
 
                         if (options.chartImages?.cover) {
@@ -14080,11 +14084,11 @@ Style Guidelines:
                             } catch (e) { }
                         }
 
-                        if (summaries.cover) {
+                        if (coverSummaryText) {
                             doc.setFont(undefined, 'normal');
                             doc.setFontSize(9);
                             const maxWidth = pageWidth - 28; // Left margin 14 + right margin 14
-                            const lines = doc.splitTextToSize("Analysis: " + summaries.cover, maxWidth);
+                            const lines = doc.splitTextToSize("Analysis: " + coverSummaryText, maxWidth);
                             const textHeight = lines.length * 4; // 4mm per line for 9pt font
 
                             // Check if text will fit on current page (leaving 20mm bottom margin)
@@ -14098,25 +14102,25 @@ Style Guidelines:
                         }
                     }
 
-                    if (summaries.phyto || options.chartImages?.phyto) {
+                    if (phytoSummaryText || options.chartImages?.phyto) {
                         if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
 
                         if (options.chartImages?.phyto) {
                             try {
                                 doc.setFont(undefined, 'bold');
                                 doc.setFontSize(10);
-                                doc.text("Phytotoxicity Analysis:", 14, y);
+                                doc.text(REPORT_SECTIONS.trial.phytotoxicity, 14, y);
                                 y += 5;
                                 doc.addImage(options.chartImages.phyto, 'PNG', 14, y, 180, 90);
                                 y += 95;
                             } catch (e) { }
                         }
 
-                        if (summaries.phyto) {
+                        if (phytoSummaryText) {
                             doc.setFont(undefined, 'normal');
                             doc.setFontSize(9);
                             const maxWidth = pageWidth - 28; // Left margin 14 + right margin 14
-                            const lines = doc.splitTextToSize("Analysis: " + summaries.phyto, maxWidth);
+                            const lines = doc.splitTextToSize("Analysis: " + phytoSummaryText, maxWidth);
                             const textHeight = lines.length * 4; // 4mm per line for 9pt font
 
                             // Check if text will fit on current page (leaving 20mm bottom margin)
@@ -14138,7 +14142,7 @@ Style Guidelines:
                         if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
                         doc.setFontSize(14);
                         doc.setFont(undefined, 'bold');
-                        doc.text("Weed Status Timeline", 14, y);
+                        doc.text(REPORT_SECTIONS.trial.timeline, 14, y);
                         y += 8;
 
                         const timelineRows = efficacyData.flatMap(obs => (obs.weedDetails || []).map(wd => [obs.daa, wd.species, wd.status, wd.notes]));
@@ -14179,7 +14183,7 @@ Style Guidelines:
                     if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
                     doc.setFontSize(14);
                     doc.setFont(undefined, 'bold');
-                    doc.text("Photo Log", 14, y);
+                    doc.text(REPORT_SECTIONS.trial.photo, 14, y);
                     y += 10;
 
                     let xOffset = 14;
@@ -14238,7 +14242,7 @@ Style Guidelines:
                     if (weedPhotos.length > 0) {
                         doc.addPage();
                         doc.setFontSize(16);
-                        doc.text("Weed Identification", 14, 20);
+                        doc.text(REPORT_SECTIONS.trial.weedIdentification, 14, 20);
                         let weedY = 30;
 
                         // Add weed species list at the top
@@ -14296,6 +14300,156 @@ Style Guidelines:
             }
 
             // --- Helper for PDF generation ---
+            function buildTrialDataInterpretation(trial) {
+                const efficacyData = validateEfficacyData(safeJsonParse(trial?.EfficacyDataJSON, []));
+                if (!efficacyData.length) {
+                    return {
+                        coverSummary: 'Field observations were recorded, but serial efficacy observations are not available in structured DA-A format.',
+                        phytoSummary: 'Phytotoxicity trend could not be quantified because repeated observations were not available.',
+                        conclusion: `Trial status is recorded as ${trial?.Result || 'ongoing'} with baseline field metadata available.`
+                    };
+                }
+
+                const ordered = [...efficacyData].sort((a, b) => parseFloat(a.daa || 0) - parseFloat(b.daa || 0));
+                const first = ordered[0] || {};
+                const last = ordered[ordered.length - 1] || {};
+
+                const sumCover = (obs) => (Array.isArray(obs?.weedDetails) ? obs.weedDetails : []).reduce((s, w) => s + (parseFloat(w?.cover) || 0), 0);
+                const firstCover = sumCover(first);
+                const lastCover = sumCover(last);
+                const daaStart = parseFloat(first?.daa || 0);
+                const daaEnd = parseFloat(last?.daa || 0);
+
+                let wce = null;
+                if (firstCover > 0) {
+                    wce = Math.max(0, Math.min(100, ((firstCover - lastCover) / firstCover) * 100));
+                }
+
+                const phytoValues = ordered
+                    .map(o => parseFloat(o?.phyto))
+                    .filter(v => isFinite(v));
+                const maxPhyto = phytoValues.length ? Math.max(...phytoValues) : null;
+                const finalPhyto = phytoValues.length ? phytoValues[phytoValues.length - 1] : null;
+
+                const coverSummary = wce !== null
+                    ? `Aggregate weed cover changed from ${firstCover.toFixed(1)}% at ${daaStart} DA-A to ${lastCover.toFixed(1)}% at ${daaEnd} DA-A, corresponding to ${wce.toFixed(1)}% control efficiency.`
+                    : `Final aggregate weed cover was ${lastCover.toFixed(1)}% at ${daaEnd} DA-A. Baseline cover was not sufficient for control-efficiency computation.`;
+
+                const phytoSummary = maxPhyto !== null
+                    ? `Observed crop phytotoxicity peaked at ${maxPhyto.toFixed(1)} and ended at ${finalPhyto.toFixed(1)} on the final observation, indicating the crop safety trajectory over the assessment window.`
+                    : 'Structured phytotoxicity scores were not captured in the efficacy log for this trial.';
+
+                const conclusion = `${coverSummary} ${phytoSummary} Overall trial classification is ${trial?.Result || 'not finalized'} based on recorded field observations.`;
+
+                return { coverSummary, phytoSummary, conclusion };
+            }
+
+            function normalizeReportText(text) {
+                if (!text) return '';
+
+                let out = String(text)
+                    .replace(/\r\n/g, '\n')
+                    .replace(/```[\s\S]*?```/g, ' ')
+                    .replace(/^#+\s*/gm, '')
+                    .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    .replace(/\*([^*\n]+)\*/g, '$1')
+                    .replace(/`([^`]+)`/g, '$1')
+                    .replace(/[ \t]{2,}/g, ' ')
+                    .replace(/\n{3,}/g, '\n\n');
+
+                out = out
+                    .split('\n')
+                    .map(line => line.replace(/[ \t]{2,}/g, ' ').trimEnd())
+                    .join('\n')
+                    .trim();
+
+                return out;
+            }
+
+            function formatReportNarrativeHtml(text) {
+                const normalized = normalizeReportText(text);
+                if (!normalized) {
+                    return '<p><em>Narrative not available.</em></p>';
+                }
+
+                const lines = normalized.split('\n');
+                const chunks = [];
+                const headerRegex = /^(Methodology|Results|Conclusions?|Conclusion and Recommendation)\s*:?\s*$/i;
+                let paraBuffer = [];
+
+                const flushParagraph = () => {
+                    if (!paraBuffer.length) return;
+                    const paraText = sanitizeHTML(paraBuffer.join(' ').replace(/[ \t]{2,}/g, ' ').trim());
+                    if (paraText) chunks.push(`<p>${paraText}</p>`);
+                    paraBuffer = [];
+                };
+
+                lines.forEach(raw => {
+                    const line = raw.trim();
+                    if (!line) {
+                        flushParagraph();
+                        return;
+                    }
+
+                    const m = line.match(headerRegex);
+                    if (m) {
+                        flushParagraph();
+                        const heading = m[1].toLowerCase().startsWith('conclusion') ? 'Conclusions' : (m[1].charAt(0).toUpperCase() + m[1].slice(1));
+                        chunks.push(`<h3><strong>${sanitizeHTML(heading)}</strong></h3>`);
+                        return;
+                    }
+
+                    paraBuffer.push(line);
+                });
+
+                flushParagraph();
+                return chunks.join('');
+            }
+
+            const REPORT_SECTIONS = {
+                trial: {
+                    executiveSummary: '1. Executive Summary',
+                    trialDesign: '2. Trial Design & Methods',
+                    statistical: '3. Statistical Analysis Results',
+                    efficacy: '4. Efficacy Analysis',
+                    phytotoxicity: '5. Phytotoxicity Analysis',
+                    timeline: '6. Weed Status Timeline',
+                    photo: '7. Photo Documentation',
+                    weedIdentification: '8. Weed Identification'
+                },
+                project: {
+                    executiveSummary: '1. Executive Summary',
+                    trialDesign: '2. Trial Design & Methods',
+                    statistical: '3. Statistical Analysis Results',
+                    efficacy: '4. Efficacy Visualization',
+                    detailed: '5. Detailed Safety & Species Analysis',
+                    weather: '6. Weather Correlation',
+                    photo: '7. Photo Documentation'
+                }
+            };
+
+            function buildProjectConclusionFromResults(project, analysisResults, projectTrials) {
+                const daas = Object.keys(analysisResults || {}).sort((a, b) => parseFloat(a) - parseFloat(b));
+                if (!daas.length) {
+                    return normalizeReportText(project?.Narrative || project?.Conclusion || 'Project report generated from available protocol and trial metadata.');
+                }
+
+                const finalDaa = daas[daas.length - 1];
+                const finalRes = analysisResults[finalDaa] || {};
+                const treatmentStats = Array.isArray(finalRes.treatmentStats) ? finalRes.treatmentStats : [];
+
+                if (!treatmentStats.length) {
+                    return `Analysis results are available across ${daas.length} assessment window(s), but final treatment-level statistics at ${finalDaa} DA-A are incomplete.`;
+                }
+
+                const ranked = [...treatmentStats].sort((a, b) => (parseFloat(b.wce) || 0) - (parseFloat(a.wce) || 0));
+                const best = ranked[0] || {};
+                const bestName = state.formulations.find(f => f.ID === best.treatmentId)?.Name || best.treatmentId || 'Top treatment';
+                const avgWce = ranked.reduce((s, r) => s + (parseFloat(r.wce) || 0), 0) / ranked.length;
+
+                return normalizeReportText(`The project includes ${projectTrials.length} trial plots and ${ranked.length} analyzed treatment(s). At ${finalDaa} DA-A, ${bestName} ranked highest with ${Number(best.wce || 0).toFixed(1)}% control efficiency. Mean control efficiency across treatments at the final assessment was ${avgWce.toFixed(1)}%.`);
+            }
+
             async function generateTrialSummary(trials) {
                 try {
                     const provider = new MultiProviderAI();
@@ -16987,12 +17141,13 @@ Style Guidelines:
                 doc.setFontSize(11);
                 doc.setFont("helvetica", "normal");
                 const toc = [
-                    '1. Executive Summary',
-                    '2. Trial Design & Methods',
-                    '3. Statistical Analysis Results',
-                    '4. Efficacy Visualization',
-                    '5. Weather Correlation',
-                    '6. Photo Documentation by Treatment',
+                    REPORT_SECTIONS.project.executiveSummary,
+                    REPORT_SECTIONS.project.trialDesign,
+                    REPORT_SECTIONS.project.statistical,
+                    REPORT_SECTIONS.project.efficacy,
+                    REPORT_SECTIONS.project.detailed,
+                    REPORT_SECTIONS.project.weather,
+                    REPORT_SECTIONS.project.photo,
                     'Appendix: Raw Data Tables'
                 ];
 
@@ -17011,12 +17166,12 @@ Style Guidelines:
                     doc.setFontSize(16);
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(13, 148, 136);
-                    doc.text("1. Executive Summary", margin, y);
+                    doc.text(REPORT_SECTIONS.project.executiveSummary, margin, y);
                     doc.setTextColor(0);
                     y += 10;
 
                     doc.setFontSize(10);
-                    const aiText = aiExecutiveSummary || 'Executive summary not generated yet.';
+                    const aiText = normalizeReportText(aiExecutiveSummary || 'Executive summary not generated yet.');
                     const maxWidth = pageWidth - 2 * margin; // RESTORED
 
                     // ROBUST LINE-SCANNER PARSER
@@ -17039,7 +17194,7 @@ Style Guidelines:
                         if (headerMatch) {
                             let headerName = headerMatch[1];
                             const headerFullMatch = headerMatch[0];
-                            const contentAfter = trimmed.substring(headerFullMatch.length).trim();
+                            const contentAfter = normalizeReportText(trimmed.substring(headerFullMatch.length).trim());
 
                             // Formalize Conclusion header to match plural style if needed
                             if (headerName.toLowerCase().startsWith('conclusion') && !headerName.toLowerCase().includes('recommendation')) {
@@ -17071,7 +17226,7 @@ Style Guidelines:
                             }
                         } else {
                             // IT IS BODY TEXT
-                            const wrappedLines = doc.splitTextToSize(trimmed, maxWidth);
+                            const wrappedLines = doc.splitTextToSize(normalizeReportText(trimmed), maxWidth);
                             if (y + (wrappedLines.length * 5) > pageHeight - 20) {
                                 addFooter();
                                 doc.addPage();
@@ -17092,7 +17247,7 @@ Style Guidelines:
                     doc.setFontSize(16);
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(13, 148, 136);
-                    doc.text("2. Trial Design & Methods", margin, y);
+                    doc.text(REPORT_SECTIONS.project.trialDesign, margin, y);
                     doc.setTextColor(0);
                     y += 10;
 
@@ -17193,7 +17348,7 @@ Style Guidelines:
                     doc.setFontSize(16);
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(13, 148, 136);
-                    doc.text("3. Statistical Analysis Results", margin, y);
+                    doc.text(REPORT_SECTIONS.project.statistical, margin, y);
                     doc.setTextColor(0);
                     y += 10;
 
@@ -17276,7 +17431,7 @@ Style Guidelines:
                     doc.setFontSize(16);
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(13, 148, 136);
-                    doc.text("4. Efficacy Visualization", margin, y);
+                    doc.text(REPORT_SECTIONS.project.efficacy, margin, y);
                     doc.setTextColor(0);
                     y += 10;
 
@@ -17304,7 +17459,7 @@ Style Guidelines:
                     doc.setFontSize(16);
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(13, 148, 136);
-                    doc.text("5. Detailed Safety & Species Analysis", margin, y);
+                    doc.text(REPORT_SECTIONS.project.detailed, margin, y);
                     doc.setTextColor(0);
                     y += 10;
 
@@ -17343,7 +17498,7 @@ Style Guidelines:
                     doc.setFontSize(16);
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(13, 148, 136);
-                    doc.text("6. Weather Correlation", margin, y);
+                    doc.text(REPORT_SECTIONS.project.weather, margin, y);
                     doc.setTextColor(0);
                     y += 10;
 
@@ -17387,7 +17542,7 @@ Style Guidelines:
                     doc.setFontSize(16);
                     doc.setFont("helvetica", "bold");
                     doc.setTextColor(13, 148, 136);
-                    doc.text("7. Photo Documentation", margin, y);
+                    doc.text(REPORT_SECTIONS.project.photo, margin, y);
                     doc.setTextColor(0);
                     y += 10;
 
@@ -23722,11 +23877,11 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                 <head>
                     <meta charset="UTF-8">
                     <style>
-                        body { font-family: 'Times New Roman', serif; font-size: 11pt; }
-                        h1 { color: #0d9488; font-size: 24pt; font-weight: bold; text-align: center; margin-bottom: 20px; }
-                        h2 { color: #0f766e; font-size: 16pt; font-weight: bold; margin-top: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-                        h3 { font-size: 13pt; font-weight: bold; margin-top: 15px; }
-                        p { margin-bottom: 10px; line-height: 1.5; text-align: justify; }
+                        body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.55; color: #111827; }
+                        h1 { color: #0d9488; font-size: 24pt; font-weight: 700; text-align: center; margin-bottom: 20px; }
+                        h2 { color: #0f766e; font-size: 16pt; font-weight: 700; margin-top: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+                        h3 { font-size: 13pt; font-weight: 700; font-style: italic; margin-top: 15px; margin-bottom: 6px; }
+                        p { margin-bottom: 10px; line-height: 1.55; text-align: justify; text-justify: inter-word; }
                         table { border-collapse: collapse; width: 100%; margin-bottom: 15px; }
                         th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 10pt; }
                         th { background-color: #f0fdf9; font-weight: bold; }
@@ -23930,16 +24085,13 @@ Specific agronomic recommendation based on data trends, including crop safety (p
             const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
             const trialDate = new Date(trial.Date).toLocaleDateString();
             const aiSummary = safeJsonParse(trial.AISummariesJSON, {});
+            const derivedInterpretation = buildTrialDataInterpretation(trial);
 
             // Narrative
             let narrativeHtml = "";
-            const narrativeText = aiSummary.scientificNarrative || "";
+            const narrativeText = normalizeReportText((aiSummary.scientificNarrative || '').trim() || `Methodology\nTrial conducted on ${trialDate} under recorded field conditions.\n\nResults\n${derivedInterpretation.coverSummary} ${derivedInterpretation.phytoSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`);
             if (narrativeText) {
-                narrativeHtml = narrativeText
-                    .replace(/\*\*([^*]+)\*\*/g, '<h3>$1</h3>')
-                    .replace(/\n\n/g, '</p><p>')
-                    .replace(/\n/g, '<br/>');
-                narrativeHtml = `<p>${narrativeHtml}</p>`;
+                narrativeHtml = formatReportNarrativeHtml(narrativeText);
             } else {
                 narrativeHtml = "<p><i>Narrative not available. Please generate AI summary first.</i></p>";
             }
@@ -23967,7 +24119,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
             }
 
             const photosHtml = processedPhotos.length > 0
-                ? `<h2>Photo Log</h2>${renderPhotoGridHTML(processedPhotos)}`
+                ? `<h2>${REPORT_SECTIONS.trial.photo}</h2>${renderPhotoGridHTML(processedPhotos)}`
                 : '';
 
             return `
@@ -24017,19 +24169,19 @@ Specific agronomic recommendation based on data trends, including crop safety (p
 
                 <hr/>
 
-                <h2>Executive Agronomist Narrative</h2>
+                <h2>${REPORT_SECTIONS.trial.executiveSummary}</h2>
                 ${narrativeHtml}
 
-                <h2>Trial Details</h2>
+                <h2>${REPORT_SECTIONS.trial.trialDesign}</h2>
                 <p><strong>Target Species:</strong> ${allWeedSpecies.join(', ') || 'N/A'}</p>
                 
-                <h2>Efficacy Analysis</h2>
+                <h2>${REPORT_SECTIONS.trial.efficacy}</h2>
                 ${coverChartImg ? `<div class="img-container"><img src="${coverChartImg}" width="600" /></div>` : '<p>No efficacy chart available.</p>'}
-                <p>${aiSummary.cover || ''}</p>
+                <p>${normalizeReportText((aiSummary.cover || '').trim() || derivedInterpretation.coverSummary)}</p>
 
-                <h2>Phytotoxicity Analysis</h2>
+                <h2>${REPORT_SECTIONS.trial.phytotoxicity}</h2>
                 ${phytoChartImg ? `<div class="img-container"><img src="${phytoChartImg}" width="600" /></div>` : '<p>No phytotoxicity chart available.</p>'}
-                <p>${aiSummary.phyto || ''}</p>
+                <p>${normalizeReportText((aiSummary.phyto || '').trim() || derivedInterpretation.phytoSummary)}</p>
 
                 ${photosHtml}
             `;
@@ -24059,6 +24211,17 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                 // Analysis Data
                 const engine = new AnalysisEngine(projectId, state);
                 const anovaResults = await engine.analyze('wce', null, null);
+                const parsedResults = project.AnalysisResults || safeJsonParse(project.AnalysisResultsJSON, {});
+                const groupedResults =
+                    (anovaResults && anovaResults.grouping) ||
+                    (anovaResults && anovaResults.lsdResults && anovaResults.lsdResults.groupings) ||
+                    (anovaResults && anovaResults.tukeyResults && anovaResults.tukeyResults.groupings) ||
+                    [];
+                const finalConclusion = normalizeReportText(
+                    (project.Conclusion || '').trim() ||
+                    (project.Narrative || '').trim() ||
+                    buildProjectConclusionFromResults(project, parsedResults, projectTrials)
+                );
 
                 // 3. Prepare Photos (Grouped by Treatment)
                 const photosByTreatment = {};
@@ -24118,28 +24281,31 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                             </tr>
                         </table>
 
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">1. Treatments Evaluated</h3>
+                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.executiveSummary}</h3>
+                        <p>${finalConclusion}</p>
+
+                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.trialDesign}</h3>
                         <ul style="margin-bottom: 20px;">
                             ${treatments.map(t => `<li>${t}</li>`).join('')}
                         </ul>
 
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">2. Efficacy Analysis</h3>
+                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.efficacy}</h3>
                         <p>The following charts illustrate the performance of tested formulations across all trials.</p>
                         
                         ${performanceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${performanceChartImg}" width="600" /><br/><em>Figure 1: Mean Performance by Treatment</em></div>` : ''}
                         
                         ${wceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${wceChartImg}" width="600" /><br/><em>Figure 2: Efficacy Over Time (DAA)</em></div>` : ''}
 
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">3. Statistical Summary (ANOVA)</h3>
+                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.statistical}</h3>
                         ${renderAnovaTableHTML(anovaResults.anova)}
 
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">4. Treatment Means & Grouping</h3>
-                        ${renderMeansTableHTML(anovaResults.grouping)}
+                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">Treatment Means & Grouping</h3>
+                        ${renderMeansTableHTML(groupedResults)}
 
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">5. Phytotoxicity</h3>
+                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.detailed}</h3>
                         ${phytoChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${phytoChartImg}" width="600" /><br/><em>Figure 3: Crop Phytotoxicity Over Time</em></div>` : '<p>No phytotoxicity data available.</p>'}
 
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">6. Photo Documentation</h3>
+                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.photo}</h3>
                         ${treatments.map(t => {
                     const tPhotos = photosByTreatment[t] || [];
                     if (tPhotos.length === 0) return '';
@@ -24149,8 +24315,6 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                             `;
                 }).join('')}
 
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">7. Conclusion</h3>
-                        <p>${project.Description || 'No description provided.'}</p>
                         <p><em>Generated by Herbicide App Regulatory Module.</em></p>
                     </div>
                 `;
@@ -24161,7 +24325,15 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                 <head>
                     <meta charset="UTF-8">
                     <style>
-                        body { font-family: 'Times New Roman', serif; font-size: 11pt; }
+                        body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.55; color: #111827; }
+                        h1 { font-size: 24pt; font-weight: 700; margin-bottom: 10pt; }
+                        h2 { font-size: 18pt; font-weight: 700; margin-bottom: 18pt; }
+                        h3 { font-size: 14pt; font-weight: 700; margin-top: 16pt; margin-bottom: 6pt; }
+                        h4 { font-size: 12pt; font-weight: 700; font-style: italic; margin-top: 12pt; margin-bottom: 4pt; }
+                        p { text-align: justify; text-justify: inter-word; margin: 0 0 10pt; }
+                        li { margin-bottom: 4pt; }
+                        table { border-collapse: collapse; width: 100%; margin-bottom: 12pt; }
+                        td, th { vertical-align: top; }
                     </style>
                 </head>
                 <body>
@@ -24185,7 +24357,29 @@ Specific agronomic recommendation based on data trends, including crop safety (p
 
         // Helper: Render ANOVA Table
         function renderAnovaTableHTML(anova) {
-            if (!anova) return '<p>Insufficient data for ANOVA.</p>';
+            const data = anova && anova.treatment
+                ? {
+                    dfTreat: anova.treatment.df,
+                    ssTreat: anova.treatment.ss,
+                    msTreat: anova.treatment.ms,
+                    fVal: anova.treatment.f,
+                    pVal: anova.treatment.p,
+                    dfError: anova.error && anova.error.df,
+                    ssError: anova.error && anova.error.ss,
+                    msError: anova.error && anova.error.ms,
+                    dfTotal: anova.total && anova.total.df,
+                    ssTotal: anova.total && anova.total.ss
+                }
+                : anova;
+
+            if (!data || data.dfTreat === undefined || data.ssTreat === undefined) {
+                return '<p>ANOVA table is not available for the current dataset. Check treatment replication and completeness of final observations.</p>';
+            }
+
+            const n = (v, d = 2) => {
+                const x = Number(v);
+                return isFinite(x) ? x.toFixed(d) : '-';
+            };
             return `
                 <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;">
                     <thead style="background-color: #f3f4f6;">
@@ -24201,24 +24395,24 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                     <tbody>
                         <tr>
                             <td style="border: 1px solid #999; padding: 6px;">Treatments</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.dfTreat}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.ssTreat.toFixed(2)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.msTreat.toFixed(2)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.fVal.toFixed(2)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.pVal.toFixed(4)} ${anova.pVal < 0.05 ? '*' : 'ns'}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.dfTreat, 0)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.ssTreat)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.msTreat)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.fVal)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.pVal, 4)} ${Number(data.pVal) < 0.05 ? '*' : 'ns'}</td>
                         </tr>
                         <tr>
                             <td style="border: 1px solid #999; padding: 6px;">Error</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.dfError}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.ssError.toFixed(2)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.msError.toFixed(2)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.dfError, 0)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.ssError)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.msError)}</td>
                             <td style="border: 1px solid #999; padding: 6px;">-</td>
                             <td style="border: 1px solid #999; padding: 6px;">-</td>
                         </tr>
                         <tr style="font-weight: bold; background-color: #f9fafb;">
                             <td style="border: 1px solid #999; padding: 6px;">Total</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.dfTotal}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${anova.ssTotal.toFixed(2)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.dfTotal, 0)}</td>
+                            <td style="border: 1px solid #999; padding: 6px;">${n(data.ssTotal)}</td>
                             <td style="border: 1px solid #999; padding: 6px;">-</td>
                             <td style="border: 1px solid #999; padding: 6px;">-</td>
                             <td style="border: 1px solid #999; padding: 6px;">-</td>
@@ -24230,7 +24424,9 @@ Specific agronomic recommendation based on data trends, including crop safety (p
 
         // Helper: Render Means Table
         function renderMeansTableHTML(grouping) {
-            if (!grouping || grouping.length === 0) return '<p>No means data.</p>';
+            if (!grouping || grouping.length === 0) {
+                return '<p>Treatment-level means are not available from the current statistical run.</p>';
+            }
             return `
                 <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;">
                     <thead style="background-color: #f3f4f6;">
@@ -24243,9 +24439,9 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                     <tbody>
                         ${grouping.map(g => `
                             <tr>
-                                <td style="border: 1px solid #999; padding: 6px;">${g.name}</td>
-                                <td style="border: 1px solid #999; padding: 6px; text-align: center;">${g.mean.toFixed(2)}</td>
-                                <td style="border: 1px solid #999; padding: 6px; text-align: center;">${g.grouping}</td>
+                                <td style="border: 1px solid #999; padding: 6px;">${g.name || g.treatment || 'Treatment'}</td>
+                                <td style="border: 1px solid #999; padding: 6px; text-align: center;">${Number(g.mean || 0).toFixed(2)}</td>
+                                <td style="border: 1px solid #999; padding: 6px; text-align: center;">${g.grouping || '-'}</td>
                             </tr>
                         `).join('')}
                     </tbody>
