@@ -6103,9 +6103,9 @@ IMPORTANT:
                                 : `<div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg mb-6 flex items-center gap-2 text-emerald-800 text-sm shadow-sm"><i data-lucide="shield-check" class="h-5 w-5"></i> <strong>Climate Guard:</strong> Optimal application conditions detected.</div>`;
 
                             const photos = safeJsonParse(trial.PhotoURLs);
-                            const photoTable = photos.length > 0 ? `<div class="mt-4"><h4 class="text-lg font-semibold mb-2 text-slate-700">Photo Log & Weather</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">Photo</th><th class="px-4 py-2 text-left font-medium text-slate-500">Label</th><th class="px-4 py-2 text-left font-medium text-slate-500">Date</th><th class="px-4 py-2 text-left font-medium text-slate-500">Weather</th><th class="px-4 py-2 text-left font-medium text-slate-500">Actions</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${photos.map((p, index) => { const photoUrl = p.url || p.fileData; if (!photoUrl) return ''; const proxiedUrl = photoUrl.startsWith('data:image') ? photoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(photoUrl)}&w=100`; const fullSizeUrl = photoUrl.startsWith('data:image') ? '#' : photoUrl; const weather = p.weather || {}; return `<tr><td class="p-2"><a href="${fullSizeUrl}" target="_blank"><img src="${proxiedUrl}" class="h-16 w-16 object-cover rounded-md border"></a></td><td class="p-2">${sanitizeHTML(p.label) || '-'}</td><td class="p-2">${p.date ? new Date(p.date).toLocaleDateString() : 'N/A'}</td><td class="p-2">${weather.temp ? `${weather.temp}°C, ${weather.humidity}% H, ${weather.wind} km/h` : 'N/A'}</td><td class="p-2"><button data-action="open-photo-edit-modal" data-trial-id="${trial.ID}" data-photo-index="${index}" class="text-emerald-600 hover:text-emerald-800 font-semibold text-xs">Edit</button></td></tr>` }).join('')}</tbody></table></div></div>` : '<p class="mt-4 text-gray-500">No photos available.</p>';
+                            const photoTable = photos.length > 0 ? `<div class="mt-4"><h4 class="text-lg font-semibold mb-2 text-slate-700">Photo Log & Weather</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">Photo</th><th class="px-4 py-2 text-left font-medium text-slate-500">Label</th><th class="px-4 py-2 text-left font-medium text-slate-500">Date</th><th class="px-4 py-2 text-left font-medium text-slate-500">Weather</th><th class="px-4 py-2 text-left font-medium text-slate-500">Actions</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${photos.map((p, index) => { const photoUrl = p.fileData || p.url; if (!photoUrl) return ''; const proxiedUrl = photoUrl.startsWith('data:image') ? photoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(photoUrl)}&w=100`; const fullSizeUrl = photoUrl.startsWith('data:image') ? '#' : photoUrl; const weather = p.weather || {}; return `<tr><td class="p-2"><a href="${fullSizeUrl}" target="_blank"><img src="${proxiedUrl}" class="h-16 w-16 object-cover rounded-md border"></a></td><td class="p-2">${sanitizeHTML(p.label) || '-'}</td><td class="p-2">${p.date ? new Date(p.date).toLocaleDateString() : 'N/A'}</td><td class="p-2">${weather.temp ? `${weather.temp}°C, ${weather.humidity}% H, ${weather.wind} km/h` : 'N/A'}</td><td class="p-2"><button data-action="open-photo-edit-modal" data-trial-id="${trial.ID}" data-photo-index="${index}" class="text-emerald-600 hover:text-emerald-800 font-semibold text-xs">Edit</button></td></tr>` }).join('')}</tbody></table></div></div>` : '<p class="mt-4 text-gray-500">No photos available.</p>';
                             const weedPhotos = safeJsonParse(trial.WeedPhotosJSON);
-                            const weedTable = weedPhotos.length > 0 ? `<div class="mt-6"><h4 class="text-lg font-semibold mb-2 text-slate-700">Weed Identification</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${weedPhotos.map(p => { const bestMatch = p.identifications?.[0]; return `<div class="border rounded-lg p-3 bg-slate-50"><img src="https://images.weserv.nl/?url=${encodeURIComponent(p.url)}&w=300" class="rounded-md w-full h-48 object-cover mb-2"><p class="font-semibold text-sm">${sanitizeHTML(bestMatch?.name) || 'Unknown'} <em class="text-gray-500 font-normal">${sanitizeHTML(bestMatch?.commonNames?.[0]) || ''}</em></p><p class="text-xs text-gray-500">Confidence: ${bestMatch?.confidence ? (bestMatch.confidence * 100).toFixed(1) + '%' : 'N/A'}</p></div>` }).join('')}</div></div>` : '';
+                            const weedTable = weedPhotos.length > 0 ? `<div class="mt-6"><h4 class="text-lg font-semibold mb-2 text-slate-700">Weed Identification</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${weedPhotos.map(p => { const bestMatch = p.identifications?.[0]; const weedPhotoUrl = p.fileData || p.url; if (!weedPhotoUrl) return ''; const weedPreviewUrl = weedPhotoUrl.startsWith('data:image') ? weedPhotoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(weedPhotoUrl)}&w=300`; return `<div class="border rounded-lg p-3 bg-slate-50"><img src="${weedPreviewUrl}" class="rounded-md w-full h-48 object-cover mb-2"><p class="font-semibold text-sm">${sanitizeHTML(bestMatch?.name) || 'Unknown'} <em class="text-gray-500 font-normal">${sanitizeHTML(bestMatch?.commonNames?.[0]) || ''}</em></p><p class="text-xs text-gray-500">Confidence: ${bestMatch?.confidence ? (bestMatch.confidence * 100).toFixed(1) + '%' : 'N/A'}</p></div>` }).join('')}</div></div>` : '';
                             const efficacyData = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON));
 
                             // DEBUG: Log efficacy data structure
@@ -6957,7 +6957,7 @@ IMPORTANT:
                     const photoURLs = safeJsonParse(trial.PhotoURLs);
                     const allPhotos = [...photoURLs]; // Only show general photos on home screen card
                     const photos = allPhotos.slice(0, 4).map(p => {
-                        const photoUrl = p.url || p.fileData;
+                        const photoUrl = p.fileData || p.url;
                         if (typeof photoUrl !== 'string' || !photoUrl) return '';
                         const isDataUri = /^data:image\//i.test(photoUrl);
                         const driveIdMatch = !isDataUri ? photoUrl.match(/(?:[?&]id=|\/d\/)([a-zA-Z0-9_-]{10,})/) : null;
@@ -7059,7 +7059,8 @@ IMPORTANT:
                             </div>`;
                 },
                 weedPhotoCard: (p, trialId, index) => {
-                    const proxiedUrl = (p.url || p.fileData) ? ((p.url || p.fileData).startsWith('data:image') ? (p.url || p.fileData) : `https://images.weserv.nl/?url=${encodeURIComponent(p.url)}&w=300`) : '';
+                    const weedPhotoSrc = p.fileData || p.url;
+                    const proxiedUrl = weedPhotoSrc ? (weedPhotoSrc.startsWith('data:image') ? weedPhotoSrc : `https://images.weserv.nl/?url=${encodeURIComponent(weedPhotoSrc)}&w=300`) : '';
                     let identificationHTML = '<div class="flex flex-col items-center justify-center gap-2"><div class="spinner h-6 w-6 border-2"></div><p class="text-xs text-slate-500 animate-pulse">Syncing & Analyzing...</p></div>';
 
                     const syncItem = state.syncQueue.find(s => s.photo.tempId === p.tempId);
@@ -7670,10 +7671,11 @@ IMPORTANT:
                         `;
 
                         Object.entries(project.AnalysisResults).forEach(([dat, result]) => {
+                            if (!result || typeof result !== 'object') return;
                             const datCard = document.createElement('div');
                             datCard.className = 'bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden';
 
-                            const isPartial = result.isPartial;
+                            const isPartial = !!result.isPartial;
                             const headerClass = isPartial ? 'bg-amber-600' : 'bg-slate-800';
                             const headerTitle = `Results at ${dat} DAT ${isPartial ? '<span class="text-[10px] bg-white text-amber-700 px-2 py-0.5 rounded-full ml-2 uppercase">Preliminary (Partial Data)</span>' : ''}`;
 
@@ -8317,7 +8319,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             <div class="mt-2 flex justify-between items-center">
                                 <div class="flex -space-x-1">
                                     ${(safeJsonParse(t.PhotoURLs) || []).slice(0, 3).map(p => {
-                        const url = p.url || p.fileData;
+                        const url = p.fileData || p.url;
                         const proxied = url.startsWith('data') ? url : `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=20&h=20&fit=cover`;
                         return `<img src="${proxied}" class="w-4 h-4 rounded-full border border-white">`;
                     }).join('')}
@@ -13993,7 +13995,7 @@ Style Guidelines:
                     let xOffset = 14;
                     for (let i = 0; i < photos.length; i++) {
                         const p = photos[i];
-                        const photoSrc = p.url || p.fileData;
+                        const photoSrc = p.fileData || p.url;
                         if (!photoSrc) continue;
                         try {
                             const imgData = await getImageAsResizedBase64(photoSrc, 300);
@@ -14059,7 +14061,7 @@ Style Guidelines:
                     }
 
                     for (const p of weedPhotos) {
-                        const photoSrc = p.url || p.fileData;
+                        const photoSrc = p.fileData || p.url;
                         if (!photoSrc) continue;
                         if (weedY > 220) { doc.addPage(); weedY = 20; }
                         try {
@@ -14251,11 +14253,12 @@ Style Guidelines:
                             // Render ANOVA Table
                             const anova = stats.anovaResults.anovaTable;
                             if (anova) {
+                                const nf = (v, d = 2) => Number.isFinite(v) ? Number(v).toFixed(d) : '-';
                                 const rows = [
-                                    ['Treatments', anova.treatment.df, anova.treatment.ss.toFixed(2), anova.treatment.ms.toFixed(2), anova.treatment.f.toFixed(2), anova.treatment.sig],
-                                    ['Blocks', anova.block.df, anova.block.ss.toFixed(2), anova.block.ms.toFixed(2), anova.block.f.toFixed(2), anova.block.sig],
-                                    ['Error', anova.error.df, anova.error.ss.toFixed(2), anova.error.ms.toFixed(2), '-', '-'],
-                                    ['Total', anova.total.df, anova.total.ss.toFixed(2), '-', '-', '-']
+                                    ['Treatments', anova.treatment?.df ?? '-', nf(anova.treatment?.ss), nf(anova.treatment?.ms), nf(anova.treatment?.f), anova.treatment?.sig || '-'],
+                                    ['Blocks', anova.block?.df ?? '-', nf(anova.block?.ss), nf(anova.block?.ms), nf(anova.block?.f), anova.block?.sig || '-'],
+                                    ['Error', anova.error?.df ?? '-', nf(anova.error?.ss), nf(anova.error?.ms), '-', '-'],
+                                    ['Total', anova.total?.df ?? '-', nf(anova.total?.ss), '-', '-', '-']
                                 ];
 
                                 doc.autoTable({
@@ -14401,7 +14404,7 @@ Style Guidelines:
                     doc.autoTable({
                         startY: y,
                         head: [['Species', 'First DAA', 'Last DAA', 'Obs.', 'Reappearance', 'Continuity %']],
-                        body: continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, r.continuityScore.toFixed(1)]),
+                        body: continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, Number.isFinite(r?.continuityScore) ? r.continuityScore.toFixed(1) : '-']),
                         headStyles: { fillColor: [45, 55, 72] },
                         styles: { fontSize: 8 },
                         theme: 'grid'
@@ -14489,7 +14492,7 @@ Style Guidelines:
                     let xOffset = 14;
                     for (let i = 0; i < photos.length; i++) {
                         const p = photos[i];
-                        const photoSrc = p.url || p.fileData;
+                        const photoSrc = p.fileData || p.url;
                         if (!photoSrc) continue;
                         try {
                             const imgData = await getImageAsResizedBase64(photoSrc, 300); // Helper to get Base64
@@ -14561,7 +14564,7 @@ Style Guidelines:
                         }
 
                         for (const p of weedPhotos) {
-                            const photoSrc = p.url || p.fileData;
+                            const photoSrc = p.fileData || p.url;
                             if (!photoSrc) continue;
                             if (weedY > 220) { doc.addPage(); weedY = 20; }
                             try {
@@ -15034,6 +15037,7 @@ Style Guidelines:
             window.buildOnePageExecutiveBrief = buildOnePageExecutiveBrief;
             window.buildPublicationCaption = buildPublicationCaption;
             window.applyReportStyleGuard = applyReportStyleGuard;
+            window.normalizeReportText = normalizeReportText;
             window.getTrialTotalControlDays = getTrialTotalControlDays;
             window.summarizeProjectControlDays = summarizeProjectControlDays;
             window.calculateWeedControlEfficiency = calculateWeedControlEfficiency;
@@ -15842,7 +15846,7 @@ Style Guidelines:
 
                     let xPos = 0.5;
                     for (const p of photos) {
-                        const photoSrc = p.url || p.fileData;
+                        const photoSrc = p.fileData || p.url;
                         if (photoSrc) {
                             if (String(photoSrc).startsWith('data:image/')) {
                                 slide2.addImage({ data: photoSrc, x: xPos, y: 1.5, w: 3, h: 3 });
@@ -15969,7 +15973,7 @@ Style Guidelines:
 
                 for (let i = 0; i < allPhotos.length; i++) {
                     const p = allPhotos[i];
-                    const photoSrc = p.url || p.fileData;
+                    const photoSrc = p.fileData || p.url;
                     if (photoSrc) {
                         try {
                             const imgData = await getImageAsResizedBase64(photoSrc, 1000);
@@ -17893,10 +17897,10 @@ Style Guidelines:
 
                     const photos = safeJsonParse(t.PhotoURLs, []);
                     photos.forEach(p => {
-                        if (p.url || p.fileData) {
+                        if (p.fileData || p.url) {
                             const block = state.blocks.find(b => b.ID === t.BlockID);
                             photosByTreatment[tName].push({
-                                url: p.url || p.fileData,
+                                url: p.fileData || p.url,
                                 rep: block?.ReplicationNum || '?',
                                 date: p.date ? new Date(p.date).toLocaleDateString() : '',
                                 label: p.label || '',
@@ -18212,7 +18216,7 @@ Style Guidelines:
                     for (const dat of daas) {
                         checkPageBreak(70);
 
-                        const res = results[dat];
+                        const res = results[dat] || {};
                         doc.setFontSize(14);
                         doc.setFont("helvetica", "bold");
                         doc.text(`Assessment at ${dat} Days After Application`, margin, y);
@@ -18220,7 +18224,10 @@ Style Guidelines:
 
                         doc.setFontSize(9);
                         doc.setFont("helvetica", "normal");
-                        let anovaText = `F-ratio: ${res.f?.toFixed(2) || 'N/A'} | LSD(0.05): ${res.lsd?.toFixed(3) || 'N/A'} | MSE: ${res.ms?.error?.toFixed(4) || 'N/A'}`;
+                        const fTxt = Number.isFinite(res?.f) ? res.f.toFixed(2) : 'N/A';
+                        const lsdTxt = Number.isFinite(res?.lsd) ? res.lsd.toFixed(3) : 'N/A';
+                        const mseTxt = Number.isFinite(res?.ms?.error) ? res.ms.error.toFixed(4) : 'N/A';
+                        let anovaText = `F-ratio: ${fTxt} | LSD(0.05): ${lsdTxt} | MSE: ${mseTxt}`;
                         if (res.isPartial) anovaText += ' [Preliminary - Partial Data]';
                         doc.text(anovaText, margin, y);
                         y += 6;
@@ -18229,10 +18236,10 @@ Style Guidelines:
                             const trt = state.formulations.find(f => f.ID === ts.treatmentId) || { Name: ts.treatmentId };
                             return [
                                 trt.Name,
-                                ts.mean.toFixed(2),
-                                `± ${ts.sd.toFixed(2)}`,
-                                ts.cv ? ts.cv.toFixed(1) : '-',
-                                ts.wce.toFixed(1),
+                                Number.isFinite(ts?.mean) ? ts.mean.toFixed(2) : '-',
+                                Number.isFinite(ts?.sd) ? `± ${ts.sd.toFixed(2)}` : '-',
+                                Number.isFinite(ts?.cv) ? ts.cv.toFixed(1) : '-',
+                                Number.isFinite(ts?.wce) ? ts.wce.toFixed(1) : '-',
                                 ts.rank || 'N/A'
                             ];
                         });
@@ -18258,10 +18265,11 @@ Style Guidelines:
                             y += 6;
 
                             const a = res.anova;
+                            const nfmt = (v, d = 3) => Number.isFinite(v) ? Number(v).toFixed(d) : '-';
                             const anovaBody = [
-                                ['Treatments', a.dfTreat, a.ssTreat.toFixed(3), a.msTreat.toFixed(3), a.fVal.toFixed(3), a.pVal.toFixed(4)],
-                                ['Error', a.dfError, a.ssError.toFixed(3), a.msError.toFixed(3), '-', '-'],
-                                ['Total', a.dfTotal, a.ssTotal.toFixed(3), '-', '-', '-']
+                                ['Treatments', a.dfTreat ?? '-', nfmt(a.ssTreat), nfmt(a.msTreat), nfmt(a.fVal), nfmt(a.pVal, 4)],
+                                ['Error', a.dfError ?? '-', nfmt(a.ssError), nfmt(a.msError), '-', '-'],
+                                ['Total', a.dfTotal ?? '-', nfmt(a.ssTotal), '-', '-', '-']
                             ];
 
                             doc.autoTable({
@@ -18330,7 +18338,12 @@ Style Guidelines:
                             head: [['Treatment', 'Mean WCE%', 'Lower 95% band', 'Upper 95% band']],
                             body: confidenceBands.map(r => {
                                 const name = state.formulations.find(f => f.ID === r.treatmentId)?.Name || r.treatmentId;
-                                return [name, r.mean.toFixed(1), r.low.toFixed(1), r.high.toFixed(1)];
+                                return [
+                                    name,
+                                    Number.isFinite(r?.mean) ? r.mean.toFixed(1) : '-',
+                                    Number.isFinite(r?.low) ? r.low.toFixed(1) : '-',
+                                    Number.isFinite(r?.high) ? r.high.toFixed(1) : '-'
+                                ];
                             }),
                             theme: 'striped',
                             headStyles: { fillColor: [45, 55, 72], fontSize: 8 },
@@ -18395,7 +18408,7 @@ Style Guidelines:
                         doc.autoTable({
                             startY: y,
                             head: [['Species', 'First DAA', 'Last DAA', 'Obs.', 'Reappearance', 'Continuity%']],
-                            body: continuity.rows.slice(0, 12).map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, r.continuityScore.toFixed(1)]),
+                            body: continuity.rows.slice(0, 12).map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, Number.isFinite(r?.continuityScore) ? r.continuityScore.toFixed(1) : '-']),
                             theme: 'grid',
                             headStyles: { fillColor: [71, 85, 105], fontSize: 8 },
                             styles: { fontSize: 8, cellPadding: 2 },
@@ -25179,7 +25192,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
 
             if (photos.length > 0) {
                 for (const p of photos) {
-                    const photoSrc = p.url || p.fileData;
+                    const photoSrc = p.fileData || p.url;
                     if (photoSrc) {
                         try {
                             const base64 = await getImageAsResizedBase64(photoSrc, 600); // Higher resolution for export
@@ -25334,6 +25347,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
             const confFn = (typeof buildSpeciesConfidenceBands === 'function') ? buildSpeciesConfidenceBands : window.buildSpeciesConfidenceBands;
             const traceFn = (typeof buildEvidenceTraceabilityMatrix === 'function') ? buildEvidenceTraceabilityMatrix : window.buildEvidenceTraceabilityMatrix;
             const doseFn = (typeof buildDoseResponseRecommendationPanel === 'function') ? buildDoseResponseRecommendationPanel : window.buildDoseResponseRecommendationPanel;
+            const normalizeReportFn = (typeof normalizeReportText === 'function') ? normalizeReportText : (window.normalizeReportText || (t => String(t || '').trim()));
 
             showToast('Generating Regulatory Report DOC...', 'info');
 
@@ -25372,7 +25386,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 const traceabilityRows = traceFn ? traceFn(project, projectTrials, !!finalRes?.anova) : [];
                 const dosePanel = doseFn ? doseFn(projectTrials, finalRes) : { rows: [], recommendation: 'Dose-response unavailable.' };
                 const controlDaysSummary = summarizeProjectControlDays(projectTrials);
-                const finalConclusion = normalizeReportText(
+                const finalConclusion = normalizeReportFn(
                     (project.Conclusion || '').trim() ||
                     (project.Narrative || '').trim() ||
                     buildProjectConclusionFromResults(project, parsedResults, projectTrials)
@@ -25400,7 +25414,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     // We'll take up to 2 representative photos per trial to avoid huge DOCs
                     let count = 0;
                     for (const p of photos) {
-                        const photoSrc = p.url || p.fileData;
+                        const photoSrc = p.fileData || p.url;
                         if (photoSrc && count < 2) {
                             try {
                                 const base64 = await getImageAsResizedBase64(photoSrc, 600);
@@ -25485,7 +25499,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                         ` : ''}
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.statistical}</h3>
-                        ${renderAnovaTableHTML(anovaResults.anova)}
+                        ${renderAnovaTableHTML(anovaResults?.anova)}
                         <p><strong>Statistical Significance Block:</strong> ${sanitizeHTML(significance.text)}</p>
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">Treatment Means & Grouping</h3>
