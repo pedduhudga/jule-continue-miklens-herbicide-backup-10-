@@ -7677,11 +7677,18 @@ IMPORTANT:
                             const headerClass = isPartial ? 'bg-amber-600' : 'bg-slate-800';
                             const headerTitle = `Results at ${dat} DAT ${isPartial ? '<span class="text-[10px] bg-white text-amber-700 px-2 py-0.5 rounded-full ml-2 uppercase">Preliminary (Partial Data)</span>' : ''}`;
 
+                            const safeF = Number.isFinite(result?.f) ? result.f.toFixed(2) : 'N/A';
+                            const safeLsd = Number.isFinite(result?.lsd) ? result.lsd.toFixed(2) : 'N/A';
+                            const safeCv = Number.isFinite(result?.cv) ? result.cv.toFixed(1) : 'N/A';
+                            const sigSymbol = Number.isFinite(result?.anovaTable?.treatment?.p)
+                                ? formatSignificance(result.anovaTable.treatment.p).symbol
+                                : '';
+
                             const statsDisplay = isPartial
                                 ? `<span class="text-amber-100 font-bold text-xs uppercase tracking-wide flex items-center gap-1"><i data-lucide="alert-triangle" class="h-3 w-3"></i> LSD/ANOVA requires full block data</span>`
-                                : `<span>F-ratio: ${result.f.toFixed(2)} ${formatSignificance(result.anovaTable.treatment.p).symbol}</span>
-                                   <span>LSD (0.05): ${result.lsd.toFixed(2)}</span>
-                                   <span>CV: ${result.cv.toFixed(1)}% (${result.cvInterpretation})</span>`;
+                                : `<span>F-ratio: ${safeF} ${sigSymbol}</span>
+                                   <span>LSD (0.05): ${safeLsd}</span>
+                                   <span>CV: ${safeCv}% (${result.cvInterpretation || 'N/A'})</span>`;
 
                             // Add null check for treatmentStats
                             let rows = '';
@@ -13622,6 +13629,7 @@ The conclusion must state efficacy using WCE and species-specific susceptibility
                 const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
                 const trialDate = new Date(trial.Date).toLocaleDateString();
                 const derivedInterpretation = buildTrialDataInterpretation(trial);
+                const controlDays = getTrialTotalControlDays(trial, efficacyData);
 
                 const narrativeContext = `Generate a professional, human-like technical executive summary for an individual herbicide trial report.
                 
@@ -13673,7 +13681,8 @@ Style Guidelines:
                 const metaRows = [
                     ['Investigator', trial.InvestigatorName || 'N/A', 'Date', trialDate],
                     ['Location', trial.Location || 'N/A', 'Dosage', trial.Dosage || 'N/A'],
-                    ['Status', trial.IsCompleted ? 'Finalized' : 'Ongoing', 'Manual Verdict', trial.Result || 'N/A']
+                    ['Status', trial.IsCompleted ? 'Finalized' : 'Ongoing', 'Manual Verdict', trial.Result || 'N/A'],
+                    ['Total Control Days', controlDays.label, 'Replication', trial.Replication || 'N/A']
                 ];
                 doc.autoTable({
                     startY: y,
@@ -14010,10 +14019,8 @@ Style Guidelines:
                                 if (xOffset + imgWidth > pageWidth) { xOffset = 14; y += 60; }
                                 if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; xOffset = 14; }
 
-                                if (isFinite(imgWidth) && isFinite(imgHeight) && imgWidth > 0 && imgHeight > 0 && String(imgData).startsWith('data:image/')) {
-                                    doc.addImage(imgData, 'JPEG', xOffset, y, imgWidth, imgHeight);
-                                } else {
-                                    console.warn('Skipping invalid photo image dimensions for PDF.', { imgWidth, imgHeight });
+                                if (!addImageToPdfSafe(doc, imgData, xOffset, y, imgWidth, imgHeight)) {
+                                    console.warn('Skipping photo after embed failure.', { imgWidth, imgHeight });
                                     continue;
                                 }
                                 doc.setFontSize(8);
@@ -14075,10 +14082,8 @@ Style Guidelines:
                                     imgWidth = maxSize * aspectRatio;
                                 }
 
-                                if (isFinite(imgWidth) && isFinite(imgHeight) && imgWidth > 0 && imgHeight > 0 && String(imgData).startsWith('data:image/')) {
-                                    doc.addImage(imgData, 'JPEG', 14, weedY, imgWidth, imgHeight);
-                                } else {
-                                    console.warn('Skipping invalid weed image dimensions for PDF.', { imgWidth, imgHeight });
+                                if (!addImageToPdfSafe(doc, imgData, 14, weedY, imgWidth, imgHeight)) {
+                                    console.warn('Skipping weed photo after embed failure.', { imgWidth, imgHeight });
                                     continue;
                                 }
                                 const bestMatch = p.identifications?.[0];
@@ -14124,6 +14129,7 @@ Style Guidelines:
                 showToast('Generating PDF...', 'info');
 
                 const efficacyForAdvanced = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
+                const controlDays = getTrialTotalControlDays(trial, efficacyForAdvanced);
                 const continuity = buildSpeciesContinuityTable(efficacyForAdvanced);
                 const envIndex = buildEnvironmentalSuitabilityIndex(trial);
                 const trialStats = safeJsonParse(trial.StatisticsJSON, {});
@@ -14167,6 +14173,8 @@ Style Guidelines:
                 doc.text(`Dosage: ${trial.Dosage || 'N/A'}`, rightColX, y); y += 6;
                 doc.text(`Replication: ${trial.Replication || 'N/A'}`, leftColX, y);
                 doc.text(`Result: ${trial.Result || 'N/A'}`, rightColX, y); y += 6;
+                doc.text(`Total Control Days: ${controlDays.days}`, leftColX, y);
+                doc.text(`Control Source: ${controlDays.source}`, rightColX, y); y += 6;
 
                 // --- Weed Species ---
                 if (trial.WeedSpecies && trial.WeedSpecies.trim()) {
@@ -14499,10 +14507,8 @@ Style Guidelines:
                                 if (xOffset + imgWidth > pageWidth) { xOffset = 14; y += 60; }
                                 if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; xOffset = 14; }
 
-                                if (isFinite(imgWidth) && isFinite(imgHeight) && imgWidth > 0 && imgHeight > 0 && String(imgData).startsWith('data:image/')) {
-                                    doc.addImage(imgData, 'JPEG', xOffset, y, imgWidth, imgHeight);
-                                } else {
-                                    console.warn('Skipping invalid photo image dimensions for PDF.', { imgWidth, imgHeight });
+                                if (!addImageToPdfSafe(doc, imgData, xOffset, y, imgWidth, imgHeight)) {
+                                    console.warn('Skipping photo after embed failure.', { imgWidth, imgHeight });
                                     continue;
                                 }
                                 doc.setFontSize(8);
@@ -14570,10 +14576,8 @@ Style Guidelines:
                                         imgWidth = maxSize * aspectRatio;
                                     }
 
-                                    if (isFinite(imgWidth) && isFinite(imgHeight) && imgWidth > 0 && imgHeight > 0 && String(imgData).startsWith('data:image/')) {
-                                        doc.addImage(imgData, 'JPEG', 14, weedY, imgWidth, imgHeight);
-                                    } else {
-                                        console.warn('Skipping invalid weed image dimensions for PDF.', { imgWidth, imgHeight });
+                                    if (!addImageToPdfSafe(doc, imgData, 14, weedY, imgWidth, imgHeight)) {
+                                        console.warn('Skipping weed photo after embed failure.', { imgWidth, imgHeight });
                                         continue;
                                     }
                                     const bestMatch = p.identifications?.[0];
@@ -14847,10 +14851,10 @@ Style Guidelines:
                 const fVal = parseFloat(anova.fVal);
                 const ssTreat = parseFloat(anova.ssTreat);
                 const ssTotal = parseFloat(anova.ssTotal);
-                const etaSquared = (isFinite(ssTreat) && isFinite(ssTotal) && ssTotal > 0) ? (ssTreat / ssTotal) : null;
-                const significant = isFinite(pVal) ? pVal < 0.05 : false;
+                const etaSquared = (Number.isFinite(ssTreat) && Number.isFinite(ssTotal) && ssTotal > 0) ? (ssTreat / ssTotal) : null;
+                const significant = Number.isFinite(pVal) ? pVal < 0.05 : false;
 
-                const text = `ANOVA at final assessment indicates ${significant ? 'a statistically significant' : 'a non-significant'} treatment effect (F=${isFinite(fVal) ? fVal.toFixed(2) : 'N/A'}, p=${isFinite(pVal) ? pVal.toFixed(4) : 'N/A'}). ${etaSquared !== null ? `Estimated effect size (eta-squared) was ${etaSquared.toFixed(3)}.` : ''}`;
+                const text = `ANOVA at final assessment indicates ${significant ? 'a statistically significant' : 'a non-significant'} treatment effect (F=${Number.isFinite(fVal) ? fVal.toFixed(2) : 'N/A'}, p=${Number.isFinite(pVal) ? pVal.toFixed(4) : 'N/A'}). ${etaSquared !== null ? `Estimated effect size (eta-squared) was ${etaSquared.toFixed(3)}.` : ''}`;
                 return { text: applyReportStyleGuard(text), significant, pVal, fVal, etaSquared };
             }
 
@@ -14868,17 +14872,17 @@ Style Guidelines:
                     const tTemp = parseFloat(t?.Temperature);
                     const tHum = parseFloat(t?.Humidity);
                     const tRain = parseFloat(t?.Rain);
-                    if (isFinite(tTemp)) tempVals.push(tTemp);
-                    if (isFinite(tHum)) humidityVals.push(tHum);
-                    if (isFinite(tRain)) rainVals.push(tRain);
+                    if (Number.isFinite(tTemp)) tempVals.push(tTemp);
+                    if (Number.isFinite(tHum)) humidityVals.push(tHum);
+                    if (Number.isFinite(tRain)) rainVals.push(tRain);
 
                     const photos = safeJsonParse(t?.PhotoURLs, []);
                     photos.forEach(p => {
                         const w = p?.weather || {};
                         const pt = parseFloat(w.temp);
                         const ph = parseFloat(w.humidity);
-                        if (isFinite(pt)) tempVals.push(pt);
-                        if (isFinite(ph)) humidityVals.push(ph);
+                        if (Number.isFinite(pt)) tempVals.push(pt);
+                        if (Number.isFinite(ph)) humidityVals.push(ph);
                     });
                 });
 
@@ -14888,7 +14892,7 @@ Style Guidelines:
                 const rain = avg(rainVals);
 
                 const scoreBand = (val, idealMin, idealMax, tolerance = 15) => {
-                    if (!isFinite(val)) return 50;
+                    if (!Number.isFinite(val)) return 50;
                     if (val >= idealMin && val <= idealMax) return 100;
                     const dist = val < idealMin ? (idealMin - val) : (val - idealMax);
                     return Math.max(20, 100 - (dist / tolerance) * 60);
@@ -14896,11 +14900,11 @@ Style Guidelines:
 
                 const tempScore = scoreBand(temp, 20, 32, 18);
                 const humScore = scoreBand(hum, 40, 80, 30);
-                const rainScore = !isFinite(rain) ? 70 : Math.max(25, 100 - Math.max(0, rain - 8) * 6);
+                const rainScore = !Number.isFinite(rain) ? 70 : Math.max(25, 100 - Math.max(0, rain - 8) * 6);
                 const score = Math.round((tempScore * 0.45) + (humScore * 0.35) + (rainScore * 0.20));
 
                 const className = score >= 80 ? 'High suitability' : (score >= 60 ? 'Moderate suitability' : 'Low suitability');
-                const note = `Environmental suitability index was ${score}/100 (${className.toLowerCase()}) based on mean temperature ${isFinite(temp) ? temp.toFixed(1) + '°C' : 'N/A'}, humidity ${isFinite(hum) ? hum.toFixed(1) + '%' : 'N/A'}, and rain ${isFinite(rain) ? rain.toFixed(1) + ' mm' : 'N/A'}.`;
+                const note = `Environmental suitability index was ${score}/100 (${className.toLowerCase()}) based on mean temperature ${Number.isFinite(temp) ? temp.toFixed(1) + '°C' : 'N/A'}, humidity ${Number.isFinite(hum) ? hum.toFixed(1) + '%' : 'N/A'}, and rain ${Number.isFinite(rain) ? rain.toFixed(1) + ' mm' : 'N/A'}.`;
 
                 return { score, className, note: applyReportStyleGuard(note), avgTemp: temp, avgHumidity: hum, avgRain: rain };
             }
@@ -14972,13 +14976,16 @@ Style Guidelines:
                         ? performanceByName.get(name)
                         : (() => {
                             const eff = validateEfficacyData(safeJsonParse(t.EfficacyDataJSON, []));
-                            const w = calculateWeedControlEfficiency(eff);
+                            const wceFn = (typeof calculateWeedControlEfficiency === 'function')
+                                ? calculateWeedControlEfficiency
+                                : (typeof window.calculateWeedControlEfficiency === 'function' ? window.calculateWeedControlEfficiency : (() => []));
+                            const w = wceFn(eff);
                             return w.length ? parseFloat(w[w.length - 1].wce) || 0 : 0;
                         })();
                     return { name, dosageRaw: dosageRaw || 'Not recorded', numericDose, wce };
                 });
 
-                rows.sort((a, b) => (isFinite(a.numericDose) ? a.numericDose : 9999) - (isFinite(b.numericDose) ? b.numericDose : 9999));
+                rows.sort((a, b) => (Number.isFinite(a.numericDose) ? a.numericDose : 9999) - (Number.isFinite(b.numericDose) ? b.numericDose : 9999));
                 const best = [...rows].sort((a, b) => b.wce - a.wce)[0] || null;
 
                 const recommendation = best
@@ -15006,6 +15013,20 @@ Style Guidelines:
                 }).join('');
                 return `<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt;"><thead><tr>${safeHeaders}</tr></thead><tbody>${safeRows}</tbody></table>`;
             }
+
+            window.buildTrialDataInterpretation = buildTrialDataInterpretation;
+            window.buildSpeciesContinuityTable = buildSpeciesContinuityTable;
+            window.buildEnvironmentalSuitabilityIndex = buildEnvironmentalSuitabilityIndex;
+            window.buildStatisticalSignificanceBlock = buildStatisticalSignificanceBlock;
+            window.buildEvidenceTraceabilityMatrix = buildEvidenceTraceabilityMatrix;
+            window.buildSpeciesConfidenceBands = buildSpeciesConfidenceBands;
+            window.buildDoseResponseRecommendationPanel = buildDoseResponseRecommendationPanel;
+            window.buildOnePageExecutiveBrief = buildOnePageExecutiveBrief;
+            window.buildPublicationCaption = buildPublicationCaption;
+            window.applyReportStyleGuard = applyReportStyleGuard;
+            window.getTrialTotalControlDays = getTrialTotalControlDays;
+            window.summarizeProjectControlDays = summarizeProjectControlDays;
+            window.calculateWeedControlEfficiency = calculateWeedControlEfficiency;
 
             const REPORT_SECTIONS = {
                 trial: {
@@ -15091,13 +15112,95 @@ Style Guidelines:
                     const blob = await res.blob();
                     return new Promise((resolve) => {
                         const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
+                        reader.onloadend = () => {
+                            const raw = String(reader.result || '');
+                            if (raw.startsWith('data:image/')) return resolve(raw);
+                            if (raw.startsWith('data:')) {
+                                const base64 = raw.split(',')[1] || '';
+                                return resolve(base64 ? `data:image/jpeg;base64,${base64}` : null);
+                            }
+                            return resolve(null);
+                        };
                         reader.readAsDataURL(blob);
                     });
                 } catch (e) {
                     console.error("Image fetch failed", e);
                     return null;
                 }
+            }
+
+            function getPdfImageFormatFromData(dataUrl) {
+                const src = String(dataUrl || '').toLowerCase();
+                if (src.startsWith('data:image/png')) return 'PNG';
+                if (src.startsWith('data:image/webp')) return 'WEBP';
+                return 'JPEG';
+            }
+
+            function normalizeDataUrlForPdf(dataUrl) {
+                const src = String(dataUrl || '').trim();
+                if (!src) return null;
+                if (src.startsWith('data:image/')) return src;
+                if (src.startsWith('data:')) {
+                    const base64 = src.split(',')[1] || '';
+                    return base64 ? `data:image/jpeg;base64,${base64}` : null;
+                }
+                return null;
+            }
+
+            function addImageToPdfSafe(doc, imageData, x, y, w, h) {
+                if (!doc || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return false;
+                const normalized = normalizeDataUrlForPdf(imageData);
+                if (!normalized) return false;
+                try {
+                    doc.addImage(normalized, getPdfImageFormatFromData(normalized), x, y, w, h);
+                    return true;
+                } catch (e1) {
+                    try {
+                        doc.addImage(normalized, 'JPEG', x, y, w, h);
+                        return true;
+                    } catch (e2) {
+                        console.warn('Photo embedding failed after fallback.', e2);
+                        return false;
+                    }
+                }
+            }
+
+            function getTrialTotalControlDays(trial, efficacyOverride = null) {
+                const finalDays = parseFloat(trial?.FinalControlDuration);
+                if (Number.isFinite(finalDays) && finalDays >= 0) {
+                    const d = Math.round(finalDays);
+                    return { days: d, source: 'finalized', label: `${d} days (finalized)` };
+                }
+
+                const efficacy = Array.isArray(efficacyOverride)
+                    ? efficacyOverride
+                    : validateEfficacyData(safeJsonParse(trial?.EfficacyDataJSON, []));
+                if (efficacy.length > 0) {
+                    const daas = efficacy.map(e => parseFloat(e?.daa)).filter(v => Number.isFinite(v));
+                    if (daas.length > 0) {
+                        const d = Math.max(0, Math.round(Math.max(...daas)));
+                        return { days: d, source: 'observation', label: `${d} days (from DA-A observations)` };
+                    }
+                }
+
+                const start = trial?.Date ? new Date(trial.Date) : null;
+                if (start && !isNaN(start.getTime())) {
+                    const d = Math.max(0, Math.round((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                    return { days: d, source: 'elapsed', label: `${d} days (elapsed since application)` };
+                }
+
+                return { days: 0, source: 'unknown', label: '0 days (insufficient date data)' };
+            }
+
+            function summarizeProjectControlDays(trials) {
+                const arr = Array.isArray(trials) ? trials : [];
+                if (!arr.length) return 'Control days: unavailable (no trials).';
+                const days = arr.map(t => getTrialTotalControlDays(t).days).filter(v => Number.isFinite(v));
+                if (!days.length) return 'Control days: unavailable.';
+                const mean = days.reduce((a, b) => a + b, 0) / days.length;
+                const min = Math.min(...days);
+                const max = Math.max(...days);
+                return `Control duration across trials averaged ${mean.toFixed(1)} days (range ${min}-${max} days).`;
             }
 
             /**
@@ -15648,6 +15751,7 @@ Style Guidelines:
                 const chartImages = await generateScientificCharts(trial);
 
                 const efficacyData = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
+                const controlDays = getTrialTotalControlDays(trial, efficacyData);
                 const continuity = buildSpeciesContinuityTable(efficacyData);
                 const envIndex = buildEnvironmentalSuitabilityIndex(trial);
                 const significance = buildStatisticalSignificanceBlock(safeJsonParse(trial.StatisticsJSON, {})?.anovaResults?.anovaTable || null);
@@ -15670,6 +15774,7 @@ Style Guidelines:
                 slide1.addText(trial.FormulationName, { x: 1, y: 2, w: '80%', fontSize: 18 });
                 slide1.addText(`Investigator: ${trial.InvestigatorName}`, { x: 1, y: 3, fontSize: 14 });
                 slide1.addText(`Date: ${new Date(trial.Date).toLocaleDateString()}`, { x: 1, y: 3.5, fontSize: 14 });
+                slide1.addText(`Total Control Days: ${controlDays.days} (${controlDays.source})`, { x: 1, y: 4.0, fontSize: 13, color: '334155' });
 
                 // Slide 2: AI Summary
                 const summary = await generateTrialSummary([trial]); // Generate specific summary for this trial
@@ -17180,6 +17285,13 @@ Style Guidelines:
                 const project = state.projects.find(p => p.ID === projectId);
                 if (!project) return;
 
+                const continuityFn = (typeof buildSpeciesContinuityTable === 'function') ? buildSpeciesContinuityTable : window.buildSpeciesContinuityTable;
+                const envFn = (typeof buildEnvironmentalSuitabilityIndex === 'function') ? buildEnvironmentalSuitabilityIndex : window.buildEnvironmentalSuitabilityIndex;
+                const sigFn = (typeof buildStatisticalSignificanceBlock === 'function') ? buildStatisticalSignificanceBlock : window.buildStatisticalSignificanceBlock;
+                const confFn = (typeof buildSpeciesConfidenceBands === 'function') ? buildSpeciesConfidenceBands : window.buildSpeciesConfidenceBands;
+                const traceFn = (typeof buildEvidenceTraceabilityMatrix === 'function') ? buildEvidenceTraceabilityMatrix : window.buildEvidenceTraceabilityMatrix;
+                const doseFn = (typeof buildDoseResponseRecommendationPanel === 'function') ? buildDoseResponseRecommendationPanel : window.buildDoseResponseRecommendationPanel;
+
                 // === DATA QUALITY AUDIT (NEW) ===
                 // Check for bypass flag (set by Clean & Proceed or Force Generate)
                 if (window.auditBypassOnce) {
@@ -17730,12 +17842,13 @@ Style Guidelines:
                     });
                 });
 
-                const continuity = buildSpeciesContinuityTable(trials.flatMap(t => safeJsonParse(t.EfficacyDataJSON, [])));
-                const envIndex = buildEnvironmentalSuitabilityIndex(trials);
-                const significance = buildStatisticalSignificanceBlock(finalRes);
-                const confidenceBands = buildSpeciesConfidenceBands(finalRes);
-                const traceabilityRows = buildEvidenceTraceabilityMatrix(project, trials, !!finalRes?.anova);
-                const dosePanel = buildDoseResponseRecommendationPanel(trials, finalRes);
+                const continuity = continuityFn ? continuityFn(trials.flatMap(t => safeJsonParse(t.EfficacyDataJSON, []))) : { rows: [], summary: '' };
+                const envIndex = envFn ? envFn(trials) : { note: 'Environmental suitability unavailable.' };
+                const significance = sigFn ? sigFn(finalRes) : { text: 'Significance unavailable.' };
+                const confidenceBands = confFn ? confFn(finalRes) : [];
+                const traceabilityRows = traceFn ? traceFn(project, trials, !!finalRes?.anova) : [];
+                const dosePanel = doseFn ? doseFn(trials, finalRes) : { rows: [], recommendation: 'Dose-response unavailable.' };
+                const controlDaysSummary = summarizeProjectControlDays(trials);
                 const finalConclusion = normalizeReportText(
                     (project.Conclusion || '').trim() ||
                     (project.Narrative || '').trim() ||
@@ -17744,7 +17857,7 @@ Style Guidelines:
                 const executiveBrief = buildOnePageExecutiveBrief({
                     title: `Executive Brief - ${project.Name || 'Project'}`,
                     objective: `Evaluate treatment efficacy under RCBD across ${blocks.length} replication(s).`,
-                    keyFinding: finalConclusion,
+                    keyFinding: `${finalConclusion} ${controlDaysSummary}`,
                     statsNote: significance.text,
                     recommendation: dosePanel.recommendation,
                     risk: envIndex.note
@@ -17976,6 +18089,7 @@ Style Guidelines:
                         ['Trial Design', `RCBD with ${blocks.length} Replications`],
                         ['Total Plots', trials.length],
                         ['Treatments', [...new Set(trials.map(t => t.FormulationName))].length],
+                        ['Control Duration', controlDaysSummary],
                         ['Response Variable', project.Metric],
                         ['Location', protocol.Location || 'Not specified'],
                         ['Crop', protocol.Crop || 'Not specified'],
@@ -24435,7 +24549,10 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 charts.cover = coverCanvas.toDataURL('image/png');
 
                 const efficacy = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
-                const wceSeries = calculateWeedControlEfficiency(efficacy);
+                const wceFn = (typeof calculateWeedControlEfficiency === 'function')
+                    ? calculateWeedControlEfficiency
+                    : (typeof window.calculateWeedControlEfficiency === 'function' ? window.calculateWeedControlEfficiency : (() => []));
+                const wceSeries = wceFn(efficacy);
 
                 if (wceSeries.length > 0) {
                     const confCanvas = document.createElement('canvas');
@@ -24525,15 +24642,18 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     charts.speciesDistribution = speciesCanvas.toDataURL('image/png');
                 }
 
-                const env = buildEnvironmentalSuitabilityIndex(trial);
-                if (isFinite(env.score)) {
+                const envFn = (typeof buildEnvironmentalSuitabilityIndex === 'function')
+                    ? buildEnvironmentalSuitabilityIndex
+                    : (typeof window.buildEnvironmentalSuitabilityIndex === 'function' ? window.buildEnvironmentalSuitabilityIndex : (() => ({ score: 0 })));
+                const env = envFn(trial);
+                if (Number.isFinite(env.score)) {
                     const envCanvas = document.createElement('canvas');
                     envCanvas.width = 1200;
                     envCanvas.height = 700;
                     tempDiv.appendChild(envCanvas);
-                    const tempSuitability = isFinite(env.avgTemp) ? Math.max(0, Math.min(100, 100 - Math.abs(env.avgTemp - 26) * 5)) : 50;
-                    const humiditySuitability = isFinite(env.avgHumidity) ? Math.max(0, Math.min(100, 100 - Math.abs(env.avgHumidity - 60) * 1.8)) : 50;
-                    const rainSuitability = isFinite(env.avgRain) ? Math.max(0, Math.min(100, 100 - Math.max(0, env.avgRain - 8) * 6)) : 70;
+                    const tempSuitability = Number.isFinite(env.avgTemp) ? Math.max(0, Math.min(100, 100 - Math.abs(env.avgTemp - 26) * 5)) : 50;
+                    const humiditySuitability = Number.isFinite(env.avgHumidity) ? Math.max(0, Math.min(100, 100 - Math.abs(env.avgHumidity - 60) * 1.8)) : 50;
+                    const rainSuitability = Number.isFinite(env.avgRain) ? Math.max(0, Math.min(100, 100 - Math.max(0, env.avgRain - 8) * 6)) : 70;
 
                     await new Promise(resolve => {
                         const ctx = envCanvas.getContext('2d');
@@ -24990,11 +25110,17 @@ Specific agronomic recommendation based on treatment performance trends and weed
             const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
             const trialDate = new Date(trial.Date).toLocaleDateString();
             const aiSummary = safeJsonParse(trial.AISummariesJSON, {});
-            const derivedInterpretation = buildTrialDataInterpretation(trial);
-            const continuity = buildSpeciesContinuityTable(efficacyData);
-            const envIndex = buildEnvironmentalSuitabilityIndex(trial);
-            const traceabilityRows = buildEvidenceTraceabilityMatrix(trial, [trial], !!safeJsonParse(trial.StatisticsJSON, {})?.anovaResults);
-            const dosePanel = buildDoseResponseRecommendationPanel([trial], null);
+            const interpretationFn = (typeof buildTrialDataInterpretation === 'function') ? buildTrialDataInterpretation : window.buildTrialDataInterpretation;
+            const continuityFn = (typeof buildSpeciesContinuityTable === 'function') ? buildSpeciesContinuityTable : window.buildSpeciesContinuityTable;
+            const envFn = (typeof buildEnvironmentalSuitabilityIndex === 'function') ? buildEnvironmentalSuitabilityIndex : window.buildEnvironmentalSuitabilityIndex;
+            const traceFn = (typeof buildEvidenceTraceabilityMatrix === 'function') ? buildEvidenceTraceabilityMatrix : window.buildEvidenceTraceabilityMatrix;
+            const doseFn = (typeof buildDoseResponseRecommendationPanel === 'function') ? buildDoseResponseRecommendationPanel : window.buildDoseResponseRecommendationPanel;
+            const derivedInterpretation = interpretationFn ? interpretationFn(trial) : { coverSummary: 'Interpretation unavailable.', conclusion: '' };
+            const continuity = continuityFn ? continuityFn(efficacyData) : { rows: [], summary: '' };
+            const envIndex = envFn ? envFn(trial) : { note: 'Environmental suitability unavailable.' };
+            const traceabilityRows = traceFn ? traceFn(trial, [trial], !!safeJsonParse(trial.StatisticsJSON, {})?.anovaResults) : [];
+            const dosePanel = doseFn ? doseFn([trial], null) : { rows: [], recommendation: 'Dose-response unavailable.' };
+            const controlDays = getTrialTotalControlDays(trial, efficacyData);
             const confidenceRows = [];
             const trialWceSeries = calculateWeedControlEfficiency(efficacyData);
             trialWceSeries.forEach((r, i) => {
@@ -25100,6 +25226,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     <tr><td><strong>Investigator:</strong> ${trial.InvestigatorName || 'N/A'}</td><td><strong>Date:</strong> ${trialDate}</td></tr>
                     <tr><td><strong>Location:</strong> ${trial.Location || 'N/A'}</td><td><strong>Dosage:</strong> ${trial.Dosage || 'N/A'}</td></tr>
                     <tr><td><strong>Status:</strong> ${trial.IsCompleted ? 'Finalized' : 'Ongoing'}</td><td><strong>Manual Verdict:</strong> ${trial.Result || 'N/A'}</td></tr>
+                    <tr><td><strong>Total Control Days:</strong> ${controlDays.days}</td><td><strong>Control Source:</strong> ${sanitizeHTML(controlDays.source)}</td></tr>
                 </table>
 
                 ${trial.Temperature ? `
@@ -25174,6 +25301,13 @@ Specific agronomic recommendation based on treatment performance trends and weed
             const project = state.projects.find(p => p.ID === projectId);
             if (!project) return;
 
+            const continuityFn = (typeof buildSpeciesContinuityTable === 'function') ? buildSpeciesContinuityTable : window.buildSpeciesContinuityTable;
+            const sigFn = (typeof buildStatisticalSignificanceBlock === 'function') ? buildStatisticalSignificanceBlock : window.buildStatisticalSignificanceBlock;
+            const envFn = (typeof buildEnvironmentalSuitabilityIndex === 'function') ? buildEnvironmentalSuitabilityIndex : window.buildEnvironmentalSuitabilityIndex;
+            const confFn = (typeof buildSpeciesConfidenceBands === 'function') ? buildSpeciesConfidenceBands : window.buildSpeciesConfidenceBands;
+            const traceFn = (typeof buildEvidenceTraceabilityMatrix === 'function') ? buildEvidenceTraceabilityMatrix : window.buildEvidenceTraceabilityMatrix;
+            const doseFn = (typeof buildDoseResponseRecommendationPanel === 'function') ? buildDoseResponseRecommendationPanel : window.buildDoseResponseRecommendationPanel;
+
             showToast('Generating Regulatory Report DOC...', 'info');
 
             try {
@@ -25204,12 +25338,13 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     [];
                 const finalDaa = Object.keys(parsedResults || {}).sort((a, b) => parseFloat(a) - parseFloat(b)).slice(-1)[0] || null;
                 const finalRes = finalDaa ? (parsedResults[finalDaa] || null) : null;
-                const continuity = buildSpeciesContinuityTable(projectTrials.flatMap(t => safeJsonParse(t.EfficacyDataJSON, [])));
-                const significance = buildStatisticalSignificanceBlock(finalRes);
-                const envIndex = buildEnvironmentalSuitabilityIndex(projectTrials);
-                const confidenceBands = buildSpeciesConfidenceBands(finalRes);
-                const traceabilityRows = buildEvidenceTraceabilityMatrix(project, projectTrials, !!finalRes?.anova);
-                const dosePanel = buildDoseResponseRecommendationPanel(projectTrials, finalRes);
+                const continuity = continuityFn ? continuityFn(projectTrials.flatMap(t => safeJsonParse(t.EfficacyDataJSON, []))) : { rows: [], summary: '' };
+                const significance = sigFn ? sigFn(finalRes) : { text: 'Significance unavailable.' };
+                const envIndex = envFn ? envFn(projectTrials) : { note: 'Environmental suitability unavailable.' };
+                const confidenceBands = confFn ? confFn(finalRes) : [];
+                const traceabilityRows = traceFn ? traceFn(project, projectTrials, !!finalRes?.anova) : [];
+                const dosePanel = doseFn ? doseFn(projectTrials, finalRes) : { rows: [], recommendation: 'Dose-response unavailable.' };
+                const controlDaysSummary = summarizeProjectControlDays(projectTrials);
                 const finalConclusion = normalizeReportText(
                     (project.Conclusion || '').trim() ||
                     (project.Narrative || '').trim() ||
@@ -25218,7 +25353,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 const executiveBrief = buildOnePageExecutiveBrief({
                     title: `Executive Brief - ${project.Name || 'Project'}`,
                     objective: `Evaluate treatment efficacy under RCBD across ${projectTrials.length} trial plot records.`,
-                    keyFinding: finalConclusion,
+                    keyFinding: `${finalConclusion} ${controlDaysSummary}`,
                     statsNote: significance.text,
                     recommendation: dosePanel.recommendation,
                     risk: envIndex.note
@@ -25284,6 +25419,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.executiveSummary}</h3>
                         <p>${applyReportStyleGuard(finalConclusion)}</p>
+                        <p><strong>Total Control Days Summary:</strong> ${sanitizeHTML(controlDaysSummary)}</p>
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">One-Page Executive Brief</h3>
                         ${renderSimpleHtmlTable(
