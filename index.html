@@ -8165,6 +8165,8 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             function showToast(message, type = 'success') {
                 toast.textContent = message;
                 toast.className = `toast show ${type} `;
+                const toastMessage = String(message || '');
+                const isApiKeyMessage = /api\s*key|apikey/i.test(toastMessage);
 
                 // Mobile-friendly persistent alert strip for failures.
                 if (type === 'error' || type === 'warning') {
@@ -8175,9 +8177,10 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         issueBanner.classList.remove('hidden', 'error', 'warning');
                         issueBanner.classList.add(type);
                         clearTimeout(window._issueBannerTimer);
+                        const issueBannerDuration = isApiKeyMessage ? 5000 : 20000;
                         window._issueBannerTimer = setTimeout(() => {
                             issueBanner.classList.add('hidden');
-                        }, 20000);
+                        }, issueBannerDuration);
                     }
                 }
 
