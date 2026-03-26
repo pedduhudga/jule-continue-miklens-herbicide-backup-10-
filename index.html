@@ -4679,7 +4679,10 @@ IMPORTANT:
 
             function rotateApiKey() {
                 const keyCount = state.settings.apiKeys.length;
-                if (keyCount <= 1) return false; // Cannot rotate if 0 or 1 keys
+                if (keyCount <= 1) {
+                    console.warn(`Gemini key rotation unavailable: only ${keyCount} key loaded in runtime settings.`);
+                    return false; // Cannot rotate if 0 or 1 keys
+                }
 
                 const newIndex = (state.settings.currentApiKeyIndex + 1) % keyCount;
                 state.settings.currentApiKeyIndex = newIndex;
@@ -4687,6 +4690,7 @@ IMPORTANT:
                 localStorage.setItem('appSettings', JSON.stringify(state.settings));
                 const modelSelect = document.getElementById('settings-api-model');
                 if (modelSelect) modelSelect.value = state.settings.apiModel;
+                console.info(`Switched Gemini runtime to key ${newIndex + 1}/${keyCount} and reset model priority to ${state.settings.apiModel}.`);
                 showToast(`API quota likely exceeded. Trying next key (${newIndex + 1}/${keyCount})...`, 'info');
 
                 return true;
@@ -11100,6 +11104,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 if (Array.isArray(rawKeys)) {
                     state.settings.apiKeys = rawKeys.map(k => String(k || '').trim()).filter(Boolean);
                     state.settings.currentApiKeyIndex = 0;
+                    console.info(`Loaded ${state.settings.apiKeys.length} Gemini key(s) from user profile for ${state.auth.Username || state.auth.ID}.`);
                 }
             }
 
@@ -11306,9 +11311,11 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                     if (!Array.isArray(state.settings.apiKeys)) state.settings.apiKeys = [];
                     if (state.settings.currentApiKeyIndex >= state.settings.apiKeys.length) state.settings.currentApiKeyIndex = 0;
+                    console.info(`Loaded ${state.settings.apiKeys.length} Gemini key(s) from local settings for role ${String(state.auth?.Role || 'guest')}.`);
                 } else {
                     state.settings = defaultSettings;
                     state.settings.cardSize = 'ID';
+                    console.info('Loaded default app settings with 0 Gemini keys.');
                 }
 
                 const chat = localStorage.getItem('aiChatHistory');
