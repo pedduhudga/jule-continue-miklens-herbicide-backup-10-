@@ -14960,6 +14960,26 @@ Style Guidelines:
                     const c = parseInt(parts[1], 10);
                     return isFinite(r) && isFinite(c) && r >= 0 && c >= 0 && r < gridSize && c < gridSize;
                 };
+                const getLegacyCover = (obs) => {
+                    const candidates = [
+                        obs?.weedCover,
+                        obs?.cover,
+                        obs?.weed_cover,
+                        obs?.coverPct,
+                        obs?.percentCover,
+                        obs?.totalCover,
+                        obs?.weedCoverTotal
+                    ];
+                    for (let i = 0; i < candidates.length; i++) {
+                        const n = toNum(candidates[i]);
+                        if (n !== null) return clamp01(n);
+                    }
+                    return null;
+                };
+                const getTrialSpecies = (trial) => String(trial?.WeedSpecies || '')
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean);
 
                 for (let i = 0; i < trials.length; i++) {
                     const t = trials[i];
@@ -14982,9 +15002,24 @@ Style Guidelines:
                         }
 
                         let changed = false;
+                        const trialSpecies = getTrialSpecies(t);
 
                         normalized.forEach(obs => {
                             let obsChanged = false;
+
+                            if (!Array.isArray(obs.weedDetails) || obs.weedDetails.length === 0) {
+                                const legacyCover = getLegacyCover(obs);
+                                const status = String(obs?.weedStatus || obs?.status || '').trim();
+                                const notes = String(obs?.notes || '').trim();
+
+                                if (legacyCover !== null) {
+                                    obs.weedDetails = [{ species: 'Total', cover: legacyCover, status, notes }];
+                                    obsChanged = true;
+                                } else if (trialSpecies.length > 0) {
+                                    obs.weedDetails = trialSpecies.map(sp => ({ species: sp, cover: null, status: '', notes: '' }));
+                                    obsChanged = true;
+                                }
+                            }
 
                             const oldPhi = toNum(obs?.phi);
                             if (oldPhi !== null) {
