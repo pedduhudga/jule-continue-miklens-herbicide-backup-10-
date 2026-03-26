@@ -5567,7 +5567,7 @@ IMPORTANT:
                                                 <button data-action="scan-efficacy-data" class="bg-slate-700 text-white px-4 py-2 rounded-lg">Scan Trials</button>
                                                 <button data-action="fix-efficacy-data" class="bg-emerald-600 text-white px-4 py-2 rounded-lg">Auto-Fix Weed Linking</button>
                                                 <button data-action="recalc-grid-covers" class="bg-indigo-600 text-white px-4 py-2 rounded-lg">Recalculate Grid Covers</button>
-                                                <button data-action="rebuild-cover-phi-all" class="bg-amber-600 text-white px-4 py-2 rounded-lg">Rebuild %Cover + PHI (All Trials)</button>
+                                                <button data-action="rebuild-cover-phi-all" class="bg-amber-600 text-white px-4 py-2 rounded-lg">Rebuild %Cover (All Trials)</button>
                                                 <div id="efficacy-fix-progress" class="text-sm text-gray-600"></div>
                                             </div>
                                             <div id="grid-recalc-progress" class="mt-3 text-sm text-gray-600"></div>
@@ -5793,7 +5793,6 @@ IMPORTANT:
                                     <label class="text-xs font-semibold text-slate-600">Color by:</label>
                                     <select id="field-map-color-mode" class="form-input text-xs px-2 py-1 border rounded">
                                         <option value="result">Result</option>
-                                        <option value="phi">Plant Health (PHI)</option>
                                     </select>
                                 </div>
                             </div>
@@ -5880,7 +5879,7 @@ IMPORTANT:
                                 <div class="flex items-center gap-2"><input type="checkbox" id="control-finalized" name="controlFinalized" class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"><label for="control-finalized" class="text-sm font-medium text-gray-800">Stop counting control days</label></div>
                                 <div id="finalization-details" class="grid grid-cols-2 gap-4 hidden"><div><label for="finalization-date" class="block text-xs font-medium text-gray-600">Finalization Date</label><input type="date" name="finalizationDate" id="finalization-date" class="p-2 border rounded-md text-sm form-input w-full bg-slate-100"></div><div><label for="final-control-duration" class="block text-xs font-medium text-gray-600">Final Control Days</label><input type="number" name="finalControlDuration" id="final-control-duration" placeholder="Days" class="p-2 border rounded-md text-sm form-input w-full"></div></div>
                             </div>
-                            <div class="mt-6 p-4 bg-slate-50 rounded-lg"><h4 class="text-md font-medium text-gray-800">Efficacy & Phyto Observations</h4><div id="efficacy-observations-container" class="mt-2 space-y-4"></div><button type="button" data-action="add-observation" class="mt-3 text-sm text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1"><i data-lucide="plus-circle" class="h-4 w-4"></i> Add Observation</button></div>
+                            <div class="mt-6 p-4 bg-slate-50 rounded-lg"><h4 class="text-md font-medium text-gray-800">Efficacy Observations</h4><div id="efficacy-observations-container" class="mt-2 space-y-4"></div><button type="button" data-action="add-observation" class="mt-3 text-sm text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1"><i data-lucide="plus-circle" class="h-4 w-4"></i> Add Observation</button></div>
                             <div class="mt-6 grid grid-cols-1 gap-6"><textarea name="conclusion" rows="3" placeholder="Conclusion" class="p-2 border rounded-md form-input"></textarea><textarea name="notes" rows="2" placeholder="Trial Notes" class="p-2 border rounded-md form-input"></textarea></div>
                             <div class="mt-6"><h4 class="text-md font-medium text-gray-800">Add Photos with Dated Weather</h4><div class="flex items-end gap-4 mt-2"><div class="flex-grow"><label for="photo-date" class="block text-sm font-medium text-gray-700">Photo Date</label><input type="date" id="photo-date" class="mt-1 p-2 border rounded-md w-full form-input"></div><input type="file" id="trial-photos" multiple accept="image/*" class="hidden"><label for="trial-photos" class="cursor-pointer bg-white text-emerald-700 px-4 py-2 rounded-lg border border-emerald-700 hover:bg-emerald-50 text-sm font-semibold">Choose Files</label><button type="button" data-action="open-camera" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold">Camera</button></div><div id="photo-preview" class="mt-2 flex flex-wrap gap-4"></div></div>
                         </form><div class="mt-6 flex justify-end space-x-3 flex-shrink-0 border-t pt-4"><button type="button" data-action="close-modal" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg transition hover:bg-slate-300">Cancel</button><button type="submit" form="trial-form" class="btn-primary text-white px-4 py-2 rounded-lg">Save</button></div></div></div>`,
@@ -5912,7 +5911,7 @@ IMPORTANT:
                                     <label for="include-timeline" class="text-sm font-medium text-emerald-900">Include Weed Status Timeline</label>
                                 </div>
                             </div>
-                            <div id="cover-report-section" class="hidden"><h4 class="text-md font-semibold text-slate-700">% Cover by Species</h4><div id="cover-chart-preview" class="relative h-[300px] w-full my-2 bg-slate-100 rounded-lg p-2"><canvas id="preview-cover-canvas"></canvas></div><div class="flex justify-between items-end mt-2"><label for="cover-summary-textarea" class="block text-sm font-medium text-gray-700">AI Generated Summary (Editable)</label><button id="regenerate-cover-summary" class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1"><i data-lucide="refresh-cw" class="h-3 w-3"></i> Regenerate</button></div><textarea id="cover-summary-textarea" class="w-full p-2 border rounded-md form-input mt-1" rows="4" placeholder="Generating summary..."></textarea></div><div id="phyto-report-section" class="hidden"><h4 class="text-md font-semibold text-slate-700">% Phytotoxicity</h4><div id="phyto-chart-preview" class="relative h-[300px] w-full my-2 bg-slate-100 rounded-lg p-2"><canvas id="preview-phyto-canvas"></canvas></div><div class="flex justify-between items-end mt-2"><label for="phyto-summary-textarea" class="block text-sm font-medium text-gray-700">AI Generated Summary (Editable)</label><button id="regenerate-phyto-summary" class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1"><i data-lucide="refresh-cw" class="h-3 w-3"></i> Regenerate</button></div><textarea id="phyto-summary-textarea" class="w-full p-2 border rounded-md form-input mt-1" rows="4" placeholder="Generating summary..."></textarea></div></div><div class="mt-6 flex justify-end gap-3 border-t pt-4"><button type="button" data-action="close-modal" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg">Cancel</button><button id="generate-doc-from-preview" class="btn-primary text-white px-4 py-2 rounded-lg flex items-center gap-2" style="background-color: #2b5797;"><i data-lucide="file-text" class="h-4 w-4"></i> Export to Word</button><button id="generate-pdf-from-preview" class="btn-primary text-white px-4 py-2 rounded-lg flex items-center gap-2"><i data-lucide="download" class="h-4 w-4"></i> Generate & Download PDF</button></div></div></div>`,
+                            <div id="cover-report-section" class="hidden"><h4 class="text-md font-semibold text-slate-700">% Cover by Species</h4><div id="cover-chart-preview" class="relative h-[300px] w-full my-2 bg-slate-100 rounded-lg p-2"><canvas id="preview-cover-canvas"></canvas></div><div class="flex justify-between items-end mt-2"><label for="cover-summary-textarea" class="block text-sm font-medium text-gray-700">AI Generated Summary (Editable)</label><button id="regenerate-cover-summary" class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-1"><i data-lucide="refresh-cw" class="h-3 w-3"></i> Regenerate</button></div><textarea id="cover-summary-textarea" class="w-full p-2 border rounded-md form-input mt-1" rows="4" placeholder="Generating summary..."></textarea></div><div class="mt-6 flex justify-end gap-3 border-t pt-4"><button type="button" data-action="close-modal" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg">Cancel</button><button id="generate-doc-from-preview" class="btn-primary text-white px-4 py-2 rounded-lg flex items-center gap-2" style="background-color: #2b5797;"><i data-lucide="file-text" class="h-4 w-4"></i> Export to Word</button><button id="generate-pdf-from-preview" class="btn-primary text-white px-4 py-2 rounded-lg flex items-center gap-2"><i data-lucide="download" class="h-4 w-4"></i> Generate & Download PDF</button></div></div></div>`,
                         qrLabel: () => {
                             const { trial, qrContent, mode } = data;
                             return `<div id="qr-label-modal" class="modal"><div class="modal-content bg-white p-6 rounded-lg shadow-xl w-full max-w-sm mx-auto mt-20 text-center"><h3 class="text-xl font-bold mb-1 text-slate-800">${sanitizeHTML(trial.FormulationName)}</h3><p class="text-xs text-slate-400 mb-4">${mode.toUpperCase()} MODE</p><div id="qr-code-canvas" class="flex justify-center mb-4 border p-2 bg-white rounded-lg shadow-inner"></div><div class="text-left bg-slate-50 p-3 rounded text-[10px] font-mono mb-4 break-all overflow-auto max-h-24 border border-slate-200">${sanitizeHTML(qrContent).replace(/\n/g, '<br>')}</div>${(() => { if (trial.SoilDataJSON) { try { const soil = JSON.parse(trial.SoilDataJSON); if (Object.keys(soil).length > 0) { return `<div class="bg-amber-50 p-2 rounded text-[10px] text-left mb-4 border border-amber-100"><p class="font-bold text-amber-800 mb-1">Soil: ${soil.texture}</p><div class="grid grid-cols-2 gap-1 text-amber-900"><span>pH: ${soil.ph}</span><span>Clay: ${soil.clay}%</span><span>Sand: ${soil.sand}%</span><span>OC: ${soil.organicCarbon}</span></div></div>`; } } catch(e) {} } return ''; })()}<p class="text-xs text-slate-500 mb-6 px-4">Scan this code with a phone camera to ${mode === 'online' ? 'open the live report' : 'view the plot data'}.</p><div class="flex gap-2 justify-center"><button onclick="window.print()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 font-medium"><i data-lucide="printer" class="h-3 w-3"></i> Print Label</button><button data-action="close-modal" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium">Close</button></div></div></div>`;
@@ -7172,7 +7171,6 @@ IMPORTANT:
                                 <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${new Date(trial.Date).toLocaleDateString()} • ${sanitizeHTML(trial.Location || '')}</div>
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;">
                                     <span style="color:#64748b;">Result:</span><span style="font-weight:600;">${trial.Result || 'N/A'}</span>
-                                    <span style="color:#64748b;">PHI:</span><span style="font-weight:600;">${phiStr}</span>
                                     <span style="color:#64748b;">Dosage:</span><span>${sanitizeHTML(trial.Dosage || 'N/A')}</span>
                                 </div>
                                 <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
@@ -8285,13 +8283,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             return `<td class="px-4 py-2 border-r text-xs text-gray-600 min-w-[250px] whitespace-pre-wrap">${sanitizeHTML(text)}</td>`;
                         }).join('')}
                                     </tr>
-                                    <tr><td class="px-4 py-2 font-semibold text-gray-600 sticky left-0 bg-gray-50 border-r">AI Phyto Analysis</td>
-                                        ${trialsToCompare.map(t => {
-                            const summaries = safeJsonParse(t.AISummariesJSON, {});
-                            const text = summaries.phyto || '-';
-                            return `<td class="px-4 py-2 border-r text-xs text-gray-600 min-w-[250px] whitespace-pre-wrap">${sanitizeHTML(text)}</td>`;
-                        }).join('')}
-                                    </tr>
                                 </tbody>
                             </table >
                 `;
@@ -8309,7 +8300,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             <div><strong>${obsDate}</strong> - ${sanitizeHTML(obs.label)}</div>
                             <div class="flex items-center gap-4">
                                 <span><strong>C:</strong> ${obs.cover}%</span>
-                                <span><strong>P:</strong> ${obs.phyto}%</span>
                                 <button data-action="delete-efficacy" data-index="${index}" class="text-red-500 font-bold">&times;</button>
                             </div>
                         </div>`;
@@ -11506,7 +11496,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         const photos = safeJsonParse(trial.PhotoURLs, []);
 
                         const hasEfficacy = efficacyData.length > 0;
-                        const hasSummary = Object.keys(summaries).length > 0 && summaries.cover && summaries.phyto;
+                        const hasSummary = Object.keys(summaries).length > 0 && summaries.cover;
                         const hasPhotos = photos.length > 0;
 
                         const needsEfficacyGeneration = hasPhotos && !hasEfficacy;
@@ -11676,11 +11666,9 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     summariesWereUpdated = true;
                 }
 
-                if (!finalSummaries.phyto) {
-                    const phytoData = { label: '% Phytotoxicity', data: efficacyData.map(d => ({ x: parseFloat(d.daa), y: parseFloat(d.phyto) })).filter(p => !isNaN(p.x) && !isNaN(p.y)).sort((a, b) => a.x - b.x), borderColor: '#d97706', tension: 0.1, fill: false };
-                    const phytoConfig = { type: 'line', data: { datasets: [phytoData] }, options: { scales: { x: { type: 'linear' }, y: { beginAtZero: true, max: 100 } } } };
-                    const summary = await getChartSummaryFromAI(phytoConfig, '% Phytotoxicity', 'Overall', status, trial.Result, extraContext);
-                    finalSummaries.phyto = summary;
+                // Non-selective herbicide workflow: remove legacy phyto summary payloads.
+                if (Object.prototype.hasOwnProperty.call(finalSummaries, 'phyto')) {
+                    delete finalSummaries.phyto;
                     summariesWereUpdated = true;
                 }
 
@@ -13458,14 +13446,14 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                     1. Data Analysis Guidelines:
                     - **Tone**: Use professional agricultural terminology (e.g., chlorosis, necrosis, desiccation, biomass reduction).
-                    - **Phytotoxicity**: Describe results using specific percentage ranges and timing (e.g., '95% burndown achieved by Day 6').
+                    - **Control Dynamics**: Describe weed cover reduction using specific percentage ranges and timing (e.g., '95% burndown achieved by Day 6').
                     - **Selectivity**: Explicitly identify which species were controlled and which showed resistance.
                     - **Constraint**: Never use 'Based on the data' or 'The report shows.' Speak as the investigator: 'Observations indicate...' or 'The trial confirms...'
                     
                     2. Context & Data:
                     - **Chart**: ${chartType} chart titled "${chartTitle}" for ${seriesName}.
                     - **Trial Status**: ${trialStatus}
-                    - **User's Manual Verdict**: ${userResult ? userResult : "Not provided"}
+                    - **Verdict Input**: ${userResult ? userResult : "Not provided (derive from cover trend and WCE)"}
                     ${weatherContext}
                     ${weedIdContext}
                     ${wceContext}
@@ -13514,7 +13502,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 // --- GENERATE AI NARRATIVE ---
                 // Check if we need to update/generate summaries if they are missing
                 const summaries = safeJsonParse(trial.AISummariesJSON, {});
-                if (!summaries.cover || !summaries.phyto) {
+                if (!summaries.cover) {
                     await updateTrialAISummaries(trialId);
                 }
 
@@ -13522,7 +13510,6 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const efficacyData = safeJsonParse(trial.EfficacyDataJSON, []);
                 const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
                 const trialDate = new Date(trial.Date).toLocaleDateString();
-                const maxPhyto = efficacyData.reduce((max, obs) => Math.max(max, parseFloat(obs.phyto || 0)), 0);
                 const derivedInterpretation = buildTrialDataInterpretation(trial);
 
                 const narrativeContext = `Generate a professional, human-like technical executive summary for an individual herbicide trial report.
@@ -13532,8 +13519,7 @@ Investigator: ${trial.InvestigatorName || 'N/A'}
 Date: ${trialDate}
 Location: ${trial.Location || 'site'}
 Target Species: ${allWeedSpecies.join(', ') || 'N/A'}
-Max Phyto: ${maxPhyto}/100
-Result: ${trial.Result || 'N/A'}
+Result: ${trial.Result || getControlRating((calculateWeedControlEfficiency(efficacyData)[0] || {}).wce || 0) || 'Data-driven'}
 
 Task: Write a technical assessment with three distinct sections: Methodology, Results, and Conclusions.
 Style Guidelines:
@@ -13546,7 +13532,7 @@ Style Guidelines:
                 try {
                     scientificNarrative = await window.aiAnalyzer.generateText(narrativeContext);
                 } catch (e) {
-                    scientificNarrative = `Methodology\nTrial conducted on ${trialDate} at ${trial.Location || 'site'} by ${trial.InvestigatorName || 'investigator'}.\n\nResults\n${(summaries.cover || '').trim() || derivedInterpretation.coverSummary} ${(summaries.phyto || '').trim() || derivedInterpretation.phytoSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`;
+                    scientificNarrative = `Methodology\nTrial conducted on ${trialDate} at ${trial.Location || 'site'} by ${trial.InvestigatorName || 'investigator'}.\n\nResults\n${(summaries.cover || '').trim() || derivedInterpretation.coverSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`;
                 }
                 scientificNarrative = normalizeReportText(scientificNarrative);
 
@@ -13720,7 +13706,6 @@ Style Guidelines:
 
                 // --- GENERATE CHARTS FOR PDF ---
                 let coverChartImg = null;
-                let phytoChartImg = null;
 
                 // Create temporary canvases for chart rendering
                 const tempContainer = document.createElement('div');
@@ -13738,7 +13723,6 @@ Style Guidelines:
                     // Generate high-resolution charts
                     const chartImages = await generateScientificCharts(trial, tempContainer);
                     coverChartImg = chartImages.cover;
-                    phytoChartImg = chartImages.phyto;
 
                     // This line was likely intended for DOCX generation, not PDF.
                     // const content = generateScientificHTML(trial, options, coverChartImg, phytoChartImg);
@@ -13751,7 +13735,6 @@ Style Guidelines:
 
                 // --- EFFICACY ANALYSIS (with chart) ---
                 const coverSummaryText = (summaries.cover || '').trim() || derivedInterpretation.coverSummary;
-                const phytoSummaryText = (summaries.phyto || '').trim() || derivedInterpretation.phytoSummary;
 
                 if (coverSummaryText || coverChartImg) {
                     // Ensure header has room for content (60mm = header + chart/text)
@@ -13764,7 +13747,9 @@ Style Guidelines:
                     // Add chart image
                     if (coverChartImg) {
                         try {
-                            doc.addImage(coverChartImg, 'PNG', 14, y, 180, 90);
+                            if (String(coverChartImg || '').startsWith('data:image/')) {
+                                doc.addImage(coverChartImg, 'PNG', 14, y, 180, 90);
+                            }
                             y += 95;
                         } catch (e) {
                             console.warn('Failed to add cover chart:', e);
@@ -13787,39 +13772,6 @@ Style Guidelines:
                     }
                 }
 
-                // --- PHYTOTOXICITY ANALYSIS (with chart) ---
-                if (phytoSummaryText || phytoChartImg) {
-                    if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
-                    doc.setFont(undefined, 'bold');
-                    doc.setFontSize(14);
-                    doc.text(REPORT_SECTIONS.trial.phytotoxicity, 14, y);
-                    y += 8;
-
-                    // Add chart image
-                    if (phytoChartImg) {
-                        try {
-                            doc.addImage(phytoChartImg, 'PNG', 14, y, 180, 90);
-                            y += 95;
-                        } catch (e) {
-                            console.warn('Failed to add phyto chart:', e);
-                        }
-                    }
-
-                    // Add AI summary text
-                    if (phytoSummaryText) {
-                        doc.setFont(undefined, 'normal');
-                        doc.setFontSize(9);
-                        const maxWidth = pageWidth - 28;
-                        const lines = doc.splitTextToSize("Analysis: " + phytoSummaryText, maxWidth);
-
-                        // Check if we need a new page before adding text
-                        const textHeight = lines.length * 4 + 10;
-                        if (y + textHeight > 220) { doc.addPage(); y = 20; }
-
-                        doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'left' });
-                        y += (lines.length * 4) + 10;
-                    }
-                }
 
                 // --- WEED STATUS TIMELINE ---
                 if (state.settings.includeTimeline) {
@@ -13892,7 +13844,7 @@ Style Guidelines:
                                 img.src = imgData;
                                 await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
 
-                                const aspectRatio = img.width / img.height;
+                                const aspectRatio = (img.width > 0 && img.height > 0) ? (img.width / img.height) : 1;
                                 const maxSize = 50; // Maximum dimension in mm
                                 let imgWidth, imgHeight;
 
@@ -13909,7 +13861,12 @@ Style Guidelines:
                                 if (xOffset + imgWidth > pageWidth) { xOffset = 14; y += 60; }
                                 if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; xOffset = 14; }
 
-                                doc.addImage(imgData, 'JPEG', xOffset, y, imgWidth, imgHeight);
+                                if (isFinite(imgWidth) && isFinite(imgHeight) && imgWidth > 0 && imgHeight > 0 && String(imgData).startsWith('data:image/')) {
+                                    doc.addImage(imgData, 'JPEG', xOffset, y, imgWidth, imgHeight);
+                                } else {
+                                    console.warn('Skipping invalid photo image dimensions for PDF.', { imgWidth, imgHeight });
+                                    continue;
+                                }
                                 doc.setFontSize(8);
                                 let primaryLabel = p.label ? p.label : (p.date ? `Photo: ${p.date}` : '-');
                                 // Convert old "Synced" labels to "Photo:" format
@@ -13955,7 +13912,7 @@ Style Guidelines:
                                 img.src = imgData;
                                 await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
 
-                                const aspectRatio = img.width / img.height;
+                                const aspectRatio = (img.width > 0 && img.height > 0) ? (img.width / img.height) : 1;
                                 const maxSize = 60; // Maximum dimension in mm
                                 let imgWidth, imgHeight;
 
@@ -13969,7 +13926,12 @@ Style Guidelines:
                                     imgWidth = maxSize * aspectRatio;
                                 }
 
-                                doc.addImage(imgData, 'JPEG', 14, weedY, imgWidth, imgHeight);
+                                if (isFinite(imgWidth) && isFinite(imgHeight) && imgWidth > 0 && imgHeight > 0 && String(imgData).startsWith('data:image/')) {
+                                    doc.addImage(imgData, 'JPEG', 14, weedY, imgWidth, imgHeight);
+                                } else {
+                                    console.warn('Skipping invalid weed image dimensions for PDF.', { imgWidth, imgHeight });
+                                    continue;
+                                }
                                 const bestMatch = p.identifications?.[0];
                                 doc.setFontSize(12);
                                 doc.setFont(undefined, 'bold');
@@ -13998,7 +13960,7 @@ Style Guidelines:
                             const highResCharts = await generateScientificCharts(trial);
                             options.chartImages = options.chartImages || {};
                             options.chartImages.cover = highResCharts.cover;
-                            options.chartImages.phyto = highResCharts.phyto;
+                            options.chartImages.phyto = null;
                         }
                     } catch (e) {
                         console.error("Failed to generate high-res charts for PDF:", e);
@@ -14148,7 +14110,6 @@ Style Guidelines:
                 const summaries = safeJsonParse(trial.AISummariesJSON, {});
                 const derivedInterpretation = buildTrialDataInterpretation(trial);
                 const coverSummaryText = (summaries.cover || '').trim() || derivedInterpretation.coverSummary;
-                const phytoSummaryText = (summaries.phyto || '').trim() || derivedInterpretation.phytoSummary;
                 if (options.withEfficacy !== false) {
                     if (coverSummaryText || options.chartImages?.cover) {
                         // Ensure header has room for content (60mm = header + chart)
@@ -14182,37 +14143,6 @@ Style Guidelines:
                         }
                     }
 
-                    if (phytoSummaryText || options.chartImages?.phyto) {
-                        if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; }
-
-                        if (options.chartImages?.phyto) {
-                            try {
-                                doc.setFont(undefined, 'bold');
-                                doc.setFontSize(10);
-                                doc.text(REPORT_SECTIONS.trial.phytotoxicity, 14, y);
-                                y += 5;
-                                doc.addImage(options.chartImages.phyto, 'PNG', 14, y, 180, 90);
-                                y += 95;
-                            } catch (e) { }
-                        }
-
-                        if (phytoSummaryText) {
-                            doc.setFont(undefined, 'normal');
-                            doc.setFontSize(9);
-                            const maxWidth = pageWidth - 28; // Left margin 14 + right margin 14
-                            const lines = doc.splitTextToSize("Analysis: " + phytoSummaryText, maxWidth);
-                            const textHeight = lines.length * 4; // 4mm per line for 9pt font
-
-                            // Check if text will fit on current page (leaving 20mm bottom margin)
-                            if (y + textHeight > 280) {
-                                doc.addPage();
-                                y = 20;
-                            }
-
-                            doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'left' });
-                            y += textHeight + 10;
-                        }
-                    }
                 }
 
                 // --- Weed Status Timeline ---
@@ -14278,7 +14208,7 @@ Style Guidelines:
                                 img.src = imgData;
                                 await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
 
-                                const aspectRatio = img.width / img.height;
+                                const aspectRatio = (img.width > 0 && img.height > 0) ? (img.width / img.height) : 1;
                                 const maxSize = 50; // Maximum dimension in mm
                                 let imgWidth, imgHeight;
 
@@ -14295,7 +14225,12 @@ Style Guidelines:
                                 if (xOffset + imgWidth > pageWidth) { xOffset = 14; y += 60; }
                                 if (y + 60 > pageHeight - 20) { doc.addPage(); y = 20; xOffset = 14; }
 
-                                doc.addImage(imgData, 'JPEG', xOffset, y, imgWidth, imgHeight);
+                                if (isFinite(imgWidth) && isFinite(imgHeight) && imgWidth > 0 && imgHeight > 0 && String(imgData).startsWith('data:image/')) {
+                                    doc.addImage(imgData, 'JPEG', xOffset, y, imgWidth, imgHeight);
+                                } else {
+                                    console.warn('Skipping invalid photo image dimensions for PDF.', { imgWidth, imgHeight });
+                                    continue;
+                                }
                                 doc.setFontSize(8);
                                 // If label exists, show label. If not, fallback to date with prefix.
                                 let primaryLabel = p.label ? p.label : (p.date ? `Photo: ${p.date}` : '-');
@@ -14347,7 +14282,7 @@ Style Guidelines:
                                     img.src = imgData;
                                     await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
 
-                                    const aspectRatio = img.width / img.height;
+                                    const aspectRatio = (img.width > 0 && img.height > 0) ? (img.width / img.height) : 1;
                                     const maxSize = 60; // Maximum dimension in mm
                                     let imgWidth, imgHeight;
 
@@ -14361,7 +14296,12 @@ Style Guidelines:
                                         imgWidth = maxSize * aspectRatio;
                                     }
 
-                                    doc.addImage(imgData, 'JPEG', 14, weedY, imgWidth, imgHeight);
+                                    if (isFinite(imgWidth) && isFinite(imgHeight) && imgWidth > 0 && imgHeight > 0 && String(imgData).startsWith('data:image/')) {
+                                        doc.addImage(imgData, 'JPEG', 14, weedY, imgWidth, imgHeight);
+                                    } else {
+                                        console.warn('Skipping invalid weed image dimensions for PDF.', { imgWidth, imgHeight });
+                                        continue;
+                                    }
                                     const bestMatch = p.identifications?.[0];
                                     doc.setFontSize(12);
                                     doc.text(bestMatch?.name || 'Unknown', 80, weedY + 10);
@@ -14385,7 +14325,7 @@ Style Guidelines:
                 if (!efficacyData.length) {
                     return {
                         coverSummary: 'Field observations were recorded, but serial efficacy observations are not available in structured DA-A format.',
-                        phytoSummary: 'Phytotoxicity trend could not be quantified because repeated observations were not available.',
+                        phytoSummary: '',
                         conclusion: `Trial status is recorded as ${trial?.Result || 'ongoing'} with baseline field metadata available.`
                     };
                 }
@@ -14405,23 +14345,16 @@ Style Guidelines:
                     wce = Math.max(0, Math.min(100, ((firstCover - lastCover) / firstCover) * 100));
                 }
 
-                const phytoValues = ordered
-                    .map(o => parseFloat(o?.phyto))
-                    .filter(v => isFinite(v));
-                const maxPhyto = phytoValues.length ? Math.max(...phytoValues) : null;
-                const finalPhyto = phytoValues.length ? phytoValues[phytoValues.length - 1] : null;
-
                 const coverSummary = wce !== null
                     ? `Aggregate weed cover changed from ${firstCover.toFixed(1)}% at ${daaStart} DA-A to ${lastCover.toFixed(1)}% at ${daaEnd} DA-A, corresponding to ${wce.toFixed(1)}% control efficiency.`
                     : `Final aggregate weed cover was ${lastCover.toFixed(1)}% at ${daaEnd} DA-A. Baseline cover was not sufficient for control-efficiency computation.`;
 
-                const phytoSummary = maxPhyto !== null
-                    ? `Observed crop phytotoxicity peaked at ${maxPhyto.toFixed(1)} and ended at ${finalPhyto.toFixed(1)} on the final observation, indicating the crop safety trajectory over the assessment window.`
-                    : 'Structured phytotoxicity scores were not captured in the efficacy log for this trial.';
+                const wceRows = calculateWeedControlEfficiency(efficacyData);
+                const avgWce = wceRows.length ? (wceRows.reduce((s, r) => s + (parseFloat(r.wce) || 0), 0) / wceRows.length) : wce;
+                const derivedVerdict = isFinite(avgWce) ? getControlRating(avgWce) : 'Ongoing';
+                const conclusion = `${coverSummary} Overall trial classification is ${trial?.Result || derivedVerdict || 'not finalized'} based on recorded field observations.`;
 
-                const conclusion = `${coverSummary} ${phytoSummary} Overall trial classification is ${trial?.Result || 'not finalized'} based on recorded field observations.`;
-
-                return { coverSummary, phytoSummary, conclusion };
+                return { coverSummary, phytoSummary: '', conclusion };
             }
 
             function normalizeReportText(text) {
@@ -15038,10 +14971,6 @@ Style Guidelines:
                     ['AI Cover Analysis', ...trials.map(t => {
                         const s = safeJsonParse(t.AISummariesJSON, {});
                         return s.cover || '-';
-                    })],
-                    ['AI Phyto Analysis', ...trials.map(t => {
-                        const s = safeJsonParse(t.AISummariesJSON, {});
-                        return s.phyto || '-';
                     })],
                     ['Weather', ...trials.map(t => `${t.Temperature || ''}C, ${t.Rain || ''}mm`)],
                 ];
@@ -15934,12 +15863,6 @@ Style Guidelines:
                             label: 'AI Cover Analysis', getValue: t => {
                                 const s = safeJsonParse(t.AISummariesJSON, {});
                                 return s.cover ? `<span class="whitespace-pre-wrap text-xs block min-w-[200px]">${sanitizeHTML(s.cover)}</span>` : '-';
-                            }
-                        },
-                        {
-                            label: 'AI Phyto Analysis', getValue: t => {
-                                const s = safeJsonParse(t.AISummariesJSON, {});
-                                return s.phyto ? `<span class="whitespace-pre-wrap text-xs block min-w-[200px]">${sanitizeHTML(s.phyto)}</span>` : '-';
                             }
                         },
                     ];
@@ -18143,17 +18066,14 @@ Style Guidelines:
                 // 3. Fetch AI summaries in background INDEPENDENTLY
                 const summaries = safeJsonParse(trial.AISummariesJSON, {});
                 const coverInput = document.getElementById('cover-summary-textarea');
-                const phytoInput = document.getElementById('phyto-summary-textarea');
 
                 coverInput.value = summaries.cover || 'Generating professional analysis...';
-                phytoInput.value = summaries.phyto || 'Generating professional analysis...';
 
-                if (!summaries.cover || !summaries.phyto) {
+                if (!summaries.cover) {
                     // This is async and might take time, but the graphs are already visible
                     await updateTrialAISummaries(trialId);
                     const newSum = safeJsonParse(state.trials.find(t => t.ID === trialId).AISummariesJSON);
                     coverInput.value = newSum.cover || 'Analysis generation failed.';
-                    phytoInput.value = newSum.phyto || 'Analysis generation failed.';
                 }
 
                 // Add persistence listeners
@@ -18164,7 +18084,6 @@ Style Guidelines:
                     if (t) {
                         const s = safeJsonParse(t.AISummariesJSON, {});
                         s.cover = coverInput.value;
-                        s.phyto = phytoInput.value;
                         t.AISummariesJSON = JSON.stringify(s);
 
                         clearTimeout(saveTimeout);
@@ -18175,7 +18094,6 @@ Style Guidelines:
                     }
                 };
                 coverInput.addEventListener('input', saveSummary);
-                phytoInput.addEventListener('input', saveSummary);
 
                 // Initialize regeneration logic
                 const chartData = prepareTrialChartData(trial);
@@ -18201,26 +18119,6 @@ Style Guidelines:
                     };
                 }
 
-                const regeneratePhytoBtn = document.getElementById('regenerate-phyto-summary');
-                if (regeneratePhytoBtn) {
-                    regeneratePhytoBtn.onclick = async () => {
-                        if (!chartData) return;
-                        phytoInput.value = 'Regenerating summary...';
-                        const { phytoData, phytoChartOptions } = chartData;
-
-                        // Create complete chart config object
-                        const phytoChartConfig = {
-                            type: 'line',
-                            data: { datasets: [phytoData] },
-                            options: phytoChartOptions
-                        };
-
-                        const wceData = calculateWeedControlEfficiency(safeJsonParse(trial.EfficacyDataJSON));
-                        const summary = await getChartSummaryFromAI(phytoChartConfig, '% Phytotoxicity', 'Overall', "Ongoing", trial.Result, { wceData });
-                        phytoInput.value = summary;
-                        saveSummary();
-                    };
-                }
 
                 const generateDocBtn = document.getElementById('generate-doc-from-preview');
                 if (generateDocBtn) {
@@ -18234,10 +18132,9 @@ Style Guidelines:
                     generatePdfBtn.onclick = () => {
                         // Capture canvas images
                         const coverCanvas = document.getElementById('preview-cover-canvas');
-                        const phytoCanvas = document.getElementById('preview-phyto-canvas');
                         const chartImages = {
                             cover: coverCanvas ? coverCanvas.toDataURL('image/png') : null,
-                            phyto: phytoCanvas ? phytoCanvas.toDataURL('image/png') : null
+                            phyto: null
                         };
                         const showPhotoDates = document.getElementById('show-photo-dates')?.checked || state.settings.showPhotoDates;
                         const withTimeline = document.getElementById('include-timeline')?.checked || state.settings.includeTimeline;
@@ -23729,35 +23626,8 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                 });
                 charts.cover = coverCanvas.toDataURL('image/png');
 
-                // Render Phyto Chart
-                const phytoCanvas = document.createElement('canvas');
-                phytoCanvas.width = 1600;
-                phytoCanvas.height = 800;
-                tempDiv.appendChild(phytoCanvas);
-
-                await new Promise(resolve => {
-                    const ctx = phytoCanvas.getContext('2d');
-                    new Chart(ctx, {
-                        type: 'line',
-                        data: { datasets: [chartData.phytoData] },
-                        options: {
-                            ...chartData.phytoChartOptions,
-                            animation: false,
-                            responsive: false,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                ...chartData.phytoChartOptions.plugins,
-                                legend: { labels: { font: { size: 18, weight: 'bold' } } }
-                            },
-                            scales: {
-                                x: { ...chartData.phytoChartOptions.scales.x, ticks: { font: { size: 16 } } },
-                                y: { ...chartData.phytoChartOptions.scales.y, ticks: { font: { size: 16 } } }
-                            }
-                        }
-                    });
-                    setTimeout(resolve, 200);
-                });
-                charts.phyto = phytoCanvas.toDataURL('image/png');
+                // Non-selective workflow: no phytotoxicity chart generation.
+                charts.phyto = null;
 
             } catch (err) {
                 console.error("Error in generateScientificCharts:", err);
@@ -23858,21 +23728,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                     }
                 }
 
-                // Phyto Data — default to 0 if not recorded (no crop damage observed = 0%)
-                const phytoByDaa = new Map();
-                data.forEach(d => {
-                    const x = parseFloat(d.daa);
-                    if (!isFinite(x)) return;
-                    const phytoVal = d.phyto !== undefined && d.phyto !== null ? parseFloat(d.phyto) :
-                        (d.phytotoxicity !== undefined && d.phytotoxicity !== null ? parseFloat(d.phytotoxicity) : 0);
-                    const y = isFinite(phytoVal) ? phytoVal : 0;
-                    if (!phytoByDaa.has(x)) phytoByDaa.set(x, []);
-                    phytoByDaa.get(x).push(y);
-                });
-                const phytoPoints = [...phytoByDaa.entries()]
-                    .map(([x, ys]) => ({ x, y: mean(ys) }))
-                    .filter(p => p && isFinite(p.x) && isFinite(p.y))
-                    .sort((a, b) => a.x - b.x);
+                const phytoPoints = [];
 
                 return {
                     coverDatasets: coverDatasets,
@@ -23883,23 +23739,8 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                         },
                         plugins: { legend: { display: true }, title: { display: true, text: 'Efficacy' } }
                     },
-                    phytoData: {
-                        label: 'Crop Phytotoxicity %',
-                        data: phytoPoints,
-                        borderColor: '#ef4444',
-                        backgroundColor: '#ef444433',
-                        tension: 0.3,
-                        fill: true,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#ef4444',
-                    },
-                    phytoChartOptions: {
-                        scales: {
-                            x: { type: 'linear', title: { display: true, text: 'Days After Application (DA-A)' } },
-                            y: { beginAtZero: true, max: 100, title: { display: true, text: '% Phytotoxicity' } }
-                        },
-                        plugins: { legend: { display: true }, title: { display: true, text: 'Phytotoxicity' } }
-                    },
+                    phytoData: null,
+                    phytoChartOptions: null,
                     allWeedSpecies: allSpecies
                 };
             } catch (e) {
