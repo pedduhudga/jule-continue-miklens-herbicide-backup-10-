@@ -5356,7 +5356,7 @@ IMPORTANT:
                                                     <label class="block text-xs font-medium text-gray-600 mb-1">Metric</label>
                                                     <select id="compare-metric-filter" class="form-input w-full p-2 border rounded-md">
                                                         <option value="cover">% Cover</option>
-                                                        <option value="phyto">% Phytotoxicity</option>
+                                                        <option value="control">% Weed Control</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -5939,8 +5939,8 @@ IMPORTANT:
                             console.log('[DEBUG Weed Cover] Data length:', efficacyData.length);
 
                             const hasEfficacyData = efficacyData.length > 0;
-                            const efficacyCharts = hasEfficacyData ? `<div class="mt-6 col-span-1 md:col-span-2"><h4 class="text-lg font-semibold mb-2 text-slate-700">Efficacy Over Time</h4><p class="text-xs text-gray-500 -mt-2 mb-4">Each line in the '% Cover' chart represents a unique weed species identified across all trial observations.</p><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-slate-50 p-4 rounded-lg"><h5 class="text-md font-semibold mb-2 text-slate-700">% Cover by Species</h5><div class="h-64"><canvas id="single-cover-chart"></canvas></div></div><div class="bg-slate-50 p-4 rounded-lg"><h5 class="text-md font-semibold mb-2 text-slate-700">% Phytotoxicity</h5><div class="h-64"><canvas id="single-phyto-chart"></canvas></div></div></div></div>` : '<div class="mt-6 col-span-1 md:col-span-2"><p class="text-gray-500">No quantitative efficacy data logged for this trial.</p></div>';
-                            const weedStatusTable = hasEfficacyData ? `<div class="mt-6 col-span-1 md:col-span-2"><h4 class="text-lg font-semibold mb-2 text-slate-700">Weed Status Timeline</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">DA-A</th><th class="px-4 py-2 text-left font-medium text-slate-500">Species</th><th class="px-4 py-2 text-left font-medium text-slate-500">Status</th><th class="px-4 py-2 text-left font-medium text-slate-500">% Cover 🌿</th><th class="px-4 py-2 text-left font-medium text-slate-500">Health (PHI) 💚</th><th class="px-4 py-2 text-left font-medium text-slate-500">Notes</th><th class="px-4 py-2 text-center font-medium text-slate-500">Grid</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${efficacyData.flatMap((obs, obsIdx) => {
+                            const efficacyCharts = hasEfficacyData ? `<div class="mt-6 col-span-1 md:col-span-2"><h4 class="text-lg font-semibold mb-2 text-slate-700">Efficacy Over Time</h4><p class="text-xs text-gray-500 -mt-2 mb-4">Each line represents a unique weed species identified across all trial observations.</p><div class="bg-slate-50 p-4 rounded-lg"><h5 class="text-md font-semibold mb-2 text-slate-700">% Weed Cover by Species</h5><div class="h-64"><canvas id="single-cover-chart"></canvas></div></div></div>` : '<div class="mt-6 col-span-1 md:col-span-2"><p class="text-gray-500">No quantitative efficacy data logged for this trial.</p></div>';
+                            const weedStatusTable = hasEfficacyData ? `<div class="mt-6 col-span-1 md:col-span-2"><h4 class="text-lg font-semibold mb-2 text-slate-700">Weed Status Timeline</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">DA-A</th><th class="px-4 py-2 text-left font-medium text-slate-500">Species</th><th class="px-4 py-2 text-left font-medium text-slate-500">Status</th><th class="px-4 py-2 text-left font-medium text-slate-500">% Cover 🌿</th><th class="px-4 py-2 text-left font-medium text-slate-500">Notes</th><th class="px-4 py-2 text-center font-medium text-slate-500">Grid</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${efficacyData.flatMap((obs, obsIdx) => {
 
                                 // DEBUG: Log each observation
                                 const parseCover = (v) => {
@@ -5983,7 +5983,7 @@ IMPORTANT:
                                         const statusText = idx === 0 ? String(obs.weedStatus || obs.status || '—') : '—';
                                         const notesText = idx === 0 ? String(obs.notes || '') : '';
                                         const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">📐</button>` : '';
-                                        return `<tr><td class="p-2 font-semibold">${idx === 0 ? obs.daa : ''}</td><td class="p-2">${sanitizeHTML(sp)}</td><td class="p-2">${sanitizeHTML(statusText)}</td><td class="p-2">${coverCell}</td><td class="p-2">${phiCell}</td><td class="p-2">${sanitizeHTML(notesText)}</td><td class="p-2 text-center">${gridBtn}</td></tr>`;
+                                        return `<tr><td class="p-2 font-semibold">${idx === 0 ? obs.daa : ''}</td><td class="p-2">${sanitizeHTML(sp)}</td><td class="p-2">${sanitizeHTML(statusText)}</td><td class="p-2">${coverCell}</td><td class="p-2">${sanitizeHTML(notesText)}</td><td class="p-2 text-center">${gridBtn}</td></tr>`;
                                     });
                                     return rows;
                                 }
@@ -5997,13 +5997,11 @@ IMPORTANT:
                                     const coverCell = speciesCover !== null
                                         ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold">${speciesCover.toFixed(1)}%</span>${totalBadge}`
                                         : `<span class="text-gray-300">—</span>${totalBadge}`;
-                                    const phiValue = formatPhi(obs.phi);
-                                    const phiCell = idx === 0 && phiValue !== '—' ? `<span class="px-2 py-1 rounded shadow-sm border font-bold ${phiBadgeClass(phiValue)}">${phiValue}</span>` : '<span class="text-gray-300">—</span>';
                                     const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">📐</button>` : '';
                                     const speciesText = String(wd?.species || wd?.name || wd?.weed || wd?.weedSpecies || '—');
                                     const statusText = String(wd?.status || wd?.Status || wd?.weedStatus || '—');
                                     const notesText = String(wd?.notes || wd?.note || '');
-                                    return `<tr><td class="p-2 font-semibold">${idx === 0 ? obs.daa : ''}</td><td class="p-2">${sanitizeHTML(speciesText)}</td><td class="p-2">${sanitizeHTML(statusText)}</td><td class="p-2">${coverCell}</td><td class="p-2">${phiCell}</td><td class="p-2">${sanitizeHTML(notesText)}</td><td class="p-2 text-center">${gridBtn}</td></tr>`;
+                                    return `<tr><td class="p-2 font-semibold">${idx === 0 ? obs.daa : ''}</td><td class="p-2">${sanitizeHTML(speciesText)}</td><td class="p-2">${sanitizeHTML(statusText)}</td><td class="p-2">${coverCell}</td><td class="p-2">${sanitizeHTML(notesText)}</td><td class="p-2 text-center">${gridBtn}</td></tr>`;
                                 });
                             }).join('')}</tbody></table></div></div>` : '';
 
@@ -9659,7 +9657,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         <h5 class="font-semibold text-gray-700">Observation</h5>
                         <button type="button" data-action="remove-observation" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-600">Observation Date</label>
                             <input type="date" class="p-2 border rounded-md text-sm w-full form-input obs-date">
@@ -9671,10 +9669,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         <div>
                             <label class="block text-xs font-medium text-gray-600">Visual Control % (0-100)</label>
                             <input type="number" step="any" min="0" max="100" class="p-2 border rounded-md text-sm w-full form-input obs-control" placeholder="Optional">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600">% Phytotoxicity</label>
-                            <input type="number" step="any" min="0" max="100" class="p-2 border rounded-md text-sm w-full form-input obs-phyto" placeholder="0-100">
                         </div>
                     </div>
                     ${showBaseline ? `<div class="flex items-center gap-2">
@@ -18137,13 +18131,13 @@ Style Guidelines:
                 openModal('reportPreview');
                 const trial = state.trials.find(t => t.ID === trialId);
 
-                // 1. Unhide sections FIRST so Chart.js has proper dimensions
+                // 1. Unhide %Cover section
                 document.getElementById('cover-report-section').classList.remove('hidden');
-                document.getElementById('phyto-report-section').classList.remove('hidden');
+                // Phytotoxicity section not shown (non-selective herbicide — no crop to protect)
 
-                // 2. Render charts IMMEDIATELY. Do not wait for any async logic or timeouts.
+                // 2. Render cover chart IMMEDIATELY
                 setTimeout(() => {
-                    renderTrialChartsToCanvases(trial, 'preview-cover-canvas', 'preview-phyto-canvas');
+                    renderTrialChartsToCanvases(trial, 'preview-cover-canvas', null);
                 }, 50);
 
                 // 3. Fetch AI summaries in background INDEPENDENTLY
