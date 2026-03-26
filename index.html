@@ -14694,12 +14694,37 @@ Style Guidelines:
                 showToast('Standalone HTML downloaded.', 'success');
             }
 
+            function extractEfficacyArrayAny(value) {
+                let current = value;
+
+                // Some records can be double-encoded JSON strings. Unwrap safely.
+                for (let i = 0; i < 3; i++) {
+                    if (typeof current !== 'string') break;
+                    const trimmed = current.trim();
+                    if (!trimmed) return [];
+                    try {
+                        current = JSON.parse(trimmed);
+                    } catch (e) {
+                        return [];
+                    }
+                }
+
+                if (Array.isArray(current)) return current;
+                if (!current || typeof current !== 'object') return [];
+
+                if (Array.isArray(current.observations)) return current.observations;
+                if (Array.isArray(current.efficacy)) return current.efficacy;
+                if (Array.isArray(current.data)) return current.data;
+                if (Array.isArray(current.items)) return current.items;
+
+                // Fallback for object maps with numeric keys.
+                const vals = Object.values(current);
+                if (vals.length > 0 && vals.every(v => v && typeof v === 'object')) return vals;
+
+                return [];
+            }
+
             function scanEfficacyRepairIssues() {
-                const parseJsonAny = (value, fallback) => {
-                    if (!value) return fallback;
-                    if (typeof value !== 'string') return value;
-                    try { return JSON.parse(value); } catch (e) { return fallback; }
-                };
 
                 const trials = state.trials || [];
                 const issues = [];
@@ -14711,8 +14736,7 @@ Style Guidelines:
                 let needsWeedSpeciesFromObs = 0;
 
                 trials.forEach(t => {
-                    const raw = parseJsonAny(t.EfficacyDataJSON, []);
-                    const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.observations) ? raw.observations : (Array.isArray(raw?.efficacy) ? raw.efficacy : []));
+                    const arr = extractEfficacyArrayAny(t.EfficacyDataJSON);
                     if (!arr || arr.length === 0) {
                         missingEfficacy++;
                         return;
@@ -14806,12 +14830,6 @@ Style Guidelines:
                 const progressEl = document.getElementById('efficacy-fix-progress');
                 if (progressEl) progressEl.textContent = 'Preparing...';
 
-                const parseJsonAny = (value, fallback) => {
-                    if (!value) return fallback;
-                    if (typeof value !== 'string') return value;
-                    try { return JSON.parse(value); } catch (e) { return fallback; }
-                };
-
                 const trials = state.trials || [];
                 let fixedCount = 0;
                 let skippedCount = 0;
@@ -14822,8 +14840,7 @@ Style Guidelines:
                     if (progressEl) progressEl.textContent = `Fixing ${idx + 1}/${trials.length}...`;
 
                     try {
-                        const raw = parseJsonAny(t.EfficacyDataJSON, []);
-                        const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.observations) ? raw.observations : (Array.isArray(raw?.efficacy) ? raw.efficacy : []));
+                        const arr = extractEfficacyArrayAny(t.EfficacyDataJSON);
                         if (!arr || arr.length === 0) { skippedCount++; continue; }
 
                         const normalized = validateEfficacyData(arr);
@@ -14894,8 +14911,7 @@ Style Guidelines:
                     const t = trials[i];
                     if (progressEl) progressEl.textContent = `Recalculating ${i + 1}/${trials.length}...`;
                     try {
-                        const raw = safeJsonParse(t.EfficacyDataJSON, []);
-                        const arr = Array.isArray(raw) ? raw : (Array.isArray(raw?.observations) ? raw.observations : []);
+                        const arr = extractEfficacyArrayAny(t.EfficacyDataJSON);
                         if (!arr || arr.length === 0) continue;
 
                         let changed = false;
@@ -14986,10 +15002,7 @@ Style Guidelines:
                     if (progressEl) progressEl.textContent = `Rebuilding ${i + 1}/${trials.length}...`;
 
                     try {
-                        const raw = safeJsonParse(t.EfficacyDataJSON, []);
-                        const arr = Array.isArray(raw)
-                            ? raw
-                            : (Array.isArray(raw?.observations) ? raw.observations : (Array.isArray(raw?.efficacy) ? raw.efficacy : []));
+                        const arr = extractEfficacyArrayAny(t.EfficacyDataJSON);
                         if (!arr || arr.length === 0) {
                             skippedTrials++;
                             continue;
