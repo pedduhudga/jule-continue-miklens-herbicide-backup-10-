@@ -18123,6 +18123,15 @@ Style Guidelines:
             let _lastSyncAttempt = 0;
             const SYNC_MIN_INTERVAL = 500;
             const SYNC_STUCK_TIMEOUT = 60000; // Reset flag if still processing after 60s
+
+            function isDrivePermissionError(msg) {
+                const m = String(msg || '').toLowerCase();
+                return m.includes('driveapp') ||
+                    m.includes('drive access denied') ||
+                    m.includes('access denied') ||
+                    m.includes('triggerdrivepermissions') ||
+                    m.includes('execute as: me');
+            }
             
             // CRITICAL FIX: Detect stuck flag every 90 seconds and force recovery
             setInterval(() => {
@@ -18156,8 +18165,8 @@ Style Guidelines:
 
                 let itemsToProcess = state.syncQueue.filter(item =>
                     item.status === 'pending' ||
-                    item.status === 'failed' ||
-                    item.status === 'uploading'
+                    item.status === 'uploading' ||
+                    (item.status === 'failed' && !item.noRetry)
                 );
 
                 let isFirstItem = true;
@@ -18536,11 +18545,17 @@ Style Guidelines:
                         const errMsg = String(error?.message || 'Unknown error');
                         console.error(`%c[Sync Error] ${itemLabel} Failed: ${errMsg}`, "color: #dc2626; font-weight: bold;");
                         item.attempts = (item.attempts || 0) + 1;
+                        const drivePermDenied = isDrivePermissionError(errMsg);
+                        item.noRetry = drivePermDenied;
                         item.status = errMsg.includes('Timeout') || errMsg.includes('fetch') ? 'pending' : 'failed';
                         item.lastError = errMsg;
 
-                        if (errMsg.toLowerCase().includes('driveapp') || errMsg.toLowerCase().includes('access denied')) {
-                            showToast('Drive permission denied by server. In Apps Script deploy Web App as "Execute as: Me", run triggerDrivePermissions() once, then redeploy.', 'error');
+                        if (drivePermDenied) {
+                            const now = Date.now();
+                            if (!window._drivePermissionToastAt || now - window._drivePermissionToastAt > 60000) {
+                                showToast('Drive permission denied by server. In Apps Script deploy Web App as "Execute as: Me", run triggerDrivePermissions() once, then redeploy.', 'error');
+                                window._drivePermissionToastAt = now;
+                            }
                         }
                         console.groupEnd();
                     }
@@ -18554,8 +18569,9 @@ Style Guidelines:
 
                 // Feedback for user
                 const successCount = itemsToProcess.filter(i => i.status === 'completed').length;
-                const failedCount = itemsToProcess.filter(i => i.status === 'failed').length;
-                const pendingCount = state.syncQueue.filter(i => i.status === 'pending' || i.status === 'failed').length;
+                const failedCount = itemsToProcess.filter(i => i.status === 'failed' && !i.noRetry).length;
+                const blockedCount = state.syncQueue.filter(i => i.status === 'failed' && i.noRetry).length;
+                const pendingCount = state.syncQueue.filter(i => i.status === 'pending' || (i.status === 'failed' && !i.noRetry)).length;
                 
                 if (successCount > 0) {
                     showToast(`✅ Sync complete! ${successCount} item(s) uploaded. ${pendingCount} pending.`, 'success');
@@ -18565,6 +18581,8 @@ Style Guidelines:
                     setTimeout(() => {
                         if (navigator.onLine) processSyncQueue();
                     }, 30000);
+                } else if (blockedCount > 0) {
+                    showToast(`Sync paused: ${blockedCount} item(s) need Drive permission fix in Apps Script settings.`, 'warning');
                 } else if (pendingCount > 0) {
                     console.log(`[HighTechSync] ℹ️ ${pendingCount} items still pending. Setting up auto-retry...`);
                     setTimeout(() => {
