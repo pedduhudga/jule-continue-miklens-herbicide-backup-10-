@@ -6457,8 +6457,12 @@ IMPORTANT:
                     const photos = allPhotos.slice(0, 4).map(p => {
                         const photoUrl = p.url || p.fileData;
                         if (typeof photoUrl !== 'string' || !photoUrl) return '';
-                        const proxiedUrl = photoUrl.startsWith('data:image') ? photoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(photoUrl)}&w=100&h=100&fit=cover`;
-                        return `<img src="${proxiedUrl}" class="h-16 w-16 object-cover rounded-md border ${p.isWeed ? 'border-emerald-400' : ''}" alt="${sanitizeHTML(p.label) || 'Trial photo'}">`;
+                        const isDataUri = /^data:image\//i.test(photoUrl);
+                        const driveIdMatch = !isDataUri ? photoUrl.match(/(?:[?&]id=|\/d\/)([a-zA-Z0-9_-]{10,})/) : null;
+                        const normalizedUrl = driveIdMatch ? `https://drive.google.com/thumbnail?id=${driveIdMatch[1]}&sz=w400` : photoUrl;
+                        const proxiedUrl = isDataUri ? normalizedUrl : `https://images.weserv.nl/?url=${encodeURIComponent(normalizedUrl)}&w=100&h=100&fit=cover`;
+                        const fallbackUrl = sanitizeHTML(normalizedUrl);
+                        return `<img src="${proxiedUrl}" data-fallback-src="${fallbackUrl}" onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){ this.src = this.dataset.fallbackSrc; } else { this.removeAttribute('onerror'); }" class="h-16 w-16 object-cover rounded-md border ${p.isWeed ? 'border-emerald-400' : ''}" alt="${sanitizeHTML(p.label) || 'Trial photo'}">`;
                     }).join('');
                     const resultValue = String(trial.Result || '');
                     const resultClasses = `py-1 px-2 rounded-full text-xs font-semibold result-${resultValue.toLowerCase() || 'none'}`;
