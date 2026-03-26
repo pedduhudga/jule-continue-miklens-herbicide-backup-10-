@@ -1196,6 +1196,136 @@
                 return div.innerHTML;
             };
 
+            // Canonicalize weed names so analytics do not split the same species.
+            window.canonicalizeWeedSpecies = function (rawName) {
+                const name = String(rawName || '').trim();
+                if (!name) return 'Unknown';
+
+                const lower = name.toLowerCase().replace(/\s+/g, ' ');
+                const aliasMap = {
+                    'bermudagrass': 'Cynodon dactylon',
+                    'couch grass': 'Cynodon dactylon',
+                    'doob grass': 'Cynodon dactylon',
+                    'durva grass': 'Cynodon dactylon',
+                    'cynodon dactylon': 'Cynodon dactylon',
+                    'ricinus communis': 'Ricinus communis',
+                    'castor bean': 'Ricinus communis',
+                    'castor': 'Ricinus communis',
+                    'broadleaf': 'Broadleaf weed (unidentified)',
+                    'broad leaf': 'Broadleaf weed (unidentified)',
+                    'broadleaf weed': 'Broadleaf weed (unidentified)',
+                    'total': 'Total'
+                };
+
+                if (aliasMap[lower]) return aliasMap[lower];
+                if (lower.includes('cynodon') || lower.includes('bermuda')) return 'Cynodon dactylon';
+                if (lower.includes('broadleaf')) return 'Broadleaf weed (unidentified)';
+
+                return name
+                    .split(' ')
+                    .filter(Boolean)
+                    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+                    .join(' ');
+            };
+
+            window.getTrialWeedHistory = function (trial, targetDaa = null) {
+                const history = {
+                    knownSpecies: [],
+                    latestObservation: null,
+                    latestBySpecies: {}
+                };
+
+                if (!trial) return history;
+
+                const allObs = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
+                const daaLimit = targetDaa === null || targetDaa === undefined ? null : parseFloat(targetDaa);
+                const previousObs = allObs
+                    .filter(obs => daaLimit === null || (parseFloat(obs.daa) || 0) < daaLimit)
+                    .sort((a, b) => (parseFloat(a.daa) || 0) - (parseFloat(b.daa) || 0));
+
+                if (!previousObs.length) return history;
+
+                const latestObservation = previousObs[previousObs.length - 1];
+                const knownSpecies = new Set();
+                previousObs.forEach(obs => {
+                    (obs.weedDetails || []).forEach(w => {
+                        const canonical = window.canonicalizeWeedSpecies(w.species);
+                        if (canonical && canonical !== 'Total') knownSpecies.add(canonical);
+                    });
+                });
+
+                (latestObservation.weedDetails || []).forEach(w => {
+                    const canonical = window.canonicalizeWeedSpecies(w.species);
+                    if (!canonical || canonical === 'Total') return;
+                    history.latestBySpecies[canonical] = {
+                        cover: typeof w.cover === 'number' ? w.cover : parseFloat(w.cover || 0),
+                        status: String(w.status || '').trim(),
+                        notes: String(w.notes || '').trim()
+                    };
+                });
+
+                history.knownSpecies = Array.from(knownSpecies);
+                history.latestObservation = latestObservation;
+                return history;
+            };
+
+            window.buildWeedTrackingPromptContext = function (trial, targetDaa = null) {
+                const history = window.getTrialWeedHistory(trial, targetDaa);
+                if (!history.knownSpecies.length) return '';
+
+                const knownLine = `KNOWN SPECIES ALREADY TRACKED IN THIS TRIAL: ${history.knownSpecies.join(', ')}`;
+                let latestLine = '';
+                if (history.latestObservation) {
+                    const latestParts = Object.entries(history.latestBySpecies).map(([species, info]) => {
+                        const cover = Number.isFinite(info.cover) ? `${info.cover}%` : '0%';
+                        const status = info.status ? `, ${info.status}` : '';
+                        return `${species} (${cover}${status})`;
+                    });
+                    latestLine = latestParts.length
+                        ? `LATEST PREVIOUS OBSERVATION BEFORE THIS PHOTO (DAA ${history.latestObservation.daa}): ${latestParts.join('; ')}`
+                        : '';
+                }
+
+                return [
+                    knownLine,
+                    latestLine,
+                    'TRACKING RULES: keep the same species label across days, do not rename the same weed, and only add a new species if it is clearly visible in this image.'
+                ].filter(Boolean).join('\n');
+            };
+
+            window.applyHistoricalWeedTracking = function (trial, observation) {
+                if (!trial || !observation) return observation;
+
+                const history = window.getTrialWeedHistory(trial, observation.daa);
+                const details = Array.isArray(observation.weedDetails) ? observation.weedDetails : [];
+                const bySpecies = new Map();
+
+                details.forEach(w => {
+                    const canonical = window.canonicalizeWeedSpecies(w.species);
+                    bySpecies.set(canonical, {
+                        ...w,
+                        species: canonical
+                    });
+                });
+
+                history.knownSpecies.forEach(species => {
+                    if (!bySpecies.has(species)) {
+                        const prev = history.latestBySpecies[species] || {};
+                        bySpecies.set(species, {
+                            species,
+                            cover: 0,
+                            status: prev.status || 'Not detected',
+                            notes: 'Added from prior observation history for daily species tracking.'
+                        });
+                    }
+                });
+
+                return {
+                    ...observation,
+                    weedDetails: Array.from(bySpecies.values())
+                };
+            };
+
             /**
              * Validate EfficacyDataJSON Schema
              * CRITICAL: Ensures AI-generated data doesn't crash ANOVA
@@ -1223,6 +1353,11 @@
                     if (additive <= 100) return clamp(additive, 0, 100);
                     const unionProb = 1 - covers.reduce((p, v) => p * (1 - (v / 100)), 1);
                     return clamp(unionProb * 100, 0, 100);
+                };
+                const isRegrowthSignal = (text) => /re-emerg|regrowth|re-grow|resistant/i.test(String(text || ''));
+                const addWarning = (obs, message) => {
+                    const current = String(obs.validationNotes || '').trim();
+                    obs.validationNotes = current ? `${current}; ${message}` : message;
                 };
 
                 const normalized = [];
@@ -1269,7 +1404,7 @@
                             const status = String(w.status || w.Status || w.weedStatus || '').trim();
                             const notes = String(w.notes || w.note || '').trim();
                             if (!species && cover === null && !status && !notes) return;
-                            cleaned.push({ ...w, species: species || 'Unknown', cover, status, notes });
+                            cleaned.push({ ...w, species: window.canonicalizeWeedSpecies(species || 'Unknown'), cover, status, notes });
                         });
                         obs.weedDetails = cleaned;
                     }
@@ -1311,6 +1446,67 @@
                     }
 
                     normalized.push(obs);
+                });
+
+                // Cross-observation integrity: normalize duplicates, enforce early temporal consistency,
+                // and keep observation total cover aligned with species covers.
+                const ordered = normalized.slice().sort((a, b) => (parseFloat(a.daa) || 0) - (parseFloat(b.daa) || 0));
+                const lastSeenBySpecies = new Map();
+
+                ordered.forEach(obs => {
+                    if (!Array.isArray(obs.weedDetails) || obs.weedDetails.length === 0) return;
+
+                    const merged = new Map();
+                    obs.weedDetails.forEach(w => {
+                        const key = window.canonicalizeWeedSpecies(w.species || 'Unknown');
+                        const cover = toNum(w.cover);
+                        const current = merged.get(key);
+                        if (!current) {
+                            merged.set(key, { ...w, species: key, cover });
+                            return;
+                        }
+                        const currentCover = toNum(current.cover);
+                        const nextCover = cover;
+                        if (nextCover !== null && (currentCover === null || nextCover > currentCover)) {
+                            current.cover = nextCover;
+                        }
+                        if (!current.status && w.status) current.status = w.status;
+                        if (!current.notes && w.notes) current.notes = w.notes;
+                    });
+
+                    obs.weedDetails = Array.from(merged.values()).map(w => ({
+                        ...w,
+                        cover: w.cover === null ? null : clamp(w.cover, 0, 100)
+                    }));
+
+                    obs.weedDetails.forEach(w => {
+                        if (w.cover === null || w.species === 'Total') return;
+                        const prev = lastSeenBySpecies.get(w.species);
+                        const earlyWindow = (parseFloat(obs.daa) || 0) <= 1;
+                        const allowIncrease = isRegrowthSignal(`${w.status || ''} ${w.notes || ''} ${obs.notes || ''}`);
+
+                        if (!prev && earlyWindow && w.cover > 3 && !allowIncrease) {
+                            w.cover = 0;
+                            addWarning(obs, `${w.species}: removed early new-appearance spike at DAA ${obs.daa}.`);
+                        } else if (prev && earlyWindow && w.cover > (prev.cover + 5) && !allowIncrease) {
+                            w.cover = prev.cover;
+                            addWarning(obs, `${w.species}: capped unrealistic DAA ${obs.daa} increase to previous cover.`);
+                        }
+
+                        lastSeenBySpecies.set(w.species, {
+                            cover: toNum(w.cover) === null ? 0 : clamp(toNum(w.cover), 0, 100),
+                            daa: parseFloat(obs.daa) || 0
+                        });
+                    });
+
+                    const derivedCover = deriveTotalCoverFromDetails(obs.weedDetails);
+                    if (derivedCover !== null && derivedCover !== undefined) {
+                        const existing = toNum(obs.weedCover);
+                        if (existing === null || Math.abs(existing - derivedCover) > 2) {
+                            obs.weedCover = derivedCover;
+                            obs.weedCoverMode = 'reconciled';
+                        }
+                    }
                 });
 
                 return normalized;
@@ -1439,11 +1635,14 @@
                     const targetWeed = project.TargetWeed || project.WeedSpecies;
 
                     if (targetWeed) {
+                        const targetCanonical = window.canonicalizeWeedSpecies(targetWeed);
                         const matchedWeed = observation.weedDetails.find(w => {
                             if (!w.species) return false;
+                            const speciesCanonical = window.canonicalizeWeedSpecies(w.species);
                             // Case-insensitive partial match
-                            return w.species.toLowerCase().includes(targetWeed.toLowerCase()) ||
-                                targetWeed.toLowerCase().includes(w.species.toLowerCase());
+                            return speciesCanonical === targetCanonical ||
+                                speciesCanonical.toLowerCase().includes(targetCanonical.toLowerCase()) ||
+                                targetCanonical.toLowerCase().includes(speciesCanonical.toLowerCase());
                         });
 
                         if (matchedWeed) {
@@ -5938,7 +6137,9 @@ IMPORTANT:
                                             ? `<span class="px-2 py-1 bg-slate-100 text-slate-800 rounded font-semibold">Total ${displayCover.toFixed(1)}%</span> <span class="text-xs text-gray-400">(${sanitizeHTML(displayCoverMode) || 'auto'})</span>`
                                             : '<span class="text-gray-300">—</span>';
                                         const statusText = idx === 0 ? String(obs.weedStatus || obs.status || '—') : '—';
-                                        const notesText = idx === 0 ? String(obs.notes || '') : '';
+                                        const baseNotes = idx === 0 ? String(obs.notes || '') : '';
+                                        const qaNotes = idx === 0 && obs.validationNotes ? ` [QC] ${obs.validationNotes}` : '';
+                                        const notesText = `${baseNotes}${qaNotes}`.trim();
                                         const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">📐</button>` : '';
                                         return `<tr><td class="p-2 font-semibold">${idx === 0 ? obs.daa : ''}</td><td class="p-2">${sanitizeHTML(sp)}</td><td class="p-2">${sanitizeHTML(statusText)}</td><td class="p-2">${coverCell}</td><td class="p-2">${sanitizeHTML(notesText)}</td><td class="p-2 text-center">${gridBtn}</td></tr>`;
                                     });
@@ -5957,7 +6158,9 @@ IMPORTANT:
                                     const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">📐</button>` : '';
                                     const speciesText = String(wd?.species || wd?.name || wd?.weed || wd?.weedSpecies || '—');
                                     const statusText = String(wd?.status || wd?.Status || wd?.weedStatus || '—');
-                                    const notesText = String(wd?.notes || wd?.note || '');
+                                    const baseNotes = String(wd?.notes || wd?.note || '');
+                                    const qaNotes = idx === 0 && obs.validationNotes ? ` [QC] ${obs.validationNotes}` : '';
+                                    const notesText = `${baseNotes}${qaNotes}`.trim();
                                     return `<tr><td class="p-2 font-semibold">${idx === 0 ? obs.daa : ''}</td><td class="p-2">${sanitizeHTML(speciesText)}</td><td class="p-2">${sanitizeHTML(statusText)}</td><td class="p-2">${coverCell}</td><td class="p-2">${sanitizeHTML(notesText)}</td><td class="p-2 text-center">${gridBtn}</td></tr>`;
                                 });
                             }).join('')}</tbody></table></div></div>` : '';
@@ -10578,17 +10781,24 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
 
             // --- BACKGROUND PROCESSING & AI ---
-            async function analyzePhotoForEfficacy(fileData, mimeType) {
+            async function analyzePhotoForEfficacy(fileData, mimeType, analysisContext = {}) {
                 try {
                     if (!fileData || typeof fileData !== 'string' || !fileData.includes(',')) {
                         throw new Error("Invalid image data provided for analysis.");
                     }
+                    const historyPrompt = analysisContext.trial
+                        ? window.buildWeedTrackingPromptContext(analysisContext.trial, analysisContext.daa)
+                        : '';
                     const prompt = `As an agricultural expert analyzing a photo from a herbicide trial, identify up to 2 dominant weed species and estimate their cover/status. Respond ONLY with a single minified JSON object in this exact format: {"weedDetails": [{"species": "...", "cover": NUMBER, "status": "Controlled|Burndown|Re-emerged|Resistant|Unaffected", "notes": "..."}]}.
                     - "weedDetails": An array of objects.
                     - "species": The scientific or common name of the weed.
                     - "cover": Estimate the percentage of the ground covered by this specific weed species (0-100).
                     - "status": The observed condition of the weed.
-                    - "notes": A brief qualitative observation.`;
+                    - "notes": A brief qualitative observation.
+                    - Prefer stable species naming across dates (e.g., Bermudagrass = Cynodon dactylon).
+                    - Do NOT introduce a new species unless clearly visible.
+                    - On day 0 to day 1, avoid reporting increased cover unless there is clear regrowth evidence.
+                    ${historyPrompt}`;
 
                         const geminiCall = (genAI) => genAI.models.generateContent({
                         model: getActiveApiModel(),
@@ -10648,8 +10858,12 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     }
 
                     const parsed = JSON.parse(aiResponseText);
+                    let weedDetails = parsed.weedDetails || [];
+                    if (analysisContext.trial) {
+                        weedDetails = window.applyHistoricalWeedTracking(analysisContext.trial, { daa: analysisContext.daa, weedDetails }).weedDetails;
+                    }
                     return {
-                        weedDetails: parsed.weedDetails || [],
+                        weedDetails,
                         weedCoverEstimate: weedCoverEstimate
                     };
                 } catch (error) {
@@ -11446,13 +11660,17 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                 const imageData = await getImageAsResizedBase64(photo.url);
                                 if (!imageData) continue;
 
-                                const analysisResult = await analyzePhotoForEfficacy(imageData, 'image/jpeg');
+                                const observationDate = new Date(photo.date || trial.Date);
+                                const trialDate = new Date(trial.Date);
+                                const daa = Math.round((observationDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
+                                const workingTrial = {
+                                    ...trial,
+                                    EfficacyDataJSON: JSON.stringify([...(efficacyData || []), ...newEfficacyObservations])
+                                };
+
+                                const analysisResult = await analyzePhotoForEfficacy(imageData, 'image/jpeg', { trial: workingTrial, daa });
 
                                 if (analysisResult) {
-                                    const observationDate = new Date(photo.date || trial.Date);
-                                    const trialDate = new Date(trial.Date);
-                                    const daa = Math.round((observationDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
-
                                     newEfficacyObservations.push({
                                         date: observationDate.toISOString().split('T')[0],
                                         daa: daa >= 0 ? daa : 0,
@@ -11464,7 +11682,8 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                             }
 
                             if (newEfficacyObservations.length > 0) {
-                                trial.EfficacyDataJSON = JSON.stringify(newEfficacyObservations);
+                                const normalizedGenerated = validateEfficacyData(newEfficacyObservations);
+                                trial.EfficacyDataJSON = JSON.stringify(normalizedGenerated);
                                 efficacyWasGenerated = true;
                             } else {
                                 showToast('No analyzable photos found to generate efficacy data.', 'error');
@@ -11502,6 +11721,8 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const trial = state.trials[trialIndex];
                 let efficacyData = safeJsonParse(trial.EfficacyDataJSON, []);
                 if (efficacyData.length === 0) return;
+                efficacyData = validateEfficacyData(efficacyData);
+                trial.EfficacyDataJSON = JSON.stringify(efficacyData);
 
                 const currentSummaries = safeJsonParse(trial.AISummariesJSON, {});
                 let finalSummaries = { ...currentSummaries };
@@ -11512,7 +11733,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const status = isFinal ? "Finalized/Completed" : "Ongoing";
 
                 // --- PREPARE EXTRA CONTEXT (WCE, Weather, Weed IDs) ---
-                const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
+                const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => window.canonicalizeWeedSpecies(wc.species))))];
 
                 // 1. Weather
                 const weather = {
@@ -11533,7 +11754,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const wceData = allWeedSpecies.map(species => {
                     // Get all observations for this species
                     const speciesObs = efficacyData.map(obs => {
-                        const detail = (obs.weedDetails || []).find(d => d.species === species);
+                        const detail = (obs.weedDetails || []).find(d => window.canonicalizeWeedSpecies(d.species) === species);
                         return detail ? { day: parseFloat(obs.daa), cover: parseFloat(detail.cover) } : null;
                     }).filter(Boolean).sort((a, b) => a.day - b.day);
 
@@ -11554,7 +11775,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     const colors = ['#4A90E2', '#D0021B', '#F5A623', '#7ED321', '#50E3C2', '#9013FE'];
                     const coverDatasets = allWeedSpecies.map((species, index) => ({
                         label: species,
-                        data: efficacyData.map(obs => { const weed = (obs.weedDetails || []).find(wc => wc.species.trim() === species); return weed ? { x: parseFloat(obs.daa), y: parseFloat(weed.cover) } : null; }).filter(p => p && !isNaN(p.x) && !isNaN(p.y)).sort((a, b) => a.x - b.x),
+                        data: efficacyData.map(obs => { const weed = (obs.weedDetails || []).find(wc => window.canonicalizeWeedSpecies(wc.species) === species); return weed ? { x: parseFloat(obs.daa), y: parseFloat(weed.cover) } : null; }).filter(p => p && !isNaN(p.x) && !isNaN(p.y)).sort((a, b) => a.x - b.x),
                         borderColor: colors[index % colors.length], tension: 0.1, fill: false
                     }));
                     const coverConfig = { type: 'line', data: { datasets: coverDatasets }, options: { scales: { x: { type: 'linear' }, y: { beginAtZero: true, max: 100 } } } };
@@ -11604,13 +11825,17 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                     const imageData = await getImageAsResizedBase64(photo.url);
                                     if (!imageData) continue;
 
-                                    const analysisResult = await analyzePhotoForEfficacy(imageData, 'image/jpeg');
+                                    const observationDate = new Date(photo.date || trial.Date);
+                                    const trialDate = new Date(trial.Date);
+                                    const daa = Math.round((observationDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
+                                    const workingTrial = {
+                                        ...trial,
+                                        EfficacyDataJSON: JSON.stringify([...(efficacyData || []), ...newEfficacyObservations])
+                                    };
+
+                                    const analysisResult = await analyzePhotoForEfficacy(imageData, 'image/jpeg', { trial: workingTrial, daa });
 
                                     if (analysisResult) {
-                                        const observationDate = new Date(photo.date || trial.Date);
-                                        const trialDate = new Date(trial.Date);
-                                        const daa = Math.round((observationDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
-
                                         newEfficacyObservations.push({
                                             date: observationDate.toISOString().split('T')[0],
                                             daa: daa >= 0 ? daa : 0,
@@ -11622,7 +11847,8 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                 }
 
                                 if (newEfficacyObservations.length > 0) {
-                                    trial.EfficacyDataJSON = JSON.stringify(newEfficacyObservations);
+                                        const normalizedGenerated = validateEfficacyData(newEfficacyObservations);
+                                        trial.EfficacyDataJSON = JSON.stringify(normalizedGenerated);
                                     efficacyWasGenerated = true;
                                 }
                             }
@@ -12696,14 +12922,14 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 // Get all unique weed species across all observations
                 const allSpecies = new Set();
                 sorted.forEach(obs => {
-                    (obs.weedDetails || []).forEach(w => allSpecies.add(w.species.trim()));
+                    (obs.weedDetails || []).forEach(w => allSpecies.add(window.canonicalizeWeedSpecies(w.species)));
                 });
 
                 const wceResults = [];
 
                 for (const species of allSpecies) {
-                    const initialWeed = initialObs.weedDetails.find(w => w.species.trim() === species);
-                    const finalWeed = finalObs.weedDetails.find(w => w.species.trim() === species);
+                    const initialWeed = initialObs.weedDetails.find(w => window.canonicalizeWeedSpecies(w.species) === species);
+                    const finalWeed = finalObs.weedDetails.find(w => window.canonicalizeWeedSpecies(w.species) === species);
 
                     const initialCover = initialWeed ? (parseFloat(initialWeed.cover) || 0) : 0;
                     const finalCover = finalWeed ? (parseFloat(finalWeed.cover) || 0) : 0;
@@ -12834,7 +13060,8 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     if (metric === 'wce') {
                         if (stats && stats.wce) {
                             if (species) {
-                                const wceForSpecies = stats.wce.find(w => w.species === species);
+                                const canonicalSpecies = window.canonicalizeWeedSpecies(species);
+                                const wceForSpecies = stats.wce.find(w => window.canonicalizeWeedSpecies(w.species) === canonicalSpecies);
                                 value = wceForSpecies ? wceForSpecies.wce : null;
                             } else {
                                 // Average WCE across all species
@@ -12846,7 +13073,8 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         if (observation) {
                             // Average cover across species or specific species
                             if (species) {
-                                const weed = observation.weedDetails.find(w => w.species === species);
+                                const canonicalSpecies = window.canonicalizeWeedSpecies(species);
+                                const weed = observation.weedDetails.find(w => window.canonicalizeWeedSpecies(w.species) === canonicalSpecies);
                                 value = weed ? parseFloat(weed.cover) : null;
                             } else {
                                 const covers = observation.weedDetails.map(w => parseFloat(w.cover));
@@ -16233,12 +16461,16 @@ Style Guidelines:
                         }
 
                         console.log(`[Analysis] Sending photo ${photoNum} to Gemini AI...`);
-                        const efficacyResult = await analyzePhotoForEfficacy(photoData.fileData, photoData.mimeType);
+                        const observationDate = new Date(photo.date || trial.Date);
+                        const trialDate = new Date(trial.Date);
+                        const daaValue = Math.round((observationDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
+                        const daa = daaValue >= 0 ? daaValue : 0;
+                        const workingTrial = {
+                            ...trial,
+                            EfficacyDataJSON: JSON.stringify(efficacyData)
+                        };
+                        const efficacyResult = await analyzePhotoForEfficacy(photoData.fileData, photoData.mimeType, { trial: workingTrial, daa });
                         if (efficacyResult) {
-                            const observationDate = new Date(photo.date || trial.Date);
-                            const trialDate = new Date(trial.Date);
-                            const daaValue = Math.round((observationDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
-                            const daa = daaValue >= 0 ? daaValue : 0;
 
                             efficacyData.push({
                                 date: observationDate.toISOString().split('T')[0],
@@ -19212,13 +19444,17 @@ Style Guidelines:
                                         console.log('[AI Background] autoAnalyzePhotos setting:', state.settings.autoAnalyzePhotos);
                                         if (state.settings.autoAnalyzePhotos) {
                                             console.log('[AI Background] Running full efficacy analysis...');
-                                            const eff = await analyzePhotoForEfficacy(item.photo.fileData, item.photo.mimeType);
-                                            if (eff) {
                                                 const t = state.trials.find(x => x.ID === item.trialId);
-                                                let eData = safeJsonParse(t.EfficacyDataJSON);
-                                                const obsDate = new Date(item.photo.date);
-                                                const tDate = new Date(t.Date);
-                                                const daa = Math.round((obsDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24));
+                                            let eData = safeJsonParse(t.EfficacyDataJSON);
+                                            const obsDate = new Date(item.photo.date);
+                                            const tDate = new Date(t.Date);
+                                            const daa = Math.round((obsDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24));
+                                                const workingTrial = {
+                                                    ...t,
+                                                    EfficacyDataJSON: JSON.stringify(eData || [])
+                                                };
+                                                const eff = await analyzePhotoForEfficacy(item.photo.fileData, item.photo.mimeType, { trial: workingTrial, daa: daa >= 0 ? daa : 0 });
+                                            if (eff) {
 
                                                 // Include weed cover in saved data
                                                 const newObs = {
@@ -19380,7 +19616,7 @@ Style Guidelines:
                     const efficacyData = safeJsonParse(trial.EfficacyDataJSON, []);
                     if (efficacyData.length === 0) throw new Error("No efficacy data logged. Please add observations first.");
 
-                    const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
+                    const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => window.canonicalizeWeedSpecies(wc.species))))];
 
                     if (allWeedSpecies.length === 0) {
                         // For new trials or those without observations, this is normal.
@@ -19392,7 +19628,7 @@ Style Guidelines:
                     // Calculate WCE for each species
                     const wceResults = allWeedSpecies.map(species => {
                         const speciesObs = efficacyData.map(obs => {
-                            const detail = (obs.weedDetails || []).find(d => d.species === species);
+                            const detail = (obs.weedDetails || []).find(d => window.canonicalizeWeedSpecies(d.species) === species);
                             return detail ? { day: parseFloat(obs.daa), cover: parseFloat(detail.cover) } : null;
                         }).filter(Boolean).sort((a, b) => a.day - b.day);
 
@@ -20504,7 +20740,8 @@ Respond in structured JSON format:
                         const lastObs = eff.sort((a, b) => b.daa - a.daa)[0];
                         if (metric === 'cover') {
                             if (species) {
-                                const w = (lastObs.weedDetails || []).find(d => d.species === species);
+                                const canonicalSpecies = window.canonicalizeWeedSpecies(species);
+                                const w = (lastObs.weedDetails || []).find(d => window.canonicalizeWeedSpecies(d.species) === canonicalSpecies);
                                 return w ? parseFloat(w.cover) : 0;
                             }
                             return (lastObs.weedDetails || []).reduce((s, w) => s + parseFloat(w.cover || 0), 0);
@@ -20812,7 +21049,8 @@ Respond in structured JSON format:
                             if (!obs) return 0;
                             if (metric === 'cover') {
                                 if (species) {
-                                    const d = (obs.weedDetails || []).find(w => w.species === species);
+                                    const canonicalSpecies = window.canonicalizeWeedSpecies(species);
+                                    const d = (obs.weedDetails || []).find(w => window.canonicalizeWeedSpecies(w.species) === canonicalSpecies);
                                     return d ? parseFloat(d.cover) : 0;
                                 }
                                 return (obs.weedDetails || []).reduce((sum, w) => sum + parseFloat(w.cover), 0);
@@ -21495,23 +21733,26 @@ Respond in structured JSON format:
                 }
 
                 buildPrompt(context) {
+                                        const historyPrompt = context.historyPrompt ? `\n${context.historyPrompt}\n` : '';
                     return `Analyze this herbicide trial plot photo and extract weed data in JSON format only.
 
 PLOT INFO:
 - Treatment: ${context.treatment}
 - Days After Application: ${context.daa}
 - Rep: ${context.rep}
+${historyPrompt}
 
 TASK:
 1. Identify weed species (common names)
 2. Estimate % ground cover per species (0-100)
 3. Rate confidence (LOW/MEDIUM/HIGH)
+4. For each weed, include status and a short note.
 
 RESPOND WITH JSON ONLY (no markdown, no explanation):
 {
   "weeds": [
-    {"species": "Crabgrass", "cover": 25},
-    {"species": "Pigweed", "cover": 10}
+        {"species": "Crabgrass", "cover": 25, "status": "Unaffected", "notes": "Still actively growing"},
+        {"species": "Pigweed", "cover": 10, "status": "Burndown", "notes": "Leaf yellowing visible"}
   ],
   "confidence": "HIGH",
   "notes": "Clear photo"
@@ -21716,7 +21957,8 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     const result = await aiAnalyzer.analyzePhoto(photo.photoUrl, {
                         treatment: photo.treatment,
                         rep: photo.rep,
-                        daa: photo.daa
+                        daa: photo.daa,
+                        historyPrompt: window.buildWeedTrackingPromptContext(state.trials.find(t => t.ID === photo.trialId), photo.daa)
                     });
 
                     if (result.success && result.data) {
@@ -21803,21 +22045,34 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 const efficacyData = safeJsonParse(trial.EfficacyDataJSON) || [];
                 console.log(`📝 Existing efficacy data: ${efficacyData.length} observations`);
 
-                const newObservation = {
+                const normalizedWeeds = (aiData.weeds || []).map(w => ({
+                    species: window.canonicalizeWeedSpecies(w.species),
+                    cover: typeof w.cover === 'number' ? w.cover : parseFloat(w.cover || 0),
+                    status: String(w.status || '').trim(),
+                    notes: String(w.notes || '').trim()
+                }));
+
+                const trackedObservation = window.applyHistoricalWeedTracking(trial, {
                     date: new Date().toISOString().split('T')[0],
                     daa: daa,
-                    weedDetails: aiData.weeds || [],
+                    weedDetails: normalizedWeeds,
                     notes: aiData.notes || `AI-analyzed on ${new Date().toLocaleDateString()}`,
                     status: aiData.status || 'Analyzed',
                     source: 'AI'
-                };
+                });
+
+                const newObservation = trackedObservation;
 
                 efficacyData.push(newObservation);
                 console.log('➕ Added new observation:', newObservation);
+                const normalizedEfficacy = validateEfficacyData(efficacyData);
 
                 // Calculate Result field for RCBD chart compatibility.
                 let resultValue = 0;
-                if (aiData.weeds && aiData.weeds.length > 0) {
+                if (normalizedEfficacy.length > 0) {
+                    const latestObs = normalizedEfficacy.slice().sort((a, b) => (parseFloat(b.daa) || 0) - (parseFloat(a.daa) || 0))[0];
+                    resultValue = window.computeObservationTotalCover(latestObs, trial) || 0;
+                } else if (aiData.weeds && aiData.weeds.length > 0) {
                     // Average cover % from all detected weeds
                     resultValue = aiData.weeds.reduce((sum, w) => sum + (w.cover || 0), 0) / aiData.weeds.length;
                 }
@@ -21827,17 +22082,17 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 try {
                     const updatePayload = {
                         ID: trialId,
-                        EfficacyDataJSON: JSON.stringify(efficacyData),
+                        EfficacyDataJSON: JSON.stringify(normalizedEfficacy),
                         Result: resultValue.toFixed(2), // Keep as string for UI compatibility (fixes .toLowerCase error)
-                        WeedSpecies: aiData.weeds && aiData.weeds.length > 0
-                            ? aiData.weeds.map(w => w.species).join(', ')
+                        WeedSpecies: normalizedWeeds.length > 0
+                            ? normalizedWeeds.map(w => w.species).join(', ')
                             : 'No weeds detected'
                     };
 
                     const result = await apiCall('updateTrial', updatePayload);
                     console.log('✅ Saved to backend:', result);
 
-                    trial.EfficacyDataJSON = JSON.stringify(efficacyData);
+                    trial.EfficacyDataJSON = JSON.stringify(normalizedEfficacy);
                     trial.Result = resultValue.toFixed(2); // Keep as string locally too
                     trial.WeedSpecies = updatePayload.WeedSpecies;
                     console.log('✅ Updated local state');
