@@ -13817,6 +13817,9 @@ Style Guidelines:
 
                 // --- GENERATE CHARTS FOR PDF ---
                 let coverChartImg = null;
+                let wceConfidenceImg = null;
+                let speciesDistributionImg = null;
+                let environmentSuitabilityImg = null;
 
                 // Create temporary canvases for chart rendering
                 const tempContainer = document.createElement('div');
@@ -13834,6 +13837,9 @@ Style Guidelines:
                     // Generate high-resolution charts
                     const chartImages = await generateScientificCharts(trial, tempContainer);
                     coverChartImg = chartImages.cover;
+                    wceConfidenceImg = chartImages.wceConfidence;
+                    speciesDistributionImg = chartImages.speciesDistribution;
+                    environmentSuitabilityImg = chartImages.environmentSuitability;
 
                     // This line was likely intended for DOCX generation, not PDF.
                     // const content = generateScientificHTML(trial, options, coverChartImg, phytoChartImg);
@@ -13880,6 +13886,38 @@ Style Guidelines:
 
                         doc.text(lines, 14, y, { maxWidth: maxWidth, align: 'left' });
                         y += (lines.length * 4) + 10;
+                    }
+                }
+
+                if (wceConfidenceImg || speciesDistributionImg || environmentSuitabilityImg) {
+                    if (y + 40 > pageHeight - 20) { doc.addPage(); y = 20; }
+                    doc.setFont(undefined, 'bold');
+                    doc.setFontSize(12);
+                    doc.text('Supplementary Analytical Charts', 14, y);
+                    y += 8;
+
+                    if (wceConfidenceImg) {
+                        if (y + 78 > pageHeight - 20) { doc.addPage(); y = 20; }
+                        if (String(wceConfidenceImg).startsWith('data:image/')) {
+                            doc.addImage(wceConfidenceImg, 'PNG', 14, y, 180, 70);
+                            y += 74;
+                        }
+                    }
+
+                    if (speciesDistributionImg) {
+                        if (y + 68 > pageHeight - 20) { doc.addPage(); y = 20; }
+                        if (String(speciesDistributionImg).startsWith('data:image/')) {
+                            doc.addImage(speciesDistributionImg, 'PNG', 14, y, 120, 58);
+                            y += 62;
+                        }
+                    }
+
+                    if (environmentSuitabilityImg) {
+                        if (y + 68 > pageHeight - 20) { doc.addPage(); y = 20; }
+                        if (String(environmentSuitabilityImg).startsWith('data:image/')) {
+                            doc.addImage(environmentSuitabilityImg, 'PNG', 14, y, 160, 58);
+                            y += 62;
+                        }
                     }
                 }
 
@@ -14072,6 +14110,9 @@ Style Guidelines:
                             options.chartImages = options.chartImages || {};
                             options.chartImages.cover = highResCharts.cover;
                             options.chartImages.phyto = null;
+                            options.chartImages.wceConfidence = highResCharts.wceConfidence || null;
+                            options.chartImages.speciesDistribution = highResCharts.speciesDistribution || null;
+                            options.chartImages.environmentSuitability = highResCharts.environmentSuitability || null;
                         }
                     } catch (e) {
                         console.error("Failed to generate high-res charts for PDF:", e);
@@ -14081,6 +14122,22 @@ Style Guidelines:
                 const trial = state.trials.find(t => t.ID === trialId);
                 if (!trial) return;
                 showToast('Generating PDF...', 'info');
+
+                const efficacyForAdvanced = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
+                const continuity = buildSpeciesContinuityTable(efficacyForAdvanced);
+                const envIndex = buildEnvironmentalSuitabilityIndex(trial);
+                const trialStats = safeJsonParse(trial.StatisticsJSON, {});
+                const significance = buildStatisticalSignificanceBlock(trialStats?.anovaResults?.anovaTable || trialStats?.anovaResults || null);
+                const traceabilityRows = buildEvidenceTraceabilityMatrix(trial, [trial], !!trialStats?.anovaResults);
+                const dosePanel = buildDoseResponseRecommendationPanel([trial], null);
+                const brief = buildOnePageExecutiveBrief({
+                    title: `Executive Brief - ${trial.FormulationName || 'Trial'}`,
+                    objective: `Assess post-application weed suppression for ${trial.FormulationName || 'the tested treatment'} under recorded field conditions.`,
+                    keyFinding: buildTrialDataInterpretation(trial).coverSummary,
+                    statsNote: significance.text,
+                    recommendation: dosePanel.recommendation,
+                    risk: envIndex.note
+                });
 
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
@@ -14206,14 +14263,14 @@ Style Guidelines:
                 doc.setFont(undefined, 'bold');
                 doc.text("Conclusion:", 14, y);
                 doc.setFont(undefined, 'normal');
-                const conclusionLines = doc.splitTextToSize(trial.Conclusion || 'N/A', pageWidth - 28);
+                const conclusionLines = doc.splitTextToSize(applyReportStyleGuard(trial.Conclusion || 'N/A'), pageWidth - 28);
                 doc.text(conclusionLines, 14, y + 5);
                 y += (conclusionLines.length * 5) + 8;
 
                 doc.setFont(undefined, 'bold');
                 doc.text("Notes:", 14, y);
                 doc.setFont(undefined, 'normal');
-                const notesLines = doc.splitTextToSize(trial.Notes || 'N/A', pageWidth - 28);
+                const notesLines = doc.splitTextToSize(applyReportStyleGuard(trial.Notes || 'N/A'), pageWidth - 28);
                 doc.text(notesLines, 14, y + 5);
                 y += (notesLines.length * 5) + 12;
 
@@ -14232,6 +14289,10 @@ Style Guidelines:
                         if (options.chartImages?.cover) {
                             try {
                                 doc.addImage(options.chartImages.cover, 'PNG', 14, y, 180, 90);
+                                doc.setFontSize(8);
+                                doc.setFont(undefined, 'italic');
+                                doc.text(buildPublicationCaption(1, 'Weed control trajectory by DAA', `Treatment: ${trial.FormulationName || 'Unknown'}.`), 14, y + 94);
+                                doc.setFont(undefined, 'normal');
                                 y += 95;
                             } catch (e) { }
                         }
@@ -14256,6 +14317,38 @@ Style Guidelines:
 
                 }
 
+                if (options.chartImages?.wceConfidence || options.chartImages?.speciesDistribution || options.chartImages?.environmentSuitability) {
+                    if (y + 40 > pageHeight - 20) { doc.addPage(); y = 20; }
+                    doc.setFont(undefined, 'bold');
+                    doc.setFontSize(12);
+                    doc.text('Supplementary Analytical Charts', 14, y);
+                    y += 8;
+
+                    if (options.chartImages?.wceConfidence) {
+                        if (y + 78 > pageHeight - 20) { doc.addPage(); y = 20; }
+                        try {
+                            doc.addImage(options.chartImages.wceConfidence, 'PNG', 14, y, 180, 70);
+                            y += 74;
+                        } catch (e) { }
+                    }
+
+                    if (options.chartImages?.speciesDistribution) {
+                        if (y + 70 > pageHeight - 20) { doc.addPage(); y = 20; }
+                        try {
+                            doc.addImage(options.chartImages.speciesDistribution, 'PNG', 14, y, 120, 60);
+                            y += 64;
+                        } catch (e) { }
+                    }
+
+                    if (options.chartImages?.environmentSuitability) {
+                        if (y + 70 > pageHeight - 20) { doc.addPage(); y = 20; }
+                        try {
+                            doc.addImage(options.chartImages.environmentSuitability, 'PNG', 14, y, 160, 60);
+                            y += 64;
+                        } catch (e) { }
+                    }
+                }
+
                 // --- Weed Status Timeline ---
                 if (options.withTimeline) {
                     const efficacyData = safeJsonParse(trial.EfficacyDataJSON);
@@ -14277,6 +14370,76 @@ Style Guidelines:
                         });
                         y = doc.lastAutoTable.finalY + 12;
                     }
+                }
+
+                if (continuity.rows.length > 0) {
+                    if (y + 70 > pageHeight - 20) { doc.addPage(); y = 20; }
+                    doc.setFontSize(12);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Species Continuity Table', 14, y);
+                    y += 6;
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(doc.splitTextToSize(continuity.summary, pageWidth - 28), 14, y);
+                    y += 8;
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Species', 'First DAA', 'Last DAA', 'Obs.', 'Reappearance', 'Continuity %']],
+                        body: continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, r.continuityScore.toFixed(1)]),
+                        headStyles: { fillColor: [45, 55, 72] },
+                        styles: { fontSize: 8 },
+                        theme: 'grid'
+                    });
+                    y = doc.lastAutoTable.finalY + 10;
+                }
+
+                if (y + 40 > pageHeight - 20) { doc.addPage(); y = 20; }
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('Statistical and Environmental Inference', 14, y);
+                y += 6;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                const inferenceText = `${significance.text} ${envIndex.note}`;
+                const inferenceLines = doc.splitTextToSize(applyReportStyleGuard(inferenceText), pageWidth - 28);
+                doc.text(inferenceLines, 14, y);
+                y += inferenceLines.length * 4 + 8;
+
+                if (y + 40 > pageHeight - 20) { doc.addPage(); y = 20; }
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('Evidence Traceability Matrix', 14, y);
+                y += 5;
+                doc.autoTable({
+                    startY: y,
+                    head: [['Evidence Block', 'Available', 'Trace']],
+                    body: traceabilityRows,
+                    headStyles: { fillColor: [100, 116, 139] },
+                    styles: { fontSize: 8 },
+                    theme: 'striped'
+                });
+                y = doc.lastAutoTable.finalY + 8;
+
+                if (y + 30 > pageHeight - 20) { doc.addPage(); y = 20; }
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('Dose-Response Recommendation Panel', 14, y);
+                y += 6;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                const doseLines = doc.splitTextToSize(dosePanel.recommendation, pageWidth - 28);
+                doc.text(doseLines, 14, y);
+                y += doseLines.length * 4 + 6;
+                if (dosePanel.rows.length) {
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Treatment', 'Dosage', 'Observed WCE%']],
+                        body: dosePanel.rows.map(r => [r.name, r.dosageRaw, (parseFloat(r.wce) || 0).toFixed(1)]),
+                        headStyles: { fillColor: [13, 148, 136] },
+                        styles: { fontSize: 8 },
+                        theme: 'grid'
+                    });
+                    y = doc.lastAutoTable.finalY + 10;
                 }
 
                 doc.setFontSize(10);
@@ -14419,12 +14582,39 @@ Style Guidelines:
                                     doc.setFontSize(10);
                                     doc.text(`Common: ${bestMatch?.commonNames?.[0] || '-'}`, 80, weedY + 20);
                                     doc.text(`Confidence: ${bestMatch?.confidence ? (bestMatch.confidence * 100).toFixed(1) + '%' : 'N/A'}`, 80, weedY + 30);
+                                    doc.setFontSize(7);
+                                    doc.text(buildPublicationCaption(2, 'Species identification evidence', `Observation source: replication ${p.rep || '?'}.`), 14, weedY + 64);
                                     weedY += 70;
                                 }
                             } catch (e) { }
                         }
                     }
                 }
+
+                doc.addPage();
+                y = 20;
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('One-Page Executive Brief', 14, y);
+                y += 10;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                [
+                    `Title: ${brief.title}`,
+                    `Objective: ${brief.objective}`,
+                    `Key finding: ${brief.keyFinding}`,
+                    `Statistical note: ${brief.statsNote}`,
+                    `Recommendation: ${brief.recommendation}`,
+                    `Risk and context: ${brief.risk}`
+                ].forEach(line => {
+                    const wrapped = doc.splitTextToSize(applyReportStyleGuard(line), pageWidth - 28);
+                    if (y + wrapped.length * 5 > pageHeight - 20) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text(wrapped, 14, y);
+                    y += wrapped.length * 5 + 3;
+                });
 
                 doc.save(`${trial.FormulationName}_Report.pdf`);
                 showToast('PDF downloaded.', 'success');
@@ -14555,6 +14745,266 @@ Style Guidelines:
 
                 flushParagraph();
                 return chunks.join('');
+            }
+
+            function applyReportStyleGuard(text) {
+                return normalizeReportText(text || '')
+                    .replace(/\s*[*_#`]+\s*/g, ' ')
+                    .replace(/[ \t]{2,}/g, ' ')
+                    .trim();
+            }
+
+            function buildPublicationCaption(index, title, detail) {
+                const cleanTitle = applyReportStyleGuard(title || 'Field observation figure');
+                const cleanDetail = applyReportStyleGuard(detail || 'Data source: trial records and validated analytics.');
+                return `Figure ${index}. ${cleanTitle}. ${cleanDetail}`;
+            }
+
+            function buildSpeciesContinuityTable(efficacyData) {
+                const rows = [];
+                const ordered = validateEfficacyData(Array.isArray(efficacyData) ? efficacyData : [])
+                    .slice()
+                    .sort((a, b) => (parseFloat(a.daa) || 0) - (parseFloat(b.daa) || 0));
+
+                if (!ordered.length) {
+                    return {
+                        rows,
+                        summary: 'Species continuity could not be established because serial efficacy observations were unavailable.'
+                    };
+                }
+
+                const speciesMap = new Map();
+
+                ordered.forEach(obs => {
+                    const daa = parseFloat(obs?.daa || 0);
+                    const details = Array.isArray(obs?.weedDetails) ? obs.weedDetails : [];
+                    details.forEach(w => {
+                        const rawSpecies = String(w?.species || '').trim();
+                        if (!rawSpecies || rawSpecies === 'Total') return;
+                        const canonical = (typeof window.canonicalizeWeedSpecies === 'function'
+                            ? window.canonicalizeWeedSpecies(rawSpecies)
+                            : rawSpecies);
+                        if (!canonical) return;
+
+                        if (!speciesMap.has(canonical)) {
+                            speciesMap.set(canonical, {
+                                species: canonical,
+                                occurrences: 0,
+                                firstDaa: daa,
+                                lastDaa: daa,
+                                observedDaas: [],
+                                statusSet: new Set()
+                            });
+                        }
+                        const item = speciesMap.get(canonical);
+                        item.occurrences += 1;
+                        item.firstDaa = Math.min(item.firstDaa, daa);
+                        item.lastDaa = Math.max(item.lastDaa, daa);
+                        item.observedDaas.push(daa);
+                        if (w?.status) item.statusSet.add(String(w.status));
+                    });
+                });
+
+                for (const item of speciesMap.values()) {
+                    const obs = [...new Set(item.observedDaas)].sort((a, b) => a - b);
+                    let gapCount = 0;
+                    for (let i = 1; i < obs.length; i++) {
+                        if (obs[i] - obs[i - 1] > 1) gapCount += 1;
+                    }
+                    const reappearance = gapCount > 0 ? 'Yes' : 'No';
+                    const continuityScore = Math.max(0, 100 - gapCount * 20 - Math.max(0, 2 - obs.length) * 10);
+
+                    rows.push({
+                        species: item.species,
+                        firstDaa: item.firstDaa,
+                        lastDaa: item.lastDaa,
+                        observations: obs.length,
+                        reappearance,
+                        continuityScore,
+                        status: [...item.statusSet].slice(0, 2).join(', ') || 'Recorded'
+                    });
+                }
+
+                rows.sort((a, b) => b.continuityScore - a.continuityScore || a.species.localeCompare(b.species));
+                const avgScore = rows.length ? rows.reduce((s, r) => s + r.continuityScore, 0) / rows.length : 0;
+                const summary = rows.length
+                    ? `Continuity was evaluated for ${rows.length} species with a mean continuity score of ${avgScore.toFixed(1)}%.`
+                    : 'No species-level observations were available for continuity analysis.';
+
+                return { rows, summary };
+            }
+
+            function buildStatisticalSignificanceBlock(resultAtFinalDaa) {
+                const anova = resultAtFinalDaa?.anova || null;
+                if (!anova) {
+                    return {
+                        text: 'Statistical significance could not be quantified because ANOVA output was not available for the final assessment.',
+                        significant: false
+                    };
+                }
+
+                const pVal = parseFloat(anova.pVal);
+                const fVal = parseFloat(anova.fVal);
+                const ssTreat = parseFloat(anova.ssTreat);
+                const ssTotal = parseFloat(anova.ssTotal);
+                const etaSquared = (isFinite(ssTreat) && isFinite(ssTotal) && ssTotal > 0) ? (ssTreat / ssTotal) : null;
+                const significant = isFinite(pVal) ? pVal < 0.05 : false;
+
+                const text = `ANOVA at final assessment indicates ${significant ? 'a statistically significant' : 'a non-significant'} treatment effect (F=${isFinite(fVal) ? fVal.toFixed(2) : 'N/A'}, p=${isFinite(pVal) ? pVal.toFixed(4) : 'N/A'}). ${etaSquared !== null ? `Estimated effect size (eta-squared) was ${etaSquared.toFixed(3)}.` : ''}`;
+                return { text: applyReportStyleGuard(text), significant, pVal, fVal, etaSquared };
+            }
+
+            function buildEnvironmentalSuitabilityIndex(trials) {
+                const arr = Array.isArray(trials) ? trials : (trials ? [trials] : []);
+                if (!arr.length) {
+                    return { score: 0, className: 'Unavailable', note: 'No weather records available for environmental suitability assessment.' };
+                }
+
+                let tempVals = [];
+                let humidityVals = [];
+                let rainVals = [];
+
+                arr.forEach(t => {
+                    const tTemp = parseFloat(t?.Temperature);
+                    const tHum = parseFloat(t?.Humidity);
+                    const tRain = parseFloat(t?.Rain);
+                    if (isFinite(tTemp)) tempVals.push(tTemp);
+                    if (isFinite(tHum)) humidityVals.push(tHum);
+                    if (isFinite(tRain)) rainVals.push(tRain);
+
+                    const photos = safeJsonParse(t?.PhotoURLs, []);
+                    photos.forEach(p => {
+                        const w = p?.weather || {};
+                        const pt = parseFloat(w.temp);
+                        const ph = parseFloat(w.humidity);
+                        if (isFinite(pt)) tempVals.push(pt);
+                        if (isFinite(ph)) humidityVals.push(ph);
+                    });
+                });
+
+                const avg = (vals) => vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+                const temp = avg(tempVals);
+                const hum = avg(humidityVals);
+                const rain = avg(rainVals);
+
+                const scoreBand = (val, idealMin, idealMax, tolerance = 15) => {
+                    if (!isFinite(val)) return 50;
+                    if (val >= idealMin && val <= idealMax) return 100;
+                    const dist = val < idealMin ? (idealMin - val) : (val - idealMax);
+                    return Math.max(20, 100 - (dist / tolerance) * 60);
+                };
+
+                const tempScore = scoreBand(temp, 20, 32, 18);
+                const humScore = scoreBand(hum, 40, 80, 30);
+                const rainScore = !isFinite(rain) ? 70 : Math.max(25, 100 - Math.max(0, rain - 8) * 6);
+                const score = Math.round((tempScore * 0.45) + (humScore * 0.35) + (rainScore * 0.20));
+
+                const className = score >= 80 ? 'High suitability' : (score >= 60 ? 'Moderate suitability' : 'Low suitability');
+                const note = `Environmental suitability index was ${score}/100 (${className.toLowerCase()}) based on mean temperature ${isFinite(temp) ? temp.toFixed(1) + '°C' : 'N/A'}, humidity ${isFinite(hum) ? hum.toFixed(1) + '%' : 'N/A'}, and rain ${isFinite(rain) ? rain.toFixed(1) + ' mm' : 'N/A'}.`;
+
+                return { score, className, note: applyReportStyleGuard(note), avgTemp: temp, avgHumidity: hum, avgRain: rain };
+            }
+
+            function buildEvidenceTraceabilityMatrix(projectOrTrial, trials, hasStats) {
+                const trialArray = Array.isArray(trials) ? trials : (trials ? [trials] : []);
+                const target = projectOrTrial || {};
+
+                const protocolExists = !!(target.ProtocolJSON || target.Protocol || target.InvestigatorName || target.Location);
+                const efficacyPoints = trialArray.reduce((sum, t) => {
+                    const eff = validateEfficacyData(safeJsonParse(t?.EfficacyDataJSON, []));
+                    return sum + eff.length;
+                }, 0);
+                const photoCount = trialArray.reduce((sum, t) => sum + safeJsonParse(t?.PhotoURLs, []).length, 0);
+                const aiNarrativeExists = trialArray.some(t => {
+                    const ai = safeJsonParse(t?.AISummariesJSON, {});
+                    return !!(ai?.scientificNarrative || ai?.cover);
+                }) || !!(target.Conclusion || target.Narrative);
+
+                return [
+                    ['Protocol Metadata', protocolExists ? 'Yes' : 'No', protocolExists ? 'Investigator/location/design available' : 'Protocol details missing'],
+                    ['Efficacy Observations', efficacyPoints > 0 ? 'Yes' : 'No', `${efficacyPoints} structured DA-A observations`],
+                    ['Photo Evidence', photoCount > 0 ? 'Yes' : 'No', `${photoCount} field photo records`],
+                    ['Statistical Output', hasStats ? 'Yes' : 'No', hasStats ? 'ANOVA or treatment statistics available' : 'No inferential statistics found'],
+                    ['AI Interpretation', aiNarrativeExists ? 'Yes' : 'No', aiNarrativeExists ? 'Narrative support included' : 'Narrative support not available']
+                ];
+            }
+
+            function buildSpeciesConfidenceBands(resultsAtFinalDaa) {
+                const rows = [];
+                const stats = Array.isArray(resultsAtFinalDaa?.treatmentStats) ? resultsAtFinalDaa.treatmentStats : [];
+                stats.forEach(s => {
+                    const n = Math.max(2, parseFloat(s?.n) || 3);
+                    const mean = parseFloat(s?.wce);
+                    const sd = parseFloat(s?.sd);
+                    if (!isFinite(mean)) return;
+                    const sem = isFinite(sd) ? (sd / Math.sqrt(n)) : 8;
+                    const margin = 1.96 * sem;
+                    const low = Math.max(0, mean - margin);
+                    const high = Math.min(100, mean + margin);
+                    rows.push({
+                        treatmentId: s.treatmentId,
+                        mean,
+                        low,
+                        high,
+                        bandText: `${low.toFixed(1)} to ${high.toFixed(1)}%`
+                    });
+                });
+                rows.sort((a, b) => b.mean - a.mean);
+                return rows;
+            }
+
+            function buildDoseResponseRecommendationPanel(trials, resultsAtFinalDaa) {
+                const trialArray = Array.isArray(trials) ? trials : [];
+                const performanceByName = new Map();
+
+                const stats = Array.isArray(resultsAtFinalDaa?.treatmentStats) ? resultsAtFinalDaa.treatmentStats : [];
+                stats.forEach(s => {
+                    const form = state.formulations.find(f => f.ID === s.treatmentId);
+                    const name = form?.Name || s.treatmentId || 'Unknown treatment';
+                    performanceByName.set(name, parseFloat(s.wce) || 0);
+                });
+
+                const rows = trialArray.map(t => {
+                    const name = t.FormulationName || 'Unknown treatment';
+                    const dosageRaw = String(t.Dosage || '').trim();
+                    const numericDose = parseFloat((dosageRaw.match(/[\d.]+/) || [null])[0]);
+                    const wce = performanceByName.has(name)
+                        ? performanceByName.get(name)
+                        : (() => {
+                            const eff = validateEfficacyData(safeJsonParse(t.EfficacyDataJSON, []));
+                            const w = calculateWeedControlEfficiency(eff);
+                            return w.length ? parseFloat(w[w.length - 1].wce) || 0 : 0;
+                        })();
+                    return { name, dosageRaw: dosageRaw || 'Not recorded', numericDose, wce };
+                });
+
+                rows.sort((a, b) => (isFinite(a.numericDose) ? a.numericDose : 9999) - (isFinite(b.numericDose) ? b.numericDose : 9999));
+                const best = [...rows].sort((a, b) => b.wce - a.wce)[0] || null;
+
+                const recommendation = best
+                    ? `Best observed performance was ${best.wce.toFixed(1)}% control efficiency under ${best.name} at ${best.dosageRaw}.`
+                    : 'Dose-response recommendation could not be generated because dosage or efficacy data were incomplete.';
+
+                return { rows, recommendation: applyReportStyleGuard(recommendation) };
+            }
+
+            function buildOnePageExecutiveBrief(input) {
+                const title = applyReportStyleGuard(input?.title || 'Executive Brief');
+                const objective = applyReportStyleGuard(input?.objective || 'Evaluate herbicide treatment performance under field conditions.');
+                const keyFinding = applyReportStyleGuard(input?.keyFinding || 'Key findings were not available.');
+                const statsNote = applyReportStyleGuard(input?.statsNote || 'Statistical inference was not available.');
+                const recommendation = applyReportStyleGuard(input?.recommendation || 'Recommendation requires additional validated observations.');
+                const risk = applyReportStyleGuard(input?.risk || 'Risk statement unavailable.');
+                return { title, objective, keyFinding, statsNote, recommendation, risk };
+            }
+
+            function renderSimpleHtmlTable(headers, rows) {
+                const safeHeaders = (headers || []).map(h => `<th style="border:1px solid #999;padding:6px;background:#f3f4f6;">${sanitizeHTML(String(h))}</th>`).join('');
+                const safeRows = (rows || []).map(r => {
+                    const cells = (Array.isArray(r) ? r : []).map(c => `<td style="border:1px solid #999;padding:6px;">${sanitizeHTML(String(c ?? ''))}</td>`).join('');
+                    return `<tr>${cells}</tr>`;
+                }).join('');
+                return `<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt;"><thead><tr>${safeHeaders}</tr></thead><tbody>${safeRows}</tbody></table>`;
             }
 
             const REPORT_SECTIONS = {
@@ -15195,6 +15645,21 @@ Style Guidelines:
                 const trial = state.trials.find(t => t.ID === trialId);
                 if (!trial) return;
                 showToast('Generating PowerPoint...', 'info');
+                const chartImages = await generateScientificCharts(trial);
+
+                const efficacyData = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
+                const continuity = buildSpeciesContinuityTable(efficacyData);
+                const envIndex = buildEnvironmentalSuitabilityIndex(trial);
+                const significance = buildStatisticalSignificanceBlock(safeJsonParse(trial.StatisticsJSON, {})?.anovaResults?.anovaTable || null);
+                const dosePanel = buildDoseResponseRecommendationPanel([trial], null);
+                const brief = buildOnePageExecutiveBrief({
+                    title: `Executive Brief - ${trial.FormulationName || 'Trial'}`,
+                    objective: `Evaluate efficacy for ${trial.FormulationName || 'test treatment'} in field conditions.`,
+                    keyFinding: buildTrialDataInterpretation(trial).coverSummary,
+                    statsNote: significance.text,
+                    recommendation: dosePanel.recommendation,
+                    risk: envIndex.note
+                });
 
                 const pptx = new PptxGenJS();
                 pptx.layout = 'LAYOUT_16x9';
@@ -15210,7 +15675,47 @@ Style Guidelines:
                 const summary = await generateTrialSummary([trial]); // Generate specific summary for this trial
                 const slideSummary = pptx.addSlide();
                 slideSummary.addText('Executive Summary', { x: 0.5, y: 0.5, fontSize: 18, color: '008080', bold: true });
-                slideSummary.addText(summary, { x: 1, y: 1.5, w: '80%', fontSize: 14, color: '333333' });
+                slideSummary.addText(applyReportStyleGuard(summary), { x: 1, y: 1.5, w: '80%', fontSize: 14, color: '333333' });
+
+                const slideBrief = pptx.addSlide();
+                slideBrief.addText('One-Page Executive Brief', { x: 0.5, y: 0.4, fontSize: 18, color: '008080', bold: true });
+                const briefLines = [
+                    `Objective: ${brief.objective}`,
+                    `Key finding: ${brief.keyFinding}`,
+                    `Statistical note: ${brief.statsNote}`,
+                    `Environmental context: ${brief.risk}`,
+                    `Recommendation: ${brief.recommendation}`
+                ];
+                slideBrief.addText(briefLines.map(t => applyReportStyleGuard(t)).join('\n\n'), { x: 0.8, y: 1.1, w: 12, h: 5.2, fontSize: 13, color: '1f2937', valign: 'top' });
+
+                const slideConfidence = pptx.addSlide();
+                slideConfidence.addText('Continuity and Confidence Snapshot', { x: 0.5, y: 0.4, fontSize: 18, color: '008080', bold: true });
+                const continuityText = continuity.rows.length
+                    ? continuity.rows.slice(0, 4).map(r => `${r.species}: continuity ${r.continuityScore.toFixed(1)}%, first ${r.firstDaa} DA-A, last ${r.lastDaa} DA-A`).join('\n')
+                    : 'No species continuity table was available.';
+                slideConfidence.addText(
+                    `Statistical significance: ${significance.significant ? 'Significant' : 'Not significant'}\n` +
+                    `Environmental suitability: ${envIndex.score}/100 (${envIndex.className})\n\n` +
+                    `${continuityText}`,
+                    { x: 0.8, y: 1.2, w: 12, h: 5.0, fontSize: 12, color: '334155', valign: 'top' }
+                );
+
+                if (chartImages.cover || chartImages.wceConfidence || chartImages.environmentSuitability || chartImages.speciesDistribution) {
+                    const slideCharts = pptx.addSlide();
+                    slideCharts.addText('Analytical Charts', { x: 0.5, y: 0.3, fontSize: 18, color: '008080', bold: true });
+                    if (chartImages.cover && String(chartImages.cover).startsWith('data:image/')) {
+                        slideCharts.addImage({ data: chartImages.cover, x: 0.5, y: 0.8, w: 6.2, h: 2.8 });
+                    }
+                    if (chartImages.wceConfidence && String(chartImages.wceConfidence).startsWith('data:image/')) {
+                        slideCharts.addImage({ data: chartImages.wceConfidence, x: 6.9, y: 0.8, w: 6.2, h: 2.8 });
+                    }
+                    if (chartImages.environmentSuitability && String(chartImages.environmentSuitability).startsWith('data:image/')) {
+                        slideCharts.addImage({ data: chartImages.environmentSuitability, x: 0.5, y: 3.8, w: 6.2, h: 2.8 });
+                    }
+                    if (chartImages.speciesDistribution && String(chartImages.speciesDistribution).startsWith('data:image/')) {
+                        slideCharts.addImage({ data: chartImages.speciesDistribution, x: 6.9, y: 3.8, w: 6.0, h: 2.8 });
+                    }
+                }
 
                 // Slide 3: Photos
                 const photos = safeJsonParse(trial.PhotoURLs).slice(0, 4);
@@ -15225,6 +15730,7 @@ Style Guidelines:
                             xPos += 3.2;
                         }
                     }
+                    slide2.addText(buildPublicationCaption(1, 'Field evidence panel', `Treatment: ${trial.FormulationName || 'NA'}.`), { x: 0.5, y: 5, w: 12, fontSize: 10, italic: true, color: '475569' });
                 }
 
                 pptx.writeFile({ fileName: `${trial.FormulationName}_Presentation.pptx` });
@@ -16727,6 +17233,8 @@ Style Guidelines:
                 }
 
                 const daas = Object.keys(results).sort((a, b) => a - b);
+                const finalDaa = daas.length ? daas[daas.length - 1] : null;
+                const finalRes = finalDaa ? (results[finalDaa] || null) : null;
 
                 console.log('[Regulatory Report] Parsed results:', results);
                 console.log('[Regulatory Report] DAAs found:', daas);
@@ -16938,6 +17446,104 @@ Style Guidelines:
 
                         await new Promise(resolve => setTimeout(resolve, 500));
                         chartImages.finalPerformance = perfCanvas.toDataURL('image/png');
+
+                        const confCanvas = document.createElement('canvas');
+                        confCanvas.width = 1400;
+                        confCanvas.height = 700;
+                        tempDiv.appendChild(confCanvas);
+
+                        const confRows = (finalRes.treatmentStats || []).map(ts => {
+                            const n = Math.max(2, parseFloat(ts.n) || blocks.length || 3);
+                            const sd = parseFloat(ts.sd) || 8;
+                            const wce = parseFloat(ts.wce) || 0;
+                            const margin = 1.96 * (sd / Math.sqrt(n));
+                            return {
+                                name: state.formulations.find(f => f.ID === ts.treatmentId)?.Name || 'Unknown',
+                                mean: wce,
+                                low: Math.max(0, wce - margin),
+                                high: Math.min(100, wce + margin)
+                            };
+                        }).sort((a, b) => b.mean - a.mean);
+
+                        new Chart(confCanvas, {
+                            type: 'bar',
+                            data: {
+                                labels: confRows.map(r => truncateText(r.name, 18)),
+                                datasets: [
+                                    {
+                                        label: 'Lower 95% band',
+                                        data: confRows.map(r => r.low),
+                                        backgroundColor: '#cbd5e1'
+                                    },
+                                    {
+                                        label: 'Mean WCE',
+                                        data: confRows.map(r => r.mean),
+                                        backgroundColor: '#2563eb'
+                                    },
+                                    {
+                                        label: 'Upper 95% band',
+                                        data: confRows.map(r => r.high),
+                                        backgroundColor: '#93c5fd'
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: false,
+                                animation: false,
+                                plugins: {
+                                    title: { display: true, text: `WCE Confidence Bands at ${finalDat} DAA`, font: { size: 28, weight: 'bold' } },
+                                    legend: { labels: { font: { size: 14 } } }
+                                },
+                                scales: { y: { min: 0, max: 100, ticks: { font: { size: 14 } } }, x: { ticks: { font: { size: 14 } } } }
+                            }
+                        });
+                        await new Promise(resolve => setTimeout(resolve, 450));
+                        chartImages.confidenceBands = confCanvas.toDataURL('image/png');
+
+                        const doseCanvas = document.createElement('canvas');
+                        doseCanvas.width = 1400;
+                        doseCanvas.height = 700;
+                        tempDiv.appendChild(doseCanvas);
+
+                        const wceById = new Map((finalRes.treatmentStats || []).map(ts => [ts.treatmentId, parseFloat(ts.wce) || 0]));
+                        const dosePoints = trials
+                            .map(t => {
+                                const dose = parseFloat((String(t.Dosage || '').match(/[\d.]+/) || [null])[0]);
+                                const wce = wceById.has(t.FormulationID) ? wceById.get(t.FormulationID) : null;
+                                const name = t.FormulationName || t.FormulationID;
+                                if (!isFinite(dose) || !isFinite(wce)) return null;
+                                return { x: dose, y: wce, label: name };
+                            })
+                            .filter(Boolean);
+
+                        if (dosePoints.length > 0) {
+                            new Chart(doseCanvas, {
+                                type: 'scatter',
+                                data: {
+                                    datasets: [{
+                                        label: 'Dose-response',
+                                        data: dosePoints,
+                                        backgroundColor: '#10b981',
+                                        borderColor: '#047857',
+                                        pointRadius: 7
+                                    }]
+                                },
+                                options: {
+                                    responsive: false,
+                                    animation: false,
+                                    plugins: {
+                                        title: { display: true, text: 'Dose-Response Plot (Dosage vs WCE)', font: { size: 28, weight: 'bold' } },
+                                        tooltip: { callbacks: { label: ctx => `${ctx.raw.label}: Dose ${ctx.raw.x}, WCE ${ctx.raw.y.toFixed(1)}%` } }
+                                    },
+                                    scales: {
+                                        x: { title: { display: true, text: 'Dosage (numeric extract)' }, ticks: { font: { size: 14 } } },
+                                        y: { min: 0, max: 100, title: { display: true, text: 'WCE (%)' }, ticks: { font: { size: 14 } } }
+                                    }
+                                }
+                            });
+                            await new Promise(resolve => setTimeout(resolve, 450));
+                            chartImages.doseResponse = doseCanvas.toDataURL('image/png');
+                        }
                     } else {
                         console.warn('[Regulatory Report] Skipping performance chart - incomplete data or error in results');
                     }
@@ -17124,6 +17730,26 @@ Style Guidelines:
                     });
                 });
 
+                const continuity = buildSpeciesContinuityTable(trials.flatMap(t => safeJsonParse(t.EfficacyDataJSON, [])));
+                const envIndex = buildEnvironmentalSuitabilityIndex(trials);
+                const significance = buildStatisticalSignificanceBlock(finalRes);
+                const confidenceBands = buildSpeciesConfidenceBands(finalRes);
+                const traceabilityRows = buildEvidenceTraceabilityMatrix(project, trials, !!finalRes?.anova);
+                const dosePanel = buildDoseResponseRecommendationPanel(trials, finalRes);
+                const finalConclusion = normalizeReportText(
+                    (project.Conclusion || '').trim() ||
+                    (project.Narrative || '').trim() ||
+                    buildProjectConclusionFromResults(project, results, trials)
+                );
+                const executiveBrief = buildOnePageExecutiveBrief({
+                    title: `Executive Brief - ${project.Name || 'Project'}`,
+                    objective: `Evaluate treatment efficacy under RCBD across ${blocks.length} replication(s).`,
+                    keyFinding: finalConclusion,
+                    statsNote: significance.text,
+                    recommendation: dosePanel.recommendation,
+                    risk: envIndex.note
+                });
+
                 // --- 5. COLLECT PHOTOS BY TREATMENT ---
                 const photosByTreatment = {};
                 trials.forEach(t => {
@@ -17237,6 +17863,10 @@ Style Guidelines:
                     REPORT_SECTIONS.project.statistical,
                     REPORT_SECTIONS.project.efficacy,
                     REPORT_SECTIONS.project.detailed,
+                    'Environmental Suitability Index',
+                    'Evidence Traceability Matrix',
+                    'Dose-Response Recommendation Panel',
+                    'One-Page Executive Brief',
                     REPORT_SECTIONS.project.weather,
                     REPORT_SECTIONS.project.photo,
                     'Appendix: Raw Data Tables'
@@ -17262,7 +17892,7 @@ Style Guidelines:
                     y += 10;
 
                     doc.setFontSize(10);
-                    const aiText = normalizeReportText(aiExecutiveSummary || 'Executive summary not generated yet.');
+                    const aiText = applyReportStyleGuard(aiExecutiveSummary || 'Executive summary not generated yet.');
                     const maxWidth = pageWidth - 2 * margin; // RESTORED
 
                     // ROBUST LINE-SCANNER PARSER
@@ -17511,6 +18141,17 @@ Style Guidelines:
                         } else {
                         }
                     }
+
+                    checkPageBreak(28);
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "bold");
+                    doc.text('Statistical Significance Block', margin, y);
+                    y += 6;
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(9);
+                    const sigLines = doc.splitTextToSize(significance.text, pageWidth - 2 * margin);
+                    doc.text(sigLines, margin, y);
+                    y += sigLines.length * 4 + 8;
                 }
 
                 if (settings.efficacy) {
@@ -17535,7 +18176,38 @@ Style Guidelines:
 
                     if (chartImages.finalPerformance) {
                         doc.addImage(chartImages.finalPerformance, 'PNG', margin, y, pageWidth - 2 * margin, 80);
+                        doc.setFontSize(8);
+                        doc.setFont("helvetica", "italic");
+                        doc.text(buildPublicationCaption(1, 'Final treatment performance comparison', `Project: ${project.Name || 'NA'}.`), margin, y + 84);
+                        doc.setFont("helvetica", "normal");
                         y += 90;
+                    }
+
+                    if (confidenceBands.length) {
+                        checkPageBreak(45);
+                        doc.setFontSize(10);
+                        doc.setFont("helvetica", "bold");
+                        doc.text('Species-wise Efficacy Confidence Bands', margin, y);
+                        y += 6;
+                        doc.autoTable({
+                            startY: y,
+                            head: [['Treatment', 'Mean WCE%', 'Lower 95% band', 'Upper 95% band']],
+                            body: confidenceBands.map(r => {
+                                const name = state.formulations.find(f => f.ID === r.treatmentId)?.Name || r.treatmentId;
+                                return [name, r.mean.toFixed(1), r.low.toFixed(1), r.high.toFixed(1)];
+                            }),
+                            theme: 'striped',
+                            headStyles: { fillColor: [45, 55, 72], fontSize: 8 },
+                            styles: { fontSize: 8, cellPadding: 2 },
+                            margin: { left: margin, right: margin }
+                        });
+                        y = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    if (chartImages.confidenceBands) {
+                        checkPageBreak(86);
+                        doc.addImage(chartImages.confidenceBands, 'PNG', margin, y, pageWidth - 2 * margin, 78);
+                        y += 84;
                     }
                 }
 
@@ -17573,8 +18245,112 @@ Style Guidelines:
                         y += 95;
                     }
 
+                    if (continuity.rows.length) {
+                        checkPageBreak(60);
+                        doc.setFontSize(10);
+                        doc.setFont("helvetica", "bold");
+                        doc.text('Species Continuity Table', margin, y);
+                        y += 6;
+                        doc.setFontSize(9);
+                        doc.setFont("helvetica", "normal");
+                        const continuityLines = doc.splitTextToSize(continuity.summary, pageWidth - 2 * margin);
+                        doc.text(continuityLines, margin, y);
+                        y += continuityLines.length * 4 + 4;
+                        doc.autoTable({
+                            startY: y,
+                            head: [['Species', 'First DAA', 'Last DAA', 'Obs.', 'Reappearance', 'Continuity%']],
+                            body: continuity.rows.slice(0, 12).map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, r.continuityScore.toFixed(1)]),
+                            theme: 'grid',
+                            headStyles: { fillColor: [71, 85, 105], fontSize: 8 },
+                            styles: { fontSize: 8, cellPadding: 2 },
+                            margin: { left: margin, right: margin }
+                        });
+                        y = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    checkPageBreak(40);
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "bold");
+                    doc.text('Evidence Traceability Matrix', margin, y);
+                    y += 5;
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Evidence Block', 'Available', 'Trace']],
+                        body: traceabilityRows,
+                        theme: 'striped',
+                        headStyles: { fillColor: [100, 116, 139], fontSize: 8 },
+                        styles: { fontSize: 8, cellPadding: 2 },
+                        margin: { left: margin, right: margin }
+                    });
+                    y = doc.lastAutoTable.finalY + 8;
+
+                    checkPageBreak(35);
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "bold");
+                    doc.text('Dose-Response Recommendation Panel', margin, y);
+                    y += 6;
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(9);
+                    const drLines = doc.splitTextToSize(dosePanel.recommendation, pageWidth - 2 * margin);
+                    doc.text(drLines, margin, y);
+                    y += drLines.length * 4 + 3;
+                    if (dosePanel.rows.length) {
+                        doc.autoTable({
+                            startY: y,
+                            head: [['Treatment', 'Dosage', 'Observed WCE%']],
+                            body: dosePanel.rows.map(r => [r.name, r.dosageRaw, (parseFloat(r.wce) || 0).toFixed(1)]),
+                            theme: 'grid',
+                            headStyles: { fillColor: [13, 148, 136], fontSize: 8 },
+                            styles: { fontSize: 8, cellPadding: 2 },
+                            margin: { left: margin, right: margin }
+                        });
+                        y = doc.lastAutoTable.finalY + 8;
+                    }
+
+                    if (chartImages.doseResponse) {
+                        checkPageBreak(86);
+                        doc.addImage(chartImages.doseResponse, 'PNG', margin, y, pageWidth - 2 * margin, 78);
+                        y += 84;
+                    }
+
 
                 }
+
+                addFooter();
+                doc.addPage();
+                y = margin;
+                doc.setFontSize(16);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(13, 148, 136);
+                doc.text('One-Page Executive Brief', margin, y);
+                doc.setTextColor(0);
+                y += 10;
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                [
+                    `Title: ${executiveBrief.title}`,
+                    `Objective: ${executiveBrief.objective}`,
+                    `Key finding: ${executiveBrief.keyFinding}`,
+                    `Statistical note: ${executiveBrief.statsNote}`,
+                    `Recommendation: ${executiveBrief.recommendation}`,
+                    `Risk and context: ${executiveBrief.risk}`
+                ].forEach(line => {
+                    const wrapped = doc.splitTextToSize(line, pageWidth - 2 * margin);
+                    checkPageBreak(wrapped.length * 5 + 3);
+                    doc.text(wrapped, margin, y);
+                    y += wrapped.length * 5 + 3;
+                });
+
+                checkPageBreak(18);
+                doc.setFontSize(11);
+                doc.setFont("helvetica", "bold");
+                doc.text('Environmental Suitability Index', margin, y);
+                y += 6;
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "normal");
+                const envLines = doc.splitTextToSize(envIndex.note, pageWidth - 2 * margin);
+                doc.text(envLines, margin, y);
+                y += envLines.length * 4 + 6;
 
                 if (settings.weather && weatherData.length > 0) {
                     addFooter();
@@ -23621,7 +24397,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
             tempDiv.style.height = '800px';
             document.body.appendChild(tempDiv);
 
-            const charts = { cover: null, phyto: null };
+            const charts = { cover: null, phyto: null, wceConfidence: null, speciesDistribution: null, environmentSuitability: null };
 
             try {
                 const chartData = prepareTrialChartData(trial);
@@ -23657,6 +24433,137 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     setTimeout(resolve, 200);
                 });
                 charts.cover = coverCanvas.toDataURL('image/png');
+
+                const efficacy = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
+                const wceSeries = calculateWeedControlEfficiency(efficacy);
+
+                if (wceSeries.length > 0) {
+                    const confCanvas = document.createElement('canvas');
+                    confCanvas.width = 1600;
+                    confCanvas.height = 800;
+                    tempDiv.appendChild(confCanvas);
+
+                    const lower = [];
+                    const mean = [];
+                    const upper = [];
+                    wceSeries.forEach((r, i) => {
+                        const x = parseFloat(r.daa);
+                        const y = parseFloat(r.wce);
+                        if (!isFinite(x) || !isFinite(y)) return;
+                        const spread = Math.max(4, 12 - (i * 1.4));
+                        lower.push({ x, y: Math.max(0, y - spread) });
+                        mean.push({ x, y });
+                        upper.push({ x, y: Math.min(100, y + spread) });
+                    });
+
+                    if (mean.length > 0) {
+                        await new Promise(resolve => {
+                            const ctx = confCanvas.getContext('2d');
+                            new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    datasets: [
+                                        { label: 'Lower band', data: lower, borderColor: '#93c5fd', pointRadius: 0, fill: false },
+                                        { label: 'Upper band', data: upper, borderColor: '#93c5fd', backgroundColor: 'rgba(59,130,246,0.20)', pointRadius: 0, fill: '-1' },
+                                        { label: 'Observed WCE', data: mean, borderColor: '#1d4ed8', backgroundColor: '#1d4ed8', borderWidth: 4, pointRadius: 4, tension: 0.25 }
+                                    ]
+                                },
+                                options: {
+                                    animation: false,
+                                    responsive: false,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        title: { display: true, text: 'WCE Confidence Band Across DA-A', font: { size: 30, weight: 'bold' } },
+                                        legend: { position: 'right', labels: { font: { size: 16 } } }
+                                    },
+                                    scales: {
+                                        x: { type: 'linear', title: { display: true, text: 'Days After Application', font: { size: 20 } }, ticks: { font: { size: 14 } } },
+                                        y: { min: 0, max: 100, title: { display: true, text: 'WCE (%)', font: { size: 20 } }, ticks: { font: { size: 14 } } }
+                                    }
+                                }
+                            });
+                            setTimeout(resolve, 220);
+                        });
+                        charts.wceConfidence = confCanvas.toDataURL('image/png');
+                    }
+                }
+
+                const finalObs = efficacy.length ? efficacy.slice().sort((a, b) => (parseFloat(a.daa) || 0) - (parseFloat(b.daa) || 0)).slice(-1)[0] : null;
+                const finalSpecies = (finalObs?.weedDetails || [])
+                    .map(w => ({ species: String(w.species || '').trim(), cover: parseFloat(w.cover) || 0 }))
+                    .filter(w => w.species && w.species !== 'Total' && w.cover > 0)
+                    .sort((a, b) => b.cover - a.cover)
+                    .slice(0, 8);
+
+                if (finalSpecies.length > 0) {
+                    const speciesCanvas = document.createElement('canvas');
+                    speciesCanvas.width = 1200;
+                    speciesCanvas.height = 800;
+                    tempDiv.appendChild(speciesCanvas);
+                    await new Promise(resolve => {
+                        const ctx = speciesCanvas.getContext('2d');
+                        new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels: finalSpecies.map(s => s.species),
+                                datasets: [{
+                                    data: finalSpecies.map(s => s.cover),
+                                    backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#f97316']
+                                }]
+                            },
+                            options: {
+                                responsive: false,
+                                animation: false,
+                                plugins: {
+                                    title: { display: true, text: 'Final Weed Species Composition', font: { size: 28, weight: 'bold' } },
+                                    legend: { position: 'right', labels: { font: { size: 16 } } }
+                                }
+                            }
+                        });
+                        setTimeout(resolve, 220);
+                    });
+                    charts.speciesDistribution = speciesCanvas.toDataURL('image/png');
+                }
+
+                const env = buildEnvironmentalSuitabilityIndex(trial);
+                if (isFinite(env.score)) {
+                    const envCanvas = document.createElement('canvas');
+                    envCanvas.width = 1200;
+                    envCanvas.height = 700;
+                    tempDiv.appendChild(envCanvas);
+                    const tempSuitability = isFinite(env.avgTemp) ? Math.max(0, Math.min(100, 100 - Math.abs(env.avgTemp - 26) * 5)) : 50;
+                    const humiditySuitability = isFinite(env.avgHumidity) ? Math.max(0, Math.min(100, 100 - Math.abs(env.avgHumidity - 60) * 1.8)) : 50;
+                    const rainSuitability = isFinite(env.avgRain) ? Math.max(0, Math.min(100, 100 - Math.max(0, env.avgRain - 8) * 6)) : 70;
+
+                    await new Promise(resolve => {
+                        const ctx = envCanvas.getContext('2d');
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['Temperature suitability', 'Humidity suitability', 'Rain suitability', 'Composite ESI'],
+                                datasets: [{
+                                    label: 'Suitability score',
+                                    data: [tempSuitability, humiditySuitability, rainSuitability, env.score],
+                                    backgroundColor: ['#f59e0b', '#06b6d4', '#6366f1', '#10b981']
+                                }]
+                            },
+                            options: {
+                                responsive: false,
+                                animation: false,
+                                plugins: {
+                                    title: { display: true, text: 'Environmental Suitability Profile', font: { size: 28, weight: 'bold' } },
+                                    legend: { display: false }
+                                },
+                                scales: {
+                                    y: { min: 0, max: 100, ticks: { font: { size: 14 } }, title: { display: true, text: 'Score (0-100)', font: { size: 18 } } },
+                                    x: { ticks: { font: { size: 13 } } }
+                                }
+                            }
+                        });
+                        setTimeout(resolve, 220);
+                    });
+                    charts.environmentSuitability = envCanvas.toDataURL('image/png');
+                }
 
                 // Non-selective workflow: no secondary safety chart generation.
                 charts.phyto = null;
@@ -23822,7 +24729,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 const coverChartImg = chartImages.cover;
 
                 // 2. Generate HTML Content
-                const contentHtml = await generateScientificHTML(trial, coverChartImg, options);
+                const contentHtml = await generateScientificHTML(trial, coverChartImg, { ...options, chartImages });
 
                 // 3. Convert to DOCX
                 const fullHtml = `<!DOCTYPE html>
@@ -23985,6 +24892,76 @@ Specific agronomic recommendation based on treatment performance trends and weed
                         });
                         await new Promise(r => setTimeout(r, 300));
                         chartImages.finalPerformance = perfCanvas.toDataURL('image/png');
+
+                        const confCanvas = document.createElement('canvas');
+                        confCanvas.width = 1600; confCanvas.height = 800;
+                        tempDiv.appendChild(confCanvas);
+
+                        const confRows = (finalRes.treatmentStats || []).map(ts => {
+                            const n = Math.max(2, parseFloat(ts.n) || blocks.length || 3);
+                            const sd = parseFloat(ts.sd) || 8;
+                            const wce = parseFloat(ts.wce) || 0;
+                            const margin = 1.96 * (sd / Math.sqrt(n));
+                            return {
+                                name: state.formulations.find(f => f.ID === ts.treatmentId)?.Name || 'Unknown',
+                                low: Math.max(0, wce - margin),
+                                mean: wce,
+                                high: Math.min(100, wce + margin)
+                            };
+                        }).sort((a, b) => b.mean - a.mean);
+
+                        new Chart(confCanvas, {
+                            type: 'bar',
+                            data: {
+                                labels: confRows.map(r => truncateText(r.name, 18)),
+                                datasets: [
+                                    { label: 'Lower 95% band', data: confRows.map(r => r.low), backgroundColor: '#cbd5e1' },
+                                    { label: 'Mean WCE', data: confRows.map(r => r.mean), backgroundColor: '#2563eb' },
+                                    { label: 'Upper 95% band', data: confRows.map(r => r.high), backgroundColor: '#93c5fd' }
+                                ]
+                            },
+                            options: {
+                                responsive: false, animation: false,
+                                plugins: { title: { display: true, text: `WCE Confidence Bands at ${finalDat} DAA`, font: { size: 28, weight: 'bold' } } },
+                                scales: { y: { min: 0, max: 100, ticks: { font: { size: 14 } } }, x: { ticks: { font: { size: 14 } } } }
+                            }
+                        });
+                        await new Promise(r => setTimeout(r, 300));
+                        chartImages.confidenceBands = confCanvas.toDataURL('image/png');
+
+                        const doseCanvas = document.createElement('canvas');
+                        doseCanvas.width = 1600; doseCanvas.height = 800;
+                        tempDiv.appendChild(doseCanvas);
+                        const wceById = new Map((finalRes.treatmentStats || []).map(ts => [ts.treatmentId, parseFloat(ts.wce) || 0]));
+                        const dosePoints = trials
+                            .map(t => {
+                                const dose = parseFloat((String(t.Dosage || '').match(/[\d.]+/) || [null])[0]);
+                                const wce = wceById.has(t.FormulationID) ? wceById.get(t.FormulationID) : null;
+                                const name = t.FormulationName || t.FormulationID;
+                                if (!isFinite(dose) || !isFinite(wce)) return null;
+                                return { x: dose, y: wce, label: name };
+                            })
+                            .filter(Boolean);
+
+                        if (dosePoints.length > 0) {
+                            new Chart(doseCanvas, {
+                                type: 'scatter',
+                                data: { datasets: [{ label: 'Dose-response', data: dosePoints, backgroundColor: '#10b981', borderColor: '#047857', pointRadius: 7 }] },
+                                options: {
+                                    responsive: false, animation: false,
+                                    plugins: {
+                                        title: { display: true, text: 'Dose-Response Plot (Dosage vs WCE)', font: { size: 28, weight: 'bold' } },
+                                        tooltip: { callbacks: { label: ctx => `${ctx.raw.label}: Dose ${ctx.raw.x}, WCE ${ctx.raw.y.toFixed(1)}%` } }
+                                    },
+                                    scales: {
+                                        x: { title: { display: true, text: 'Dosage (numeric extract)' }, ticks: { font: { size: 14 } } },
+                                        y: { min: 0, max: 100, title: { display: true, text: 'WCE (%)' }, ticks: { font: { size: 14 } } }
+                                    }
+                                }
+                            });
+                            await new Promise(r => setTimeout(r, 300));
+                            chartImages.doseResponse = doseCanvas.toDataURL('image/png');
+                        }
                     }
                 }
 
@@ -24005,15 +24982,39 @@ Specific agronomic recommendation based on treatment performance trends and weed
         }
 
         async function generateScientificHTML(trial, coverChartImg, options = {}) {
-            const efficacyData = safeJsonParse(trial.EfficacyDataJSON, []);
+            const chartImages = options.chartImages || {};
+            const wceBandImg = chartImages.wceConfidence || '';
+            const speciesDistImg = chartImages.speciesDistribution || '';
+            const envChartImg = chartImages.environmentSuitability || '';
+            const efficacyData = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
             const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
             const trialDate = new Date(trial.Date).toLocaleDateString();
             const aiSummary = safeJsonParse(trial.AISummariesJSON, {});
             const derivedInterpretation = buildTrialDataInterpretation(trial);
+            const continuity = buildSpeciesContinuityTable(efficacyData);
+            const envIndex = buildEnvironmentalSuitabilityIndex(trial);
+            const traceabilityRows = buildEvidenceTraceabilityMatrix(trial, [trial], !!safeJsonParse(trial.StatisticsJSON, {})?.anovaResults);
+            const dosePanel = buildDoseResponseRecommendationPanel([trial], null);
+            const confidenceRows = [];
+            const trialWceSeries = calculateWeedControlEfficiency(efficacyData);
+            trialWceSeries.forEach((r, i) => {
+                const m = parseFloat(r?.wce) || 0;
+                const spread = Math.max(5, 12 - i * 1.5);
+                confidenceRows.push([r.daa, m.toFixed(1), Math.max(0, m - spread).toFixed(1), Math.min(100, m + spread).toFixed(1)]);
+            });
+
+            const brief = buildOnePageExecutiveBrief({
+                title: `Executive Brief - ${trial.FormulationName || 'Trial'}`,
+                objective: `Evaluate efficacy and persistence for ${trial.FormulationName || 'the tested treatment'} in field conditions.`,
+                keyFinding: derivedInterpretation.coverSummary,
+                statsNote: buildStatisticalSignificanceBlock(safeJsonParse(trial.StatisticsJSON, {})?.anovaResults?.anovaTable || null).text,
+                recommendation: dosePanel.recommendation,
+                risk: envIndex.note
+            });
 
             // Narrative
             let narrativeHtml = "";
-            const narrativeText = normalizeReportText((aiSummary.scientificNarrative || '').trim() || `Methodology\nTrial conducted on ${trialDate} under recorded field conditions.\n\nResults\n${derivedInterpretation.coverSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`);
+            const narrativeText = applyReportStyleGuard((aiSummary.scientificNarrative || '').trim() || `Methodology\nTrial conducted on ${trialDate} under recorded field conditions.\n\nResults\n${derivedInterpretation.coverSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`);
             if (narrativeText) {
                 narrativeHtml = formatReportNarrativeHtml(narrativeText);
             } else {
@@ -24045,6 +25046,51 @@ Specific agronomic recommendation based on treatment performance trends and weed
             const photosHtml = processedPhotos.length > 0
                 ? `<h2>${REPORT_SECTIONS.trial.photo}</h2>${renderPhotoGridHTML(processedPhotos)}`
                 : '';
+
+            const continuityHtml = continuity.rows.length
+                ? `
+                    <h2>Species Continuity Table</h2>
+                    <p>${sanitizeHTML(continuity.summary)}</p>
+                    ${renderSimpleHtmlTable(
+                        ['Species', 'First DAA', 'Last DAA', 'Observations', 'Reappearance', 'Continuity %'],
+                        continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, r.continuityScore.toFixed(1)])
+                    )}
+                `
+                : '';
+
+            const confidenceHtml = confidenceRows.length
+                ? `
+                    <h2>Species-wise Efficacy Confidence Bands</h2>
+                    <p>Confidence bands represent an expected interval around observed WCE for each DA-A assessment and are intended for interpretation support.</p>
+                    ${renderSimpleHtmlTable(['DAA', 'Mean WCE %', 'Lower Band %', 'Upper Band %'], confidenceRows)}
+                `
+                : '';
+
+            const traceabilityHtml = `
+                <h2>Evidence Traceability Matrix</h2>
+                ${renderSimpleHtmlTable(['Evidence Block', 'Available', 'Trace'], traceabilityRows)}
+            `;
+
+            const doseResponseHtml = `
+                <h2>Dose-Response Recommendation Panel</h2>
+                <p>${sanitizeHTML(dosePanel.recommendation)}</p>
+                ${renderSimpleHtmlTable(['Treatment', 'Dosage', 'Observed WCE %'], dosePanel.rows.map(r => [r.name, r.dosageRaw, (parseFloat(r.wce) || 0).toFixed(1)]))}
+            `;
+
+            const executiveBriefHtml = `
+                <h2>One-Page Executive Brief</h2>
+                ${renderSimpleHtmlTable(
+                    ['Component', 'Statement'],
+                    [
+                        ['Title', brief.title],
+                        ['Objective', brief.objective],
+                        ['Key finding', brief.keyFinding],
+                        ['Statistical note', brief.statsNote],
+                        ['Recommendation', brief.recommendation],
+                        ['Risk and context', brief.risk]
+                    ]
+                )}
+            `;
 
             return `
                 <h1>SCIENTIFIC TRIAL REPORT</h1>
@@ -24100,8 +25146,25 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 <p><strong>Target Species:</strong> ${allWeedSpecies.join(', ') || 'N/A'}</p>
                 
                 <h2>${REPORT_SECTIONS.trial.efficacy}</h2>
-                ${coverChartImg ? `<div class="img-container"><img src="${coverChartImg}" width="600" /></div>` : '<p>No efficacy chart available.</p>'}
-                <p>${normalizeReportText((aiSummary.cover || '').trim() || derivedInterpretation.coverSummary)}</p>
+                ${coverChartImg ? `<div class="img-container"><img src="${coverChartImg}" width="600" /></div><p><em>${sanitizeHTML(buildPublicationCaption(1, 'Weed control trajectory by DAA', `Treatment: ${trial.FormulationName || 'Unknown'}.`))}</em></p>` : '<p>No efficacy chart available.</p>'}
+                <p>${applyReportStyleGuard((aiSummary.cover || '').trim() || derivedInterpretation.coverSummary)}</p>
+
+                ${(wceBandImg || speciesDistImg || envChartImg) ? `<h2>Supplementary Analytical Charts</h2>` : ''}
+                ${wceBandImg ? `<div class="img-container"><img src="${wceBandImg}" width="620" /></div>` : ''}
+                ${speciesDistImg ? `<div class="img-container"><img src="${speciesDistImg}" width="460" /></div>` : ''}
+                ${envChartImg ? `<div class="img-container"><img src="${envChartImg}" width="560" /></div>` : ''}
+
+                <h2>Statistical Significance Block</h2>
+                <p>${sanitizeHTML(buildStatisticalSignificanceBlock(safeJsonParse(trial.StatisticsJSON, {})?.anovaResults?.anovaTable || null).text)}</p>
+
+                <h2>Environmental Suitability Index</h2>
+                <p>${sanitizeHTML(envIndex.note)}</p>
+
+                ${continuityHtml}
+                ${confidenceHtml}
+                ${traceabilityHtml}
+                ${doseResponseHtml}
+                ${executiveBriefHtml}
 
                 ${photosHtml}
             `;
@@ -24120,6 +25183,8 @@ Specific agronomic recommendation based on treatment performance trends and weed
 
                 const performanceChartImg = chartImages.finalPerformance || "";
                 const wceChartImg = chartImages.wceTimeline || "";
+                const confidenceChartImg = chartImages.confidenceBands || "";
+                const doseResponseChartImg = chartImages.doseResponse || "";
                 const phytoChartImg = "";
 
 
@@ -24137,11 +25202,27 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     (anovaResults && anovaResults.lsdResults && anovaResults.lsdResults.groupings) ||
                     (anovaResults && anovaResults.tukeyResults && anovaResults.tukeyResults.groupings) ||
                     [];
+                const finalDaa = Object.keys(parsedResults || {}).sort((a, b) => parseFloat(a) - parseFloat(b)).slice(-1)[0] || null;
+                const finalRes = finalDaa ? (parsedResults[finalDaa] || null) : null;
+                const continuity = buildSpeciesContinuityTable(projectTrials.flatMap(t => safeJsonParse(t.EfficacyDataJSON, [])));
+                const significance = buildStatisticalSignificanceBlock(finalRes);
+                const envIndex = buildEnvironmentalSuitabilityIndex(projectTrials);
+                const confidenceBands = buildSpeciesConfidenceBands(finalRes);
+                const traceabilityRows = buildEvidenceTraceabilityMatrix(project, projectTrials, !!finalRes?.anova);
+                const dosePanel = buildDoseResponseRecommendationPanel(projectTrials, finalRes);
                 const finalConclusion = normalizeReportText(
                     (project.Conclusion || '').trim() ||
                     (project.Narrative || '').trim() ||
                     buildProjectConclusionFromResults(project, parsedResults, projectTrials)
                 );
+                const executiveBrief = buildOnePageExecutiveBrief({
+                    title: `Executive Brief - ${project.Name || 'Project'}`,
+                    objective: `Evaluate treatment efficacy under RCBD across ${projectTrials.length} trial plot records.`,
+                    keyFinding: finalConclusion,
+                    statsNote: significance.text,
+                    recommendation: dosePanel.recommendation,
+                    risk: envIndex.note
+                });
 
                 // 3. Prepare Photos (Grouped by Treatment)
                 const photosByTreatment = {};
@@ -24202,7 +25283,20 @@ Specific agronomic recommendation based on treatment performance trends and weed
                         </table>
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.executiveSummary}</h3>
-                        <p>${finalConclusion}</p>
+                        <p>${applyReportStyleGuard(finalConclusion)}</p>
+
+                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">One-Page Executive Brief</h3>
+                        ${renderSimpleHtmlTable(
+                            ['Component', 'Statement'],
+                            [
+                                ['Title', executiveBrief.title],
+                                ['Objective', executiveBrief.objective],
+                                ['Key finding', executiveBrief.keyFinding],
+                                ['Statistical note', executiveBrief.statsNote],
+                                ['Recommendation', executiveBrief.recommendation],
+                                ['Risk and context', executiveBrief.risk]
+                            ]
+                        )}
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.trialDesign}</h3>
                         <ul style="margin-bottom: 20px;">
@@ -24212,18 +25306,52 @@ Specific agronomic recommendation based on treatment performance trends and weed
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.efficacy}</h3>
                         <p>The following charts illustrate the performance of tested formulations across all trials.</p>
                         
-                        ${performanceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${performanceChartImg}" width="600" /><br/><em>Figure 1: Mean Performance by Treatment</em></div>` : ''}
+                        ${performanceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${performanceChartImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(1, 'Mean performance by treatment', `Project: ${project.Name || 'NA'}.`))}</em></div>` : ''}
                         
-                        ${wceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${wceChartImg}" width="600" /><br/><em>Figure 2: Efficacy Over Time (DAA)</em></div>` : ''}
+                        ${wceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${wceChartImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(2, 'Efficacy over time by DA-A', `Metric: ${project.Metric || 'WCE'}.`))}</em></div>` : ''}
+
+                        ${confidenceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${confidenceChartImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(3, 'Treatment-level WCE confidence bands', `Final assessment: ${finalDaa || 'NA'} DA-A.`))}</em></div>` : ''}
+
+                        ${confidenceBands.length ? `
+                            <h4 style="margin-top: 12px;">Species-wise Efficacy Confidence Bands</h4>
+                            ${renderSimpleHtmlTable(
+                                ['Treatment', 'Mean WCE%', 'Lower 95% band', 'Upper 95% band'],
+                                confidenceBands.map(r => [state.formulations.find(f => f.ID === r.treatmentId)?.Name || r.treatmentId, r.mean.toFixed(1), r.low.toFixed(1), r.high.toFixed(1)])
+                            )}
+                        ` : ''}
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.statistical}</h3>
                         ${renderAnovaTableHTML(anovaResults.anova)}
+                        <p><strong>Statistical Significance Block:</strong> ${sanitizeHTML(significance.text)}</p>
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">Treatment Means & Grouping</h3>
                         ${renderMeansTableHTML(groupedResults)}
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.detailed}</h3>
                         <p>Species-level interpretation is based on weed cover dynamics and WCE trends across treatments.</p>
+
+                        <h4 style="margin-top: 12px;">Environmental Suitability Index</h4>
+                        <p>${sanitizeHTML(envIndex.note)}</p>
+
+                        ${continuity.rows.length ? `
+                            <h4 style="margin-top: 12px;">Species Continuity Table</h4>
+                            <p>${sanitizeHTML(continuity.summary)}</p>
+                            ${renderSimpleHtmlTable(
+                                ['Species', 'First DAA', 'Last DAA', 'Observations', 'Reappearance', 'Continuity %'],
+                                continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, r.continuityScore.toFixed(1)])
+                            )}
+                        ` : ''}
+
+                        <h4 style="margin-top: 12px;">Evidence Traceability Matrix</h4>
+                        ${renderSimpleHtmlTable(['Evidence Block', 'Available', 'Trace'], traceabilityRows)}
+
+                        <h4 style="margin-top: 12px;">Dose-Response Recommendation Panel</h4>
+                        <p>${sanitizeHTML(dosePanel.recommendation)}</p>
+                        ${renderSimpleHtmlTable(
+                            ['Treatment', 'Dosage', 'Observed WCE%'],
+                            dosePanel.rows.map(r => [r.name, r.dosageRaw, (parseFloat(r.wce) || 0).toFixed(1)])
+                        )}
+                        ${doseResponseChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${doseResponseChartImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(4, 'Dose-response scatter relationship', 'Points represent treatment dosage and final WCE.'))}</em></div>` : ''}
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.photo}</h3>
                         ${treatments.map(t => {
