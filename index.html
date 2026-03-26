@@ -1002,7 +1002,15 @@
                     startDate: '',
                     endDate: '',
                     sortBy: 'date'
-                }
+                },
+                userAdminFilters: {
+                    search: '',
+                    role: 'all',
+                    status: 'all',
+                    sortBy: 'updated-desc'
+                },
+                userAdminTestResults: {},
+                pendingUserBackupImportUserId: null
             };
 
             // Safety check for filterState
@@ -5442,12 +5450,32 @@ IMPORTANT:
                                     </h3>
                                     <div id="users-count-badge" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">0 Users Loaded</div>
                                 </div>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                                    <input id="users-search-input" type="search" placeholder="Search username or name" class="w-full form-input px-3 py-2 border rounded-lg">
+                                    <select id="users-role-filter" class="w-full form-input px-3 py-2 border rounded-lg bg-white">
+                                        <option value="all">All Roles</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="user">User</option>
+                                    </select>
+                                    <select id="users-status-filter" class="w-full form-input px-3 py-2 border rounded-lg bg-white">
+                                        <option value="all">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="disabled">Disabled</option>
+                                    </select>
+                                    <select id="users-sort-select" class="w-full form-input px-3 py-2 border rounded-lg bg-white">
+                                        <option value="updated-desc">Updated (Newest)</option>
+                                        <option value="updated-asc">Updated (Oldest)</option>
+                                        <option value="name-asc">Name (A-Z)</option>
+                                        <option value="name-desc">Name (Z-A)</option>
+                                    </select>
+                                </div>
                                 <div id="users-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div class="col-span-full py-10 flex flex-col items-center justify-center text-slate-400">
                                         <i data-lucide="loader-2" class="w-10 h-10 animate-spin mb-2"></i>
                                         <p>Fetching user list...</p>
                                     </div>
                                 </div>
+                                <input id="user-backup-import-input" type="file" accept=".json" class="hidden">
                             </div>
                         </div>
                     `,
@@ -6016,8 +6044,20 @@ IMPORTANT:
                 users: async () => {
                     const container = document.getElementById('users-list-container');
                     const countBadge = document.getElementById('users-count-badge');
-                    
-                    // Update admin view banner visibility if needed
+                    const searchInput = document.getElementById('users-search-input');
+                    const roleFilter = document.getElementById('users-role-filter');
+                    const statusFilter = document.getElementById('users-status-filter');
+                    const sortSelect = document.getElementById('users-sort-select');
+
+                    if (!state.userAdminFilters) {
+                        state.userAdminFilters = { search: '', role: 'all', status: 'all', sortBy: 'updated-desc' };
+                    }
+
+                    if (searchInput) searchInput.value = state.userAdminFilters.search || '';
+                    if (roleFilter) roleFilter.value = state.userAdminFilters.role || 'all';
+                    if (statusFilter) statusFilter.value = state.userAdminFilters.status || 'all';
+                    if (sortSelect) sortSelect.value = state.userAdminFilters.sortBy || 'updated-desc';
+
                     const statusBanner = document.getElementById('admin-view-status');
                     if (statusBanner) {
                         if (state.adminViewUserId) {
@@ -6030,41 +6070,122 @@ IMPORTANT:
 
                     try {
                         const result = await apiCall('getUsersList');
-                        
-                        // Handle potential error object returned by apiCall
                         if (result && result._errType) {
                             throw new Error(result.message || 'Server error');
                         }
-                        
-                        const users = result;
-                        if (!users || !Array.isArray(users)) throw new Error('Invalid user list received.');
-                        
-                        countBadge.textContent = `${users.length} Users Registered`;
-                        
-                        // Map users to trial counts for more useful info (if available)
+
+                        let users = Array.isArray(result) ? result : [];
+                        if (!users.length) {
+                            countBadge.textContent = '0 Users Registered';
+                            container.innerHTML = `<div class="col-span-full p-6 text-slate-500 bg-slate-50 rounded-lg border border-slate-200 text-center">No users found.</div>`;
+                            return;
+                        }
+
+                        const filters = state.userAdminFilters || {};
+                        const searchTerm = String(filters.search || '').trim().toLowerCase();
+                        const roleTerm = String(filters.role || 'all').toLowerCase();
+                        const statusTerm = String(filters.status || 'all').toLowerCase();
+                        const sortBy = String(filters.sortBy || 'updated-desc').toLowerCase();
+
+                        users = users.filter(u => {
+                            const username = String(u.Username || '').toLowerCase();
+                            const fullName = String(u.Name || '').toLowerCase();
+                            const role = String(u.Role || 'User').toLowerCase();
+                            const isActive = String(u.IsActive || 'true').toLowerCase() !== 'false';
+
+                            if (searchTerm && !(`${username} ${fullName}`.includes(searchTerm))) return false;
+                            if (roleTerm !== 'all' && role !== roleTerm) return false;
+                            if (statusTerm === 'active' && !isActive) return false;
+                            if (statusTerm === 'disabled' && isActive) return false;
+                            return true;
+                        });
+
+                        users.sort((a, b) => {
+                            const aName = String(a.Username || '').toLowerCase();
+                            const bName = String(b.Username || '').toLowerCase();
+                            const aUpdated = new Date(a.UpdatedAt || a.CreatedAt || 0).getTime() || 0;
+                            const bUpdated = new Date(b.UpdatedAt || b.CreatedAt || 0).getTime() || 0;
+
+                            if (sortBy === 'name-asc') return aName.localeCompare(bName);
+                            if (sortBy === 'name-desc') return bName.localeCompare(aName);
+                            if (sortBy === 'updated-asc') return aUpdated - bUpdated;
+                            return bUpdated - aUpdated;
+                        });
+
+                        countBadge.textContent = `${users.length} User${users.length === 1 ? '' : 's'} Shown`;
+
                         container.innerHTML = users.map(u => {
                             const userId = String(u.ID || '');
                             const userTrials = (state.trials || []).filter(t => String(t.CreatedBy || '') === userId);
                             const isCurrentView = state.adminViewUserId === userId;
-                            
+                            const isActive = String(u.IsActive || 'true').toLowerCase() !== 'false';
+                            const userFolderId = String(u.DriveFolderId || '').trim();
+                            const updatedAt = u.UpdatedAt || u.CreatedAt || '';
+                            const testResult = state.userAdminTestResults && state.userAdminTestResults[userId] ? state.userAdminTestResults[userId] : null;
+
+                            let apiKeyCount = 0;
+                            try {
+                                const parsedKeys = JSON.parse(u.ApiKeysJSON || '[]');
+                                apiKeyCount = Array.isArray(parsedKeys) ? parsedKeys.filter(Boolean).length : 0;
+                            } catch (e) {
+                                apiKeyCount = 0;
+                            }
+
+                            const healthScore = (isActive ? 1 : 0) + (userFolderId ? 1 : 0) + (apiKeyCount > 0 ? 1 : 0);
+                            const healthLabel = healthScore === 3 ? 'Healthy' : (healthScore === 2 ? 'Warning' : 'Critical');
+                            const healthClass = healthScore === 3 ? 'bg-emerald-100 text-emerald-700' : (healthScore === 2 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700');
+
+                            const diagnosticsHtml = testResult ? `
+                                <div class="mt-3 text-[11px] rounded-md border border-slate-200 bg-white p-2 space-y-1">
+                                    <div class="font-semibold text-slate-700">Diagnostics: ${sanitizeHTML(new Date(testResult.checkedAt || Date.now()).toLocaleString())}</div>
+                                    <div class="${testResult.checks?.folder?.ok ? 'text-emerald-700' : 'text-red-700'}">Folder: ${sanitizeHTML(testResult.checks?.folder?.message || 'Not tested')}</div>
+                                    <div class="${testResult.checks?.api?.ok ? 'text-emerald-700' : 'text-red-700'}">API: ${sanitizeHTML(testResult.checks?.api?.message || 'Not tested')}</div>
+                                    <div class="${testResult.checks?.upload?.ok ? 'text-emerald-700' : 'text-red-700'}">Upload: ${sanitizeHTML(testResult.checks?.upload?.message || 'Not tested')}</div>
+                                </div>
+                            ` : '';
+
                             return `
-                                <div class="p-4 border ${isCurrentView ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-slate-50'} rounded-xl hover:shadow-md transition-shadow flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold uppercase">
-                                            ${u.Username ? u.Username[0] : '?'}
+                                <div class="p-4 border ${isCurrentView ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-slate-50'} rounded-xl hover:shadow-md transition-shadow">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold uppercase">
+                                                ${u.Username ? u.Username[0] : '?'}
+                                            </div>
+                                            <div>
+                                                <p class="font-bold text-slate-800">${sanitizeHTML(u.Username)}</p>
+                                                <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">${sanitizeHTML(u.Role)} • ${userTrials.length} Trials</p>
+                                                <div class="mt-1 flex items-center gap-2 text-[10px] flex-wrap">
+                                                    <span class="px-2 py-0.5 rounded-full font-bold ${isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">${isActive ? 'Active' : 'Disabled'}</span>
+                                                    <span class="px-2 py-0.5 rounded-full font-bold ${healthClass}">${healthLabel}</span>
+                                                    <span class="text-slate-500 font-semibold">${apiKeyCount} API Key${apiKeyCount === 1 ? '' : 's'}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p class="font-bold text-slate-800">${sanitizeHTML(u.Username)}</p>
-                                            <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">${sanitizeHTML(u.Role)} • ${userTrials.length} Trials</p>
-                                        </div>
+                                        <button onclick="window.viewUserData('${u.ID}', '${sanitizeHTML(u.Username)}')" 
+                                            class="${isCurrentView ? 'bg-amber-100 text-amber-700' : 'text-emerald-600 hover:bg-emerald-100'} p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold ring-1 ring-emerald-600/20">
+                                            <i data-lucide="${isCurrentView ? 'check-circle' : 'eye'}" class="w-4 h-4"></i> ${isCurrentView ? 'Viewing' : 'View Data'}
+                                        </button>
                                     </div>
-                                    <button onclick="window.viewUserData('${u.ID}', '${sanitizeHTML(u.Username)}')" 
-                                        class="${isCurrentView ? 'bg-amber-100 text-amber-700' : 'text-emerald-600 hover:bg-emerald-100'} p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold ring-1 ring-emerald-600/20">
-                                        <i data-lucide="${isCurrentView ? 'check-circle' : 'eye'}" class="w-4 h-4"></i> ${isCurrentView ? 'Viewing' : 'View Data'}
-                                    </button>
+                                    <div class="mt-3 text-[11px] text-slate-600 space-y-1">
+                                        <div><span class="font-semibold">Drive Folder:</span> ${userFolderId ? sanitizeHTML(userFolderId) : '<span class="text-amber-700 font-semibold">Not set</span>'}</div>
+                                        <div><span class="font-semibold">Updated:</span> ${updatedAt ? sanitizeHTML(new Date(updatedAt).toLocaleString()) : 'N/A'}</div>
+                                    </div>
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        <button data-action="admin-toggle-user-active" data-id="${sanitizeHTML(userId)}" data-username="${sanitizeHTML(u.Username || '')}" data-active="${isActive ? 'true' : 'false'}" class="text-xs px-2 py-1 rounded-md border font-semibold ${isActive ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}">${isActive ? 'Disable User' : 'Activate User'}</button>
+                                        <button data-action="admin-set-user-folder" data-id="${sanitizeHTML(userId)}" data-username="${sanitizeHTML(u.Username || '')}" data-folder-id="${sanitizeHTML(userFolderId)}" class="text-xs px-2 py-1 rounded-md border font-semibold bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">Set Drive Folder</button>
+                                        <button data-action="admin-reset-user-api" data-id="${sanitizeHTML(userId)}" data-username="${sanitizeHTML(u.Username || '')}" class="text-xs px-2 py-1 rounded-md border font-semibold bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100">Reset API Keys</button>
+                                        <button data-action="admin-run-user-tests" data-id="${sanitizeHTML(userId)}" data-username="${sanitizeHTML(u.Username || '')}" class="text-xs px-2 py-1 rounded-md border font-semibold bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100">Run Tests</button>
+                                        <button data-action="admin-export-user-backup" data-id="${sanitizeHTML(userId)}" data-username="${sanitizeHTML(u.Username || '')}" class="text-xs px-2 py-1 rounded-md border font-semibold bg-green-50 text-green-700 border-green-200 hover:bg-green-100">Export Backup</button>
+                                        <button data-action="admin-import-user-backup" data-id="${sanitizeHTML(userId)}" data-username="${sanitizeHTML(u.Username || '')}" class="text-xs px-2 py-1 rounded-md border font-semibold bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200">Import Backup</button>
+                                    </div>
+                                    ${diagnosticsHtml}
                                 </div>
                             `;
                         }).join('');
+
+                        if (!users.length) {
+                            container.innerHTML = `<div class="col-span-full p-6 text-slate-500 bg-slate-50 rounded-lg border border-slate-200 text-center">No users match your filters.</div>`;
+                        }
                         lucide.createIcons();
                     } catch (err) {
                         console.error('User list error:', err);
@@ -8212,6 +8333,11 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             });
 
             // --- API & DATA HANDLING ---
+            function getEffectiveFolderId() {
+                const authFolder = String(state.auth?.DriveFolderId || '').trim();
+                return authFolder || state.settings.folderId;
+            }
+
             async function apiCall(action, payload = {}, showOverlay = true) {
                 const OFFLINE_ACTIONS = ['addTrial', 'createTrialRecord', 'updateTrialRecord', 'updateTrialStatus', 'addFormulation', 'addIngredient', 'finalizeTrial', 'addBatchTrials', 'updateProject', 'addBlock'];
                 
@@ -8247,7 +8373,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             const fullPayload = { 
                                 ...payload, 
                                 spreadsheetId: state.settings.sheetId, 
-                                folderId: state.settings.folderId,
+                                folderId: getEffectiveFolderId(),
                                 auth: state.auth
                             };
                             google.script.run
@@ -8273,7 +8399,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     const fullPayload = { 
                         ...payload, 
                         spreadsheetId: state.settings.sheetId, 
-                        folderId: state.settings.folderId
+                        folderId: getEffectiveFolderId()
                     };
                     const res = await fetch(String(state.settings.scriptUrl).replace(/\s/g, ''), {
                         method: 'POST',
@@ -8449,7 +8575,14 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
                             document.getElementById('script-url').value = state.settings.scriptUrl || '';
                             document.getElementById('sheet-url').value = state.settings.sheetId ? `https://docs.google.com/spreadsheets/d/${state.settings.sheetId}/` : '';
-                            document.getElementById('folder-url').value = state.settings.folderId ? `https://drive.google.com/drive/folders/${state.settings.folderId}` : '';
+                            const effectiveFolderId = getEffectiveFolderId();
+                            document.getElementById('folder-url').value = effectiveFolderId ? `https://drive.google.com/drive/folders/${effectiveFolderId}` : '';
+
+                            const isAdminUser = String(state.auth?.Role || '').toLowerCase() === 'admin';
+                            const scriptInput = document.getElementById('script-url');
+                            const sheetInput = document.getElementById('sheet-url');
+                            if (scriptInput) scriptInput.disabled = !isAdminUser;
+                            if (sheetInput) sheetInput.disabled = !isAdminUser;
 
                             // API Model Selection
                             const modelSelect = document.getElementById('settings-api-model');
@@ -10645,7 +10778,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const results = [];
                 for (const photoData of photosData) {
                     try {
-                        if (!state.settings.folderId) throw new Error("Folder ID missing. Check Settings.");
+                        if (!getEffectiveFolderId()) throw new Error("Folder ID missing. Check Settings.");
                         console.log(`[Upload] Sending photo to path: ${JSON.stringify(folderPath)}`);
                         const result = await apiCall('uploadPhoto', {
                             fileData: photoData.fileData,
@@ -10863,6 +10996,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                             ...result,
                             expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
                         };
+                        applyUserScopedConfigFromAuth();
                         
                         localStorage.setItem('herbicide_auth', JSON.stringify(state.auth));
                         document.getElementById('login-overlay').classList.add('hidden');
@@ -10937,6 +11071,23 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     } else {
                         adminSection.classList.add('hidden');
                     }
+                }
+            }
+
+            function applyUserScopedConfigFromAuth() {
+                if (!state.auth || !state.auth.ID || !state.settings) return;
+                const role = String(state.auth.Role || '').toLowerCase();
+                if (role === 'admin') return;
+
+                const driveFolderId = String(state.auth.DriveFolderId || '').trim();
+                if (driveFolderId) {
+                    state.settings.userDriveFolderId = driveFolderId;
+                }
+
+                const rawKeys = safeJsonParse(state.auth.ApiKeysJSON, []);
+                if (Array.isArray(rawKeys)) {
+                    state.settings.apiKeys = rawKeys.map(k => String(k || '').trim()).filter(Boolean);
+                    state.settings.currentApiKeyIndex = 0;
                 }
             }
 
@@ -11020,6 +11171,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 if (showOverlay) loadingOverlay.classList.remove('hidden');
                 try {
                     loadSettings();
+                    applyUserScopedConfigFromAuth();
                     if (!state.settings.scriptUrl) {
                         mainContent.innerHTML = `<div class="text-center p-8 bg-white rounded-lg shadow"><p class="text-amber-600 font-semibold">Configuration Needed</p><p class="text-gray-600 mt-2">Please go to Settings to enter your Google Apps Script URL.</p></div>`;
                         switchPage('settings');
@@ -11154,16 +11306,17 @@ Respond ONLY with a single minified JSON object in this format: {"identification
             }
 
             async function handleSettingsSave(form) {
+                const isAdminUser = String(state.auth?.Role || '').toLowerCase() === 'admin';
                 const apiModel = document.getElementById('settings-api-model').value;
                 const keyInputs = Array.from(form.querySelectorAll('.api-key-input'));
                 const apiKeys = keyInputs.map(input => input.value.trim()).filter(Boolean);
 
-                const scriptUrl = form.querySelector('#script-url').value.replace(/\s/g, '');
+                const scriptUrl = isAdminUser ? form.querySelector('#script-url').value.replace(/\s/g, '') : state.settings.scriptUrl;
                 const sheetIdRaw = form.querySelector('#sheet-url').value.trim();
                 const folderIdRaw = form.querySelector('#folder-url').value.trim();
 
-                const sheetId = (sheetIdRaw.match(/[-\w]{25,}/) || [])[0] || state.settings.sheetId;
-                const folderId = (folderIdRaw.match(/[-\w]{25,}/) || [])[0] || state.settings.folderId;
+                const sheetId = isAdminUser ? ((sheetIdRaw.match(/[-\w]{25,}/) || [])[0] || state.settings.sheetId) : state.settings.sheetId;
+                const folderId = (folderIdRaw.match(/[-\w]{25,}/) || [])[0] || getEffectiveFolderId();
 
                 const logoInput = form.querySelector('#settings-logo-hidden');
                 const logoBase64 = logoInput ? logoInput.value : state.settings.logoBase64;
@@ -11175,8 +11328,10 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const visualCrossingKey = document.getElementById('settings-vc-key') ? document.getElementById('settings-vc-key').value.trim() : state.settings.visualCrossingKey;
 
                 let needsReload = false;
-                if (sheetId && state.settings.sheetId !== sheetId) needsReload = true;
-                if (scriptUrl && state.settings.scriptUrl !== scriptUrl) needsReload = true;
+                if (isAdminUser) {
+                    if (sheetId && state.settings.sheetId !== sheetId) needsReload = true;
+                    if (scriptUrl && state.settings.scriptUrl !== scriptUrl) needsReload = true;
+                }
 
                 const oldKeyJson = JSON.stringify(state.settings.apiKeys);
                 const newKeyJson = JSON.stringify(apiKeys);
@@ -11186,7 +11341,8 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     ...state.settings,
                     scriptUrl,
                     sheetId,
-                    folderId,
+                    folderId: isAdminUser ? folderId : state.settings.folderId,
+                    userDriveFolderId: !isAdminUser ? folderId : state.settings.userDriveFolderId,
                     logoBase64,
                     cardSize,
                     apiKeys,
@@ -11217,13 +11373,29 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 state.settings = newSettings;
                 localStorage.setItem('appSettings', JSON.stringify(state.settings));
 
-                // CRITICAL: Sync settings to backend so online QR codes reflect current preferences
-                try {
-                    await apiCall('saveAllSettings', { settings: newSettings });
-                    console.log('Settings synced to backend successfully');
-                } catch (error) {
-                    console.warn('Failed to sync settings to backend:', error);
-                    showToast('Settings saved locally, but failed to sync to server. Online QR codes may not reflect changes.', 'warning');
+                if (isAdminUser) {
+                    // CRITICAL: Sync global settings to backend so online QR codes reflect current preferences
+                    try {
+                        await apiCall('saveAllSettings', { settings: newSettings });
+                        console.log('Settings synced to backend successfully');
+                    } catch (error) {
+                        console.warn('Failed to sync settings to backend:', error);
+                        showToast('Settings saved locally, but failed to sync to server. Online QR codes may not reflect changes.', 'warning');
+                    }
+                } else {
+                    try {
+                        const userConfig = await apiCall('updateMyUserConfig', {
+                            DriveFolderId: folderId,
+                            ApiKeysJSON: JSON.stringify(apiKeys)
+                        }, false);
+                        if (userConfig && !userConfig._errType) {
+                            state.auth = { ...state.auth, ...userConfig, expiresAt: state.auth.expiresAt };
+                            localStorage.setItem('herbicide_auth', JSON.stringify(state.auth));
+                        }
+                    } catch (error) {
+                        console.warn('Failed to sync user configuration:', error);
+                        showToast('User config saved locally, but server update failed.', 'warning');
+                    }
                 }
 
                 if (needsReload) {
@@ -11934,6 +12106,170 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                 if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
                             }
                         },
+                        'admin-toggle-user-active': () => {
+                            if (state.auth?.Role !== 'Admin') {
+                                showToast('Admin only action.', 'error');
+                                return;
+                            }
+                            const targetUserId = String(id || '').trim();
+                            const targetUsername = target.dataset.username || targetUserId;
+                            const currentActive = String(target.dataset.active || 'true').toLowerCase() !== 'false';
+                            const nextActive = !currentActive;
+
+                            if (!nextActive && String(state.auth?.ID || '') === targetUserId) {
+                                showToast('You cannot disable your own account.', 'warning');
+                                return;
+                            }
+
+                            showConfirmation(
+                                `${nextActive ? 'Activate' : 'Disable'} ${targetUsername}?`,
+                                nextActive ? 'This user will regain access immediately.' : 'This user will lose access immediately.',
+                                async () => {
+                                    try {
+                                        const result = await apiCall('adminUpdateUserConfig', {
+                                            userId: targetUserId,
+                                            IsActive: nextActive
+                                        }, false);
+                                        if (result && result._errType) {
+                                            throw new Error(result.message || 'Failed to update user status.');
+                                        }
+                                        showToast(`User ${nextActive ? 'activated' : 'disabled'} successfully.`, 'success');
+                                        if (!nextActive && state.adminViewUserId === targetUserId) {
+                                            window.clearAdminView();
+                                        }
+                                        await render.users();
+                                    } catch (err) {
+                                        showToast(err.message || 'Failed to update user status.', 'error');
+                                    }
+                                }
+                            );
+                        },
+                        'admin-set-user-folder': async () => {
+                            if (state.auth?.Role !== 'Admin') {
+                                showToast('Admin only action.', 'error');
+                                return;
+                            }
+                            const targetUserId = String(id || '').trim();
+                            const targetUsername = target.dataset.username || targetUserId;
+                            const currentFolderId = String(target.dataset.folderId || '').trim();
+                            const folderPrompt = prompt(
+                                `Set Drive Folder for ${targetUsername}.\nPaste full Drive folder link or raw folder ID.\nLeave blank to clear.`,
+                                currentFolderId
+                            );
+                            if (folderPrompt === null) return;
+
+                            const normalizeDriveFolderInput = (value) => {
+                                const raw = String(value || '').trim();
+                                if (!raw) return '';
+                                const idMatch = raw.match(/[?&]id=([^&]+)/) || raw.match(/\/folders\/([^/?#]+)/) || raw.match(/\/d\/([^/?#]+)/);
+                                return idMatch && idMatch[1] ? decodeURIComponent(idMatch[1]).trim() : raw;
+                            };
+
+                            try {
+                                const result = await apiCall('adminUpdateUserConfig', {
+                                    userId: targetUserId,
+                                    DriveFolderId: normalizeDriveFolderInput(folderPrompt)
+                                }, false);
+                                if (result && result._errType) {
+                                    throw new Error(result.message || 'Failed to update Drive folder.');
+                                }
+                                showToast('Drive folder updated for user.', 'success');
+                                await render.users();
+                            } catch (err) {
+                                showToast(err.message || 'Failed to update Drive folder.', 'error');
+                            }
+                        },
+                        'admin-reset-user-api': () => {
+                            if (state.auth?.Role !== 'Admin') {
+                                showToast('Admin only action.', 'error');
+                                return;
+                            }
+                            const targetUserId = String(id || '').trim();
+                            const targetUsername = target.dataset.username || targetUserId;
+                            showConfirmation(
+                                `Reset API keys for ${targetUsername}?`,
+                                'All saved API keys for this user will be removed.',
+                                async () => {
+                                    try {
+                                        const result = await apiCall('adminUpdateUserConfig', {
+                                            userId: targetUserId,
+                                            resetApiKeys: true
+                                        }, false);
+                                        if (result && result._errType) {
+                                            throw new Error(result.message || 'Failed to reset API keys.');
+                                        }
+                                        if (String(state.auth?.ID || '') === targetUserId) {
+                                            state.auth.ApiKeysJSON = '[]';
+                                        }
+                                        showToast('User API keys reset.', 'success');
+                                        await render.users();
+                                    } catch (err) {
+                                        showToast(err.message || 'Failed to reset API keys.', 'error');
+                                    }
+                                }
+                            );
+                        },
+                        'admin-run-user-tests': async () => {
+                            if (state.auth?.Role !== 'Admin') {
+                                showToast('Admin only action.', 'error');
+                                return;
+                            }
+                            const targetUserId = String(id || '').trim();
+                            const targetUsername = target.dataset.username || targetUserId;
+                            try {
+                                showToast(`Running diagnostics for ${targetUsername}...`, 'info');
+                                const result = await apiCall('adminRunUserDiagnostics', { userId: targetUserId }, false);
+                                if (result && result._errType) {
+                                    throw new Error(result.message || 'Diagnostics failed.');
+                                }
+                                state.userAdminTestResults[targetUserId] = result;
+                                const allGood = Boolean(result?.checks?.folder?.ok && result?.checks?.api?.ok && result?.checks?.upload?.ok);
+                                showToast(allGood ? 'All diagnostics checks passed.' : 'Diagnostics complete with warnings.', allGood ? 'success' : 'warning');
+                                await render.users();
+                            } catch (err) {
+                                showToast(err.message || 'Diagnostics failed.', 'error');
+                            }
+                        },
+                        'admin-export-user-backup': async () => {
+                            if (state.auth?.Role !== 'Admin') {
+                                showToast('Admin only action.', 'error');
+                                return;
+                            }
+                            const targetUserId = String(id || '').trim();
+                            const targetUsername = target.dataset.username || targetUserId;
+                            try {
+                                const result = await apiCall('adminExportUserData', { userId: targetUserId }, false);
+                                if (result && result._errType) {
+                                    throw new Error(result.message || 'Export failed.');
+                                }
+                                const dataStr = JSON.stringify(result, null, 2);
+                                const blob = new Blob([dataStr], { type: 'application/json' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `user_backup_${targetUsername}_${new Date().toISOString().split('T')[0]}.json`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                                showToast('User backup exported.', 'success');
+                            } catch (err) {
+                                showToast(err.message || 'Export failed.', 'error');
+                            }
+                        },
+                        'admin-import-user-backup': () => {
+                            if (state.auth?.Role !== 'Admin') {
+                                showToast('Admin only action.', 'error');
+                                return;
+                            }
+                            const targetUserId = String(id || '').trim();
+                            state.pendingUserBackupImportUserId = targetUserId;
+                            const fileInput = document.getElementById('user-backup-import-input');
+                            if (!fileInput) {
+                                showToast('Import input not found.', 'error');
+                                return;
+                            }
+                            fileInput.value = '';
+                            fileInput.click();
+                        },
                         'remove-api-key': () => {
                             const row = target.closest('.api-key-row');
                             if (row) {
@@ -11986,6 +12322,12 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     const target = e.target;
                     if (target.id === 'import-file-input') document.querySelector('[data-action="import-data"]').disabled = !target.files.length;
 
+                    if (target.id === 'users-search-input') {
+                        state.userAdminFilters = state.userAdminFilters || {};
+                        state.userAdminFilters.search = target.value || '';
+                        if (state.currentPage === 'users') render.users();
+                    }
+
                     if (target.matches('[data-action="filter"]')) {
                         // Handle formulation specific search separately or generally
                         if (target.dataset.type === 'formulation') {
@@ -12023,6 +12365,53 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                 document.body.addEventListener('change', async e => {
                     const target = e.target;
+
+                    if (target.id === 'users-role-filter' || target.id === 'users-status-filter' || target.id === 'users-sort-select') {
+                        state.userAdminFilters = state.userAdminFilters || { search: '', role: 'all', status: 'all', sortBy: 'updated-desc' };
+                        if (target.id === 'users-role-filter') state.userAdminFilters.role = target.value || 'all';
+                        if (target.id === 'users-status-filter') state.userAdminFilters.status = target.value || 'all';
+                        if (target.id === 'users-sort-select') state.userAdminFilters.sortBy = target.value || 'updated-desc';
+                        if (state.currentPage === 'users') await render.users();
+                        return;
+                    }
+
+                    if (target.id === 'user-backup-import-input') {
+                        const file = target.files && target.files[0] ? target.files[0] : null;
+                        const userId = String(state.pendingUserBackupImportUserId || '').trim();
+                        state.pendingUserBackupImportUserId = null;
+                        if (!file || !userId) return;
+
+                        try {
+                            const fileText = await file.text();
+                            const parsed = JSON.parse(fileText);
+                            const importData = parsed && parsed.data ? parsed.data : parsed;
+                            if (!importData || typeof importData !== 'object') {
+                                throw new Error('Invalid backup JSON format.');
+                            }
+
+                            const replaceMode = window.confirm('Import mode for this user?\nOK = Replace existing user data\nCancel = Append to existing user data');
+                            const result = await apiCall('adminImportUserData', {
+                                userId,
+                                mode: replaceMode ? 'replace' : 'append',
+                                data: importData
+                            }, false);
+
+                            if (result && result._errType) {
+                                throw new Error(result.message || 'User import failed.');
+                            }
+
+                            showToast(`User import completed. Inserted ${result.inserted || 0} record(s).`, 'success');
+                            await initializeApp(false);
+                            if (state.currentPage === 'users') await render.users();
+                        } catch (err) {
+                            console.error('User backup import failed:', err);
+                            showToast(err.message || 'User backup import failed.', 'error');
+                        } finally {
+                            target.value = '';
+                        }
+                        return;
+                    }
+
                     if (target.matches('[data-action="update-result"]')) {
                         const { id } = target.dataset; const newResult = target.value; const trialIndex = state.trials.findIndex(t => t.ID === id); if (trialIndex === -1) return;
                         // Backup before update
@@ -18696,7 +19085,7 @@ Style Guidelines:
                         const isWeed = item.type === 'weed_upload';
 
                         // 1. ATOMIC UPLOAD
-                        if (!state.settings.folderId) throw new Error("Folder ID missing.");
+                        if (!getEffectiveFolderId()) throw new Error("Folder ID missing.");
 
                         const uploadStart = Date.now();
                         console.log(`[Step 1/3] Uploading to Google Drive...`);
