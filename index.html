@@ -15605,6 +15605,7 @@ Style Guidelines:
                 if (progressEl) progressEl.textContent = 'Preparing full rebuild...';
 
                 const trials = state.trials || [];
+                const estimatedPerTrialMs = 120;
                 let updatedTrials = 0;
                 let updatedObs = 0;
                 let skippedNoData = 0;   // no EfficacyDataJSON / no observations
@@ -15648,7 +15649,11 @@ Style Guidelines:
 
                 for (let i = 0; i < trials.length; i++) {
                     const t = trials[i];
-                    if (progressEl) progressEl.textContent = `Rebuilding ${i + 1}/${trials.length}...`;
+                    if (progressEl) {
+                        const remainingMs = Math.max(0, (trials.length - (i + 1)) * estimatedPerTrialMs);
+                        const remainingSec = Math.ceil(remainingMs / 1000);
+                        progressEl.textContent = `Rebuilding ${i + 1}/${trials.length}... about ${remainingSec}s remaining`;
+                    }
 
                     try {
                         const arr = extractEfficacyArrayAny(t.EfficacyDataJSON);
@@ -15663,7 +15668,8 @@ Style Guidelines:
                             continue;
                         }
 
-                        let changed = false;
+                        const originalJson = JSON.stringify(arr);
+                        let changed = JSON.stringify(normalized) !== originalJson;
                         const trialSpecies = getTrialSpecies(t);
 
                         normalized.forEach(obs => {
@@ -15714,12 +15720,13 @@ Style Guidelines:
                             }
                         });
 
-                        if (!changed) {
+                        const newJson = JSON.stringify(normalized);
+
+                        if (!changed && newJson === originalJson) {
                             skippedOkay++;
                             continue;
                         }
 
-                        const newJson = JSON.stringify(normalized);
                         await apiCall('updateTrialRecord', { ID: t.ID, EfficacyDataJSON: newJson }, false);
                         t.EfficacyDataJSON = newJson;
                         updatedTrials++;
