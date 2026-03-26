@@ -1235,25 +1235,8 @@
                     if (daa === null || daa < 0) return;
                     obs.daa = daa;
 
-                    if (obs.phyto !== undefined && obs.phyto !== null && obs.phyto !== '') {
-                        const phyto = toNum(obs.phyto);
-                        if (phyto === null) {
-                            delete obs.phyto;
-                        } else {
-                            obs.phyto = clamp(phyto, 0, 100);
-                        }
-                    }
-
-                    if (obs.phi !== undefined && obs.phi !== null && obs.phi !== '') {
-                        const phi = toNum(obs.phi);
-                        if (phi === null) {
-                            delete obs.phi;
-                        } else {
-                            // Backward compatibility: older observations may store PHI as 0-1.
-                            const normalizedPhi = phi <= 1 ? phi * 100 : phi;
-                            obs.phi = clamp(normalizedPhi, 0, 100);
-                        }
-                    }
+                    if (obs.phyto !== undefined) delete obs.phyto;
+                    if (obs.phi !== undefined) delete obs.phi;
 
                     if (obs.controlPct !== undefined && obs.controlPct !== null && obs.controlPct !== '') {
                         const cp = toNum(obs.controlPct);
@@ -1449,11 +1432,6 @@
              */
             window.extractMetricValue = function (observation, project) {
                 if (!observation) return null;
-
-                // If metric is phytotoxicity
-                if (project.Metric && project.Metric.toLowerCase().includes('phyto')) {
-                    return parseFloat(observation.phyto);
-                }
 
                 // Otherwise use weed cover
                 if (observation.weedDetails && observation.weedDetails.length > 0) {
@@ -1658,14 +1636,14 @@
 
                             const coveragePercent = (vegetationPixels / totalPixels) * 100;
                             const avgVARI = totalVARI / totalPixels;
-                            // PHI (Plant Health Index) mapping: VARI -0.1 to 0.4 -> 0 to 100
-                            const phi = Math.min(100, Math.max(0, ((avgVARI + 0.1) / 0.5) * 100));
+                            // Vegetation index normalization: VARI -0.1 to 0.4 -> 0 to 100
+                            const vegetationIndex = Math.min(100, Math.max(0, ((avgVARI + 0.1) / 0.5) * 100));
                             const confidence = calculateConfidence(totalPixels, width, height);
 
                             resolve({
                                 cover: Math.round(coveragePercent),
                                 vari: avgVARI.toFixed(4),
-                                phi: Math.round(phi),
+                                vegetationIndex: Math.round(vegetationIndex),
                                 confidence: confidence,
                                 mode: greenOnly ? 'green-only' : 'all-vegetation',
                                 breakdown: {
@@ -1847,7 +1825,7 @@ IMPORTANT:
                 const wind = parseFloat(trial.Windspeed || trial.windspeed || trial.wind);
                 const rain = parseFloat(trial.Rain || trial.rain);
                 
-                if (temp > 30) risks.push({ type: 'warning', message: 'Heat Stress Risk (>30°C). May reduce herbicide efficacy or cause crop phytotoxicity.' });
+                if (temp > 30) risks.push({ type: 'warning', message: 'Heat Stress Risk (>30°C). May reduce herbicide efficacy and consistency.' });
                 if (temp < 5) risks.push({ type: 'info', message: 'Cold Stress. Slow plant metabolism may delay herbicide action.' });
                 if (wind > 15) risks.push({ type: 'danger', message: `High Wind (${wind} km/h). Severe risk of spray drift to neighboring crops.` });
                 if (wind > 10 && wind <= 15) risks.push({ type: 'warning', message: 'Moderate Wind. Use low-drift nozzles.' });
@@ -5567,11 +5545,11 @@ IMPORTANT:
                                                 <button data-action="scan-efficacy-data" class="bg-slate-700 text-white px-4 py-2 rounded-lg">Scan Trials</button>
                                                 <button data-action="fix-efficacy-data" class="bg-emerald-600 text-white px-4 py-2 rounded-lg">Auto-Fix Weed Linking</button>
                                                 <button data-action="recalc-grid-covers" class="bg-indigo-600 text-white px-4 py-2 rounded-lg">Recalculate Grid Covers</button>
-                                                <button data-action="rebuild-cover-phi-all" class="bg-amber-600 text-white px-4 py-2 rounded-lg">Rebuild %Cover (All Trials)</button>
+                                                <button data-action="rebuild-cover-all" class="bg-amber-600 text-white px-4 py-2 rounded-lg">Rebuild %Cover (All Trials)</button>
                                                 <div id="efficacy-fix-progress" class="text-sm text-gray-600"></div>
                                             </div>
                                             <div id="grid-recalc-progress" class="mt-3 text-sm text-gray-600"></div>
-                                            <div id="cover-phi-rebuild-progress" class="mt-2 text-sm text-gray-600"></div>
+                                            <div id="cover-rebuild-progress" class="mt-2 text-sm text-gray-600"></div>
                                             <div id="efficacy-scan-summary" class="mt-4"></div>
                                             <div id="efficacy-scan-table" class="mt-4"></div>
                                         </div>
@@ -5947,24 +5925,6 @@ IMPORTANT:
                                     return isFinite(n) ? n : 0;
                                 };
                                 const clamp01 = (v) => Math.max(0, Math.min(100, v));
-                                const normalizePhi = (v) => {
-                                    const n = parseFloat(v);
-                                    if (!isFinite(n)) return null;
-                                    return clamp01(n <= 1 ? n * 100 : n);
-                                };
-                                const formatPhi = (v) => {
-                                    const n = normalizePhi(v);
-                                    return n === null ? '—' : n.toFixed(1);
-                                };
-                                const phiBadgeClass = (v) => {
-                                    if (v === '—') return '';
-                                    const n = parseFloat(v);
-                                    if (!isFinite(n)) return '';
-                                    if (n < 40) return 'bg-red-50 text-red-700 border-red-200';
-                                    if (n < 70) return 'bg-amber-50 text-amber-700 border-amber-200';
-                                    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                                };
-
                                 const weedDetails = Array.isArray(obs.weedDetails) ? obs.weedDetails : [];
                                 const derivedTotalCover = clamp01(window.computeObservationTotalCover(obs, trial) ?? 0);
                                 const hasStoredCover = obs.weedCover !== undefined && obs.weedCover !== null && obs.weedCover !== '';
@@ -5977,8 +5937,6 @@ IMPORTANT:
                                         const coverCell = idx === 0 && displayCover !== undefined
                                             ? `<span class="px-2 py-1 bg-slate-100 text-slate-800 rounded font-semibold">Total ${displayCover.toFixed(1)}%</span> <span class="text-xs text-gray-400">(${sanitizeHTML(displayCoverMode) || 'auto'})</span>`
                                             : '<span class="text-gray-300">—</span>';
-                                        const phiValue = formatPhi(obs.phi);
-                                        const phiCell = idx === 0 && phiValue !== '—' ? `<span class="px-2 py-1 rounded shadow-sm border font-bold ${phiBadgeClass(phiValue)}">${phiValue}</span>` : '<span class="text-gray-300">—</span>';
                                         const statusText = idx === 0 ? String(obs.weedStatus || obs.status || '—') : '—';
                                         const notesText = idx === 0 ? String(obs.notes || '') : '';
                                         const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">📐</button>` : '';
@@ -7127,30 +7085,11 @@ IMPORTANT:
                         "Plane Map": googleStandard
                     }).addTo(map);
 
-                    // PHI color helper
-                    const phiColor = (phi) => {
-                        const v = parseFloat(phi);
-                        if (!isFinite(v)) return '#94a3b8';
-                        const normalized = Math.max(0, Math.min(100, v <= 1 ? v * 100 : v));
-                        if (normalized >= 70) return '#22c55e';  // Healthy
-                        if (normalized >= 40) return '#f59e0b'; // Moderate
-                        return '#ef4444';                 // Stressed
-                    };
-
                     // Add markers
                     geoTrials.forEach(trial => {
                         const lat = parseFloat(trial.Lat);
                         const lon = parseFloat(trial.Lon);
-                        const efficacyData = safeJsonParse(trial.EfficacyDataJSON);
-                        const latestObs = efficacyData.length > 0 ? efficacyData[efficacyData.length - 1] : null;
-                        const phi = latestObs?.phi;
-
-                        let color;
-                        if (colorMode === 'phi') {
-                            color = phiColor(phi);
-                        } else {
-                            color = resultColors[trial.Result || ''] || '#94a3b8';
-                        }
+                        const color = resultColors[trial.Result || ''] || '#94a3b8';
 
                         const circle = L.circleMarker([lat, lon], {
                             radius: 12,
@@ -7162,9 +7101,6 @@ IMPORTANT:
                             className: 'shadow-lg dropdown' // Adding a slight shadow effect if Leaflet allows
                         }).addTo(map);
 
-                        const phiNum = parseFloat(phi);
-                        const phiNormalized = isFinite(phiNum) ? Math.max(0, Math.min(100, phiNum <= 1 ? phiNum * 100 : phiNum)) : null;
-                        const phiStr = phiNormalized !== null ? phiNormalized.toFixed(1) : 'N/A';
                         circle.bindPopup(`
                             <div style="min-width:180px;font-family:Outfit,sans-serif;">
                                 <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${sanitizeHTML(trial.FormulationName || 'Unknown')}</div>
@@ -7752,12 +7688,6 @@ IMPORTANT:
                                  Detailed Safety & Species Analysis
                              </h3>
                              <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                                 <div>
-                                     <h4 class="text-sm font-semibold text-slate-500 mb-4 text-center">Phytotoxicity (Crop Safety) Over Time</h4>
-                                     <div class="h-[300px]">
-                                         <canvas id="project-phyto-chart"></canvas>
-                                     </div>
-                                 </div>
                                  <div>
                                       <h4 class="text-sm font-semibold text-slate-500 mb-4 text-center">Weed Cover by Species (Final)</h4>
                                       <div class="h-[300px]">
@@ -9688,7 +9618,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 card.querySelector('.obs-date').value = data.date ? new Date(data.date).toISOString().split('T')[0] : '';
                 card.querySelector('.obs-daa').value = data.daa || '';
                 card.querySelector('.obs-control').value = data.controlPct ?? data.control ?? '';
-                card.querySelector('.obs-phyto').value = data.phyto || '';
                 card.querySelector('.obs-notes').value = data.notes || '';
                 const baselineEl = card.querySelector('.obs-baseline');
                 if (baselineEl) {
@@ -9701,29 +9630,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     addWeedCoverRow(card); // Add one default empty row
                 }
 
-                // MODULE 1: Biological Validator Integration
-                const phytoInput = card.querySelector('.obs-phyto');
-                if (phytoInput) {
-                    phytoInput.addEventListener('blur', function (e) {
-                        const newValue = parseFloat(e.target.value);
-                        if (isNaN(newValue) || newValue < 0 || newValue > 100) return;
-
-                        // Get all existing phyto values from same treatment
-                        const allObsCards = document.querySelectorAll('.observation-card');
-                        const existingValues = [];
-                        allObsCards.forEach(c => {
-                            if (c === card) return; // Skip current card
-                            const val = parseFloat(c.querySelector('.obs-phyto')?.value);
-                            if (!isNaN(val)) existingValues.push(val);
-                        });
-
-                        // Validate
-                        const validation = biologicalValidator.validateValue(newValue, existingValues);
-                        if (!validation.valid) {
-                            biologicalValidator.showWarning(validation);
-                        }
-                    });
-                }
+                // No phyto validator needed in non-selective workflow.
 
                 lucide.createIcons();
 
@@ -9782,10 +9689,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     const obs = data[i];
                     if (obs.daa < 0) return `Observation ${i + 1}: DA-A cannot be negative. check dates.`;
 
-                    if (obs.phyto !== null && (obs.phyto < 0 || obs.phyto > 100)) {
-                        return `Observation ${i + 1}: Phytotoxicity must be between 0 and 100.`;
-                    }
-
                     if (obs.weedDetails) {
                         for (const weed of obs.weedDetails) {
                             if (weed.cover !== null && (weed.cover < 0 || weed.cover > 100)) {
@@ -9815,7 +9718,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 document.querySelectorAll('#trial-modal .observation-card').forEach(card => {
                     const date = card.querySelector('.obs-date').value;
                     const daa = card.querySelector('.obs-daa').value;
-                    const phyto = card.querySelector('.obs-phyto').value;
                     const controlPct = card.querySelector('.obs-control')?.value;
                     const notes = card.querySelector('.obs-notes').value;
                     const isBaseline = !isProjectPlot ? !!card.querySelector('.obs-baseline')?.checked : false;
@@ -9838,12 +9740,11 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     });
 
                     // Only add the observation if it has any meaningful data
-                    if (date || daa || phyto || controlPct || notes || weedDetails.some(wd => wd.species || wd.cover != null)) {
+                    if (date || daa || controlPct || notes || weedDetails.some(wd => wd.species || wd.cover != null)) {
                         data.push({
                             date,
                             daa: daa ? parseInt(daa, 10) : null,
                             controlPct: controlPct ? parseFloat(controlPct) : null,
-                            phyto: phyto ? parseFloat(phyto) : null,
                             notes: notes.trim(),
                             isBaseline,
                             weedDetails
@@ -10682,8 +10583,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     if (!fileData || typeof fileData !== 'string' || !fileData.includes(',')) {
                         throw new Error("Invalid image data provided for analysis.");
                     }
-                    const prompt = `As an agricultural expert analyzing a photo from a herbicide trial, provide your best estimate for the following metrics. For weedStatus, identify up to 2 dominant weed species visible and describe their status. Respond ONLY with a single minified JSON object in this exact format: {"percentPhytotoxicity": NUMBER, "weedDetails": [{"species": "...", "cover": NUMBER, "status": "Controlled|Burndown|Re-emerged|Resistant|Unaffected", "notes": "..."}]}.
-                    - "percentPhytotoxicity": Estimate the visible damage (discoloration, necrosis, wilting) to the weeds as a percentage (0-100).
+                    const prompt = `As an agricultural expert analyzing a photo from a herbicide trial, identify up to 2 dominant weed species and estimate their cover/status. Respond ONLY with a single minified JSON object in this exact format: {"weedDetails": [{"species": "...", "cover": NUMBER, "status": "Controlled|Burndown|Re-emerged|Resistant|Unaffected", "notes": "..."}]}.
                     - "weedDetails": An array of objects.
                     - "species": The scientific or common name of the weed.
                     - "cover": Estimate the percentage of the ground covered by this specific weed species (0-100).
@@ -10698,7 +10598,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             responseSchema: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    percentPhytotoxicity: { type: Type.NUMBER },
                                     weedDetails: {
                                         type: Type.ARRAY,
                                         items: {
@@ -10713,7 +10612,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                                         }
                                     }
                                 },
-                                required: ["percentPhytotoxicity", "weedDetails"]
+                                required: ["weedDetails"]
                             }
                         }
                     });
@@ -10736,7 +10635,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         weedCoverEstimate = {
                             cover: coverResult.cover,
                             vari: coverResult.vari,
-                            phi: coverResult.phi,
+                            vegetationIndex: coverResult.vegetationIndex,
                             confidence: coverResult.confidence,
                             source: 'offline',
                             mode: coverResult.mode,
@@ -10750,7 +10649,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
                     const parsed = JSON.parse(aiResponseText);
                     return {
-                        phyto: parsed.percentPhytotoxicity || 0,
                         weedDetails: parsed.weedDetails || [],
                         weedCoverEstimate: weedCoverEstimate
                     };
@@ -11558,7 +11456,6 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                     newEfficacyObservations.push({
                                         date: observationDate.toISOString().split('T')[0],
                                         daa: daa >= 0 ? daa : 0,
-                                        phyto: analysisResult.phyto,
                                         notes: `AI analysis from photo on ${observationDate.toLocaleDateString()}`,
                                         photoUrl: photo.url,
                                         weedDetails: analysisResult.weedDetails,
@@ -11717,7 +11614,6 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                         newEfficacyObservations.push({
                                             date: observationDate.toISOString().split('T')[0],
                                             daa: daa >= 0 ? daa : 0,
-                                            phyto: analysisResult.phyto,
                                             notes: `AI analysis from photo on ${observationDate.toLocaleDateString()}`,
                                             photoUrl: photo.url,
                                             weedDetails: analysisResult.weedDetails,
@@ -12065,7 +11961,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         'scan-efficacy-data': () => renderEfficacyRepairScan(),
                         'fix-efficacy-data': () => autoFixWeedLinking(),
                         'recalc-grid-covers': () => recalcGridCovers(),
-                        'rebuild-cover-phi-all': () => rebuildCoverAndPhiAllTrials(),
+                        'rebuild-cover-all': () => rebuildCoverAllTrials(),
                         'import-data': handleImport,
                         'clear-data': () => clearAllData(true),
                         'force-reload': () => { showToast('Clearing cache & reloading...', 'success'); localStorage.clear(); setTimeout(() => window.location.reload(), 1500); },
@@ -12905,9 +12801,9 @@ Respond ONLY with a single minified JSON object in this format: {"identification
             /**
              * Calculate ANOVA for RCBD experiment
              * @param {Array} trials - All trials in the project (must have ProjectID, Replication, TreatmentNumber)
-             * @param {String} metric - 'wce', 'cover', or 'phyto'
+             * @param {String} metric - 'wce' or 'cover'
              * @param {String} species - For WCE, which weed species to analyze (null = average all)
-             * @param {Number} daa - For cover/phyto, which observation day to analyze
+             * @param {Number} daa - For cover, which observation day to analyze
              * @returns {Object} ANOVA table and diagnostic stats
              */
             function calculateRCBD_ANOVA(trials, metric = 'wce', species = null, daa = null) {
@@ -12945,20 +12841,16 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                 value = stats.wce.reduce((sum, w) => sum + w.wce, 0) / stats.wce.length;
                             }
                         }
-                    } else if (metric === 'cover' || metric === 'phyto') {
+                    } else if (metric === 'cover') {
                         const observation = efficacyData.find(obs => parseFloat(obs.daa) === daa);
                         if (observation) {
-                            if (metric === 'phyto') {
-                                value = parseFloat(observation.phyto);
+                            // Average cover across species or specific species
+                            if (species) {
+                                const weed = observation.weedDetails.find(w => w.species === species);
+                                value = weed ? parseFloat(weed.cover) : null;
                             } else {
-                                // Average cover across species or specific species
-                                if (species) {
-                                    const weed = observation.weedDetails.find(w => w.species === species);
-                                    value = weed ? parseFloat(weed.cover) : null;
-                                } else {
-                                    const covers = observation.weedDetails.map(w => parseFloat(w.cover));
-                                    value = covers.reduce((sum, c) => sum + c, 0) / covers.length;
-                                }
+                                const covers = observation.weedDetails.map(w => parseFloat(w.cover));
+                                value = covers.reduce((sum, c) => sum + c, 0) / covers.length;
                             }
                         }
                     }
@@ -13324,7 +13216,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const chartData = prepareTrialChartData(trial);
                 if (!chartData) return;
 
-                const { coverDatasets, coverChartOptions, phytoData, phytoChartOptions } = chartData;
+                const { coverDatasets, coverChartOptions } = chartData;
 
                 const coverCtx = document.getElementById(coverCanvasId);
                 if (coverCtx) {
@@ -13337,33 +13229,21 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     });
                 }
 
-                const phytoCtx = document.getElementById(phytoCanvasId);
-                if (phytoCtx && phytoData && phytoData.data && phytoData.data.length > 0) {
-                    const existingPhyto = Chart.getChart(phytoCtx);
-                    if (existingPhyto) existingPhyto.destroy();
-                    new Chart(phytoCtx, {
-                        type: 'line',
-                        data: { datasets: [phytoData] },
-                        options: { ...phytoChartOptions, responsive: true, maintainAspectRatio: false }
-                    });
-                }
+                // Non-selective workflow: secondary canvas is intentionally unused.
             }
 
             // Main render function for trial details — delegates to the authoritative prepareTrialChartData
             function renderSingleTrialCharts(trial) {
                 if (!trial) return;
                 if (state.charts.singleCoverChart) state.charts.singleCoverChart.destroy();
-                if (state.charts.singlePhytoChart) state.charts.singlePhytoChart.destroy();
                 state.charts.singleCoverChart = null;
-                state.charts.singlePhytoChart = null;
 
                 const coverCtx = document.getElementById('single-cover-chart');
-                const phytoCtx = document.getElementById('single-phyto-chart');
 
                 const chartData = prepareTrialChartData(trial);
                 if (!chartData) return;
 
-                const { coverDatasets, coverChartOptions, phytoData, phytoChartOptions } = chartData;
+                const { coverDatasets, coverChartOptions } = chartData;
 
                 if (coverCtx && coverDatasets && coverDatasets.length > 0 && coverDatasets.some(ds => ds.data.length > 0)) {
                     state.charts.singleCoverChart = new Chart(coverCtx, {
@@ -13377,17 +13257,6 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     });
                 }
 
-                if (phytoCtx && phytoData && phytoData.data && phytoData.data.length > 0) {
-                    state.charts.singlePhytoChart = new Chart(phytoCtx, {
-                        type: 'line',
-                        data: { datasets: [phytoData] },
-                        options: {
-                            ...phytoChartOptions,
-                            responsive: true,
-                            maintainAspectRatio: false
-                        }
-                    });
-                }
             }
 
             // Cache for AI summaries to avoid duplicate API calls
@@ -14425,17 +14294,16 @@ Style Guidelines:
                     trialDesign: '2. Trial Design & Methods',
                     statistical: '3. Statistical Analysis Results',
                     efficacy: '4. Efficacy Analysis',
-                    phytotoxicity: '5. Phytotoxicity Analysis',
-                    timeline: '6. Weed Status Timeline',
-                    photo: '7. Photo Documentation',
-                    weedIdentification: '8. Weed Identification'
+                    timeline: '5. Weed Status Timeline',
+                    photo: '6. Photo Documentation',
+                    weedIdentification: '7. Weed Identification'
                 },
                 project: {
                     executiveSummary: '1. Executive Summary',
                     trialDesign: '2. Trial Design & Methods',
                     statistical: '3. Statistical Analysis Results',
                     efficacy: '4. Efficacy Visualization',
-                    detailed: '5. Detailed Safety & Species Analysis',
+                    detailed: '5. Detailed Species Analysis',
                     weather: '6. Weather Correlation',
                     photo: '7. Photo Documentation'
                 }
@@ -15504,8 +15372,8 @@ Style Guidelines:
                 showToast(`Grid recalculation complete. Updated trials ${updatedTrials}.`, updatedTrials > 0 ? 'success' : 'info');
             }
 
-            async function rebuildCoverAndPhiAllTrials() {
-                const progressEl = document.getElementById('cover-phi-rebuild-progress');
+            async function rebuildCoverAllTrials() {
+                const progressEl = document.getElementById('cover-rebuild-progress');
                 if (progressEl) progressEl.textContent = 'Preparing full rebuild...';
 
                 const trials = state.trials || [];
@@ -15587,15 +15455,6 @@ Style Guidelines:
                                 }
                             }
 
-                            const oldPhi = toNum(obs?.phi);
-                            if (oldPhi !== null) {
-                                const phiNorm = clamp01(oldPhi <= 1 ? oldPhi * 100 : oldPhi);
-                                if (oldPhi !== phiNorm) {
-                                    obs.phi = round1(phiNorm);
-                                    obsChanged = true;
-                                }
-                            }
-
                             const mode = String(obs?.weedCoverMode || '').toLowerCase();
                             const cells = Array.isArray(obs?.weedCoverGridCells) ? obs.weedCoverGridCells : null;
 
@@ -15659,7 +15518,7 @@ Style Guidelines:
                 if (trials.length === 0) return showToast('Please select trials to export.', 'error');
 
                 // CSV Header
-                let csvContent = "Formulation,Investigator,Date,Dosage,Cost/ha,Result,Weed Species,Weather,AI Cover,AI Phyto\n";
+                let csvContent = "Formulation,Investigator,Date,Dosage,Cost/ha,Result,Weed Species,Weather,AI Cover\n";
 
                 trials.forEach(t => {
                     const f = state.formulations.find(f => f.ID === t.FormulationID);
@@ -15676,8 +15535,7 @@ Style Guidelines:
                         clean(t.Result),
                         clean(t.WeedSpecies),
                         clean(`${t.Temperature || ''}C ${t.Rain || ''}mm`),
-                        clean(ai.cover),
-                        clean(ai.phyto)
+                        clean(ai.cover)
                     ].join(',') + "\n";
                 });
 
@@ -15765,7 +15623,7 @@ Style Guidelines:
                 if (!weedSelect) return;
 
                 const selectedWeed = weedSelect.value;
-                const metric = metricSelect ? metricSelect.value : 'cover'; // 'cover' or 'phyto'
+                const metric = 'cover';
 
                 // --- 1. CHART RENDERING ---
                 if (!selectedWeed && metric === 'cover') {
@@ -15783,25 +15641,18 @@ Style Guidelines:
                         const efficacy = safeJsonParse(t.EfficacyDataJSON, []);
                         let dataPoints = [];
 
-                        if (metric === 'phyto') {
-                            dataPoints = efficacy.map(obs => {
-                                const val = obs.phyto !== undefined && obs.phyto !== null ? obs.phyto : (obs.phytotoxicity !== undefined && obs.phytotoxicity !== null ? obs.phytotoxicity : 0);
-                                return { x: parseFloat(obs.daa), y: parseFloat(val || 0) };
-                            }).filter(p => !isNaN(p.x) && !isNaN(p.y)).sort((a, b) => a.x - b.x);
-                        } else {
-                            dataPoints = efficacy.map(obs => {
-                                // Try to find in weedDetails first
-                                let cover = null;
-                                const detail = (obs.weedDetails || []).find(d => (d.species || '').trim() === selectedWeed);
-                                if (detail) {
-                                    cover = detail.cover;
-                                } else if (selectedWeed === (t.WeedSpecies || 'Unknown').split(',')[0].trim()) {
-                                    // Fallback to legacy top-level cover fields if the weed matches the main trial weed
-                                    cover = obs.weedCover !== undefined ? obs.weedCover : (obs.cover !== undefined ? obs.cover : null);
-                                }
-                                return cover !== null ? { x: parseFloat(obs.daa), y: parseFloat(cover) } : null;
-                            }).filter(Boolean).sort((a, b) => a.x - b.x);
-                        }
+                        dataPoints = efficacy.map(obs => {
+                            // Try to find in weedDetails first
+                            let cover = null;
+                            const detail = (obs.weedDetails || []).find(d => (d.species || '').trim() === selectedWeed);
+                            if (detail) {
+                                cover = detail.cover;
+                            } else if (selectedWeed === (t.WeedSpecies || 'Unknown').split(',')[0].trim()) {
+                                // Fallback to legacy top-level cover fields if the weed matches the main trial weed
+                                cover = obs.weedCover !== undefined ? obs.weedCover : (obs.cover !== undefined ? obs.cover : null);
+                            }
+                            return cover !== null ? { x: parseFloat(obs.daa), y: parseFloat(cover) } : null;
+                        }).filter(Boolean).sort((a, b) => a.x - b.x);
 
                         const colors = ['#0d9488', '#d97706', '#2563eb', '#dc2626', '#7c3aed', '#db2777'];
                         return {
@@ -15822,7 +15673,7 @@ Style Guidelines:
                             maintainAspectRatio: false,
                             scales: {
                                 x: { type: 'linear', title: { display: true, text: 'Days After Application (DA-A)' } },
-                                y: { beginAtZero: true, max: 100, title: { display: true, text: metric === 'phyto' ? '% Phytotoxicity' : '% Cover' } }
+                                y: { beginAtZero: true, max: 100, title: { display: true, text: '% Cover' } }
                             },
                             plugins: {
                                 legend: { position: 'top' },
@@ -15831,8 +15682,7 @@ Style Guidelines:
                         }
                     });
 
-                    const metricTitle = metric === 'phyto' ? '% Phytotoxicity Comparison' : `% Cover Comparison: ${selectedWeed}`;
-                    document.getElementById('compare-chart-title').textContent = metricTitle;
+                    document.getElementById('compare-chart-title').textContent = `% Cover Comparison: ${selectedWeed}`;
                 }
 
                 // --- 2. TABLE RENDERING ---
@@ -16393,7 +16243,6 @@ Style Guidelines:
                             efficacyData.push({
                                 date: observationDate.toISOString().split('T')[0],
                                 daa,
-                                phyto: efficacyResult.phyto,
                                 notes: `AI analysis from photo taken on ${observationDate.toLocaleDateString()}`,
                                 photoUrl: photo.url,
                                 weedDetails: efficacyResult.weedDetails,
@@ -16814,13 +16663,6 @@ Style Guidelines:
                     }
 
                     // --- CAPTURE NEW DETAILED CHARTS ---
-
-                    // 3. Phytotoxicity Chart
-                    const phytoCanvas = document.createElement('canvas');
-                    phytoCanvas.width = 1600;
-                    phytoCanvas.height = 800;
-                    tempDiv.appendChild(phytoCanvas);
-
                     const engine = new AnalysisEngine(projectId, state);
                     const allDaas = new Set();
                     engine.trials.forEach(t => {
@@ -16828,42 +16670,7 @@ Style Guidelines:
                         eff.forEach(e => allDaas.add(e.daa));
                     });
                     const sortedDaas = [...allDaas].sort((a, b) => a - b);
-
-                    if (sortedDaas.length > 0) {
-                        const phytoDatasets = engine.treatments.map((tName, i) => {
-                            const data = sortedDaas.map(d => {
-                                const repValues = engine.getData('phyto', null, parseInt(d))[tName];
-                                return repValues ? jStat.mean(repValues) : 0;
-                            });
-                            return {
-                                label: tName,
-                                data: data,
-                                borderColor: colors[i % colors.length],
-                                backgroundColor: colors[i % colors.length] + '33',
-                                tension: 0.3,
-                                borderWidth: 3,
-                                pointRadius: 3
-                            };
-                        });
-
-                        new Chart(phytoCanvas, {
-                            type: 'line',
-                            data: { labels: sortedDaas.map(d => `${d} DAA`), datasets: phytoDatasets },
-                            options: {
-                                responsive: false, animation: false,
-                                plugins: {
-                                    title: { display: true, text: 'Phytotoxicity (Crop Safety) Over Time', font: { size: 32, weight: 'bold' } },
-                                    legend: { position: 'right', labels: { font: { size: 20 } } }
-                                },
-                                scales: {
-                                    y: { min: 0, max: 10, title: { display: true, text: 'Score (0-10)', font: { size: 24 } }, ticks: { font: { size: 18 } } },
-                                    x: { ticks: { font: { size: 18 } } }
-                                }
-                            }
-                        });
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        chartImages.phytoTimeline = phytoCanvas.toDataURL('image/png');
-                    }
+                    chartImages.phytoTimeline = null;
 
                     // 4. Species Cover Chart
                     const speciesCanvas = document.createElement('canvas');
@@ -17455,7 +17262,7 @@ Style Guidelines:
                 // --- 13. DETAILED ANALYSIS + WEATHER ---
 
                 // NEW SECTION: Detailed Charts
-                if (settings.detailed && (chartImages.phytoTimeline || chartImages.speciesCover || chartImages.radarSpectrum || chartImages.yieldChart)) {
+                if (settings.detailed && (chartImages.speciesCover || chartImages.radarSpectrum || chartImages.yieldChart)) {
                     addFooter();
                     doc.addPage();
                     y = margin;
@@ -17466,11 +17273,6 @@ Style Guidelines:
                     doc.text(REPORT_SECTIONS.project.detailed, margin, y);
                     doc.setTextColor(0);
                     y += 10;
-
-                    if (chartImages.phytoTimeline) {
-                        doc.addImage(chartImages.phytoTimeline, 'PNG', margin, y, 170, 85);
-                        y += 95;
-                    }
 
                     if (chartImages.speciesCover) {
                         checkPageBreak(90);
@@ -18056,7 +17858,7 @@ Style Guidelines:
 
                 // 1. Unhide %Cover section
                 document.getElementById('cover-report-section').classList.remove('hidden');
-                // Phytotoxicity section not shown (non-selective herbicide — no crop to protect)
+                // Crop-safety section intentionally omitted for non-selective herbicide workflow.
 
                 // 2. Render cover chart IMMEDIATELY
                 setTimeout(() => {
@@ -18134,7 +17936,7 @@ Style Guidelines:
                         const coverCanvas = document.getElementById('preview-cover-canvas');
                         const chartImages = {
                             cover: coverCanvas ? coverCanvas.toDataURL('image/png') : null,
-                            phyto: null
+                            secondary: null
                         };
                         const showPhotoDates = document.getElementById('show-photo-dates')?.checked || state.settings.showPhotoDates;
                         const withTimeline = document.getElementById('include-timeline')?.checked || state.settings.includeTimeline;
@@ -19380,7 +19182,6 @@ Style Guidelines:
                                                     // Update existing observation
                                                     eData[existingIdx].weedCover = coverResult.cover;
                                                     eData[existingIdx].vari = coverResult.vari;
-                                                    eData[existingIdx].phi = coverResult.phi;
                                                     eData[existingIdx].weedCoverMode = 'auto';
                                                     eData[existingIdx].photoUrl = publicUrl;
                                                     console.log(`[Weed Cover] Updated existing obs with ${coverResult.cover}%`);
@@ -19389,7 +19190,6 @@ Style Guidelines:
                                                     eData.push({
                                                         date: obsDate.toISOString().split('T')[0],
                                                         daa: daa >= 0 ? daa : 0,
-                                                        phyto: null,
                                                         notes: 'Weed cover detected from photo',
                                                         photoUrl: publicUrl,
                                                         weedCover: coverResult.cover,
@@ -19424,7 +19224,6 @@ Style Guidelines:
                                                 const newObs = {
                                                     date: obsDate.toISOString().split('T')[0],
                                                     daa: daa >= 0 ? daa : 0,
-                                                    phyto: eff.phyto,
                                                     notes: `AI analysis from photo taken on ${obsDate.toLocaleDateString()}`,
                                                     photoUrl: publicUrl,
                                                     weedDetails: eff.weedDetails
@@ -20703,7 +20502,6 @@ Respond in structured JSON format:
                         const eff = safeJsonParse(r.EfficacyDataJSON, []);
                         if (eff.length === 0) return 0;
                         const lastObs = eff.sort((a, b) => b.daa - a.daa)[0];
-                        if (metric === 'phyto') return parseFloat(lastObs.phyto || 0);
                         if (metric === 'cover') {
                             if (species) {
                                 const w = (lastObs.weedDetails || []).find(d => d.species === species);
@@ -21003,7 +20801,6 @@ Respond in structured JSON format:
                             if (r.trialId) {
                                 if (metric === 'yield') return r.yield || 0;
                                 if (metric === 'cover') return r.cover || 0;
-                                if (metric === 'phyto') return r.phyto || 0;
                                 return 0;
                             }
                             
@@ -21013,7 +20810,6 @@ Respond in structured JSON format:
                             if (eff.length === 0) return 0;
                             let obs = daa !== null ? (eff.find(e => e.daa === daa) || eff[eff.length - 1]) : eff.sort((a, b) => b.daa - a.daa)[0];
                             if (!obs) return 0;
-                            if (metric === 'phyto') return parseFloat(obs.phyto || 0);
                             if (metric === 'cover') {
                                 if (species) {
                                     const d = (obs.weedDetails || []).find(w => w.species === species);
@@ -21709,8 +21505,7 @@ PLOT INFO:
 TASK:
 1. Identify weed species (common names)
 2. Estimate % ground cover per species (0-100)
-3. Estimate crop phytotoxicity % (0-100)
-4. Rate confidence (LOW/MEDIUM/HIGH)
+3. Rate confidence (LOW/MEDIUM/HIGH)
 
 RESPOND WITH JSON ONLY (no markdown, no explanation):
 {
@@ -21718,7 +21513,6 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
     {"species": "Crabgrass", "cover": 25},
     {"species": "Pigweed", "cover": 10}
   ],
-  "phytotoxicity": 5,
   "confidence": "HIGH",
   "notes": "Clear photo"
 }`;
@@ -22012,7 +21806,6 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 const newObservation = {
                     date: new Date().toISOString().split('T')[0],
                     daa: daa,
-                    phyto: aiData.phytotoxicity || 0,
                     weedDetails: aiData.weeds || [],
                     notes: aiData.notes || `AI-analyzed on ${new Date().toLocaleDateString()}`,
                     status: aiData.status || 'Analyzed',
@@ -22022,16 +21815,11 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 efficacyData.push(newObservation);
                 console.log('➕ Added new observation:', newObservation);
 
-                // Calculate Result field for RCBD chart compatibility
-                // For weeds with 0% cover (all dead), use high phytotoxicity value
+                // Calculate Result field for RCBD chart compatibility.
                 let resultValue = 0;
                 if (aiData.weeds && aiData.weeds.length > 0) {
                     // Average cover % from all detected weeds
                     resultValue = aiData.weeds.reduce((sum, w) => sum + (w.cover || 0), 0) / aiData.weeds.length;
-                } else {
-                    // Always return a value to make the bar visible
-                    // 100 - Phyto (e.g., 90% Phyto -> 10 Result)
-                    resultValue = 100 - (aiData.phytotoxicity || 0);
                 }
 
                 console.log(`📈 Calculated Result value: ${resultValue.toFixed(2)}`);
@@ -22412,58 +22200,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
 
         function renderSecondaryCharts(project) {
             try {
-                // 1. PHYTOTOXICITY CHART
-                const ctxPhyto = document.getElementById('project-phyto-chart');
-                if (ctxPhyto) {
-                    const engine = new AnalysisEngine(project.ID, state);
-
-                    // Extract all unique DAAs from trial data
-                    const allDaas = new Set();
-                    engine.trials.forEach(t => {
-                        const eff = safeJsonParse(t.EfficacyDataJSON, []);
-                        eff.forEach(e => allDaas.add(e.daa));
-                    });
-                    const sortedDaas = [...allDaas].sort((a, b) => a - b);
-
-                    if (sortedDaas.length > 0 && engine.treatments.length > 0) {
-                        const datasets = engine.treatments.map((tName, i) => {
-                            const data = sortedDaas.map(d => {
-                                const repValues = engine.getData('phyto', null, parseInt(d))[tName];
-                                return repValues && repValues.length > 0 ? jStat.mean(repValues) : 0;
-                            });
-
-                            const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
-                            return {
-                                label: tName,
-                                data: data,
-                                borderColor: colors[i % colors.length],
-                                backgroundColor: colors[i % colors.length] + '33',
-                                borderWidth: 2,
-                                tension: 0.3,
-                                pointRadius: 4
-                            };
-                        });
-
-                        new Chart(ctxPhyto, {
-                            type: 'line',
-                            data: { labels: sortedDaas.map(d => `${d} DAA`), datasets: datasets },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    title: { display: false },
-                                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
-                                },
-                                scales: {
-                                    x: { title: { display: true, text: 'Days After Application' } },
-                                    y: { min: 0, max: 10, title: { display: true, text: 'Phytotoxicity Score (0-10)' } }
-                                }
-                            }
-                        });
-                    }
-                }
-
-                // 2. SPECIES COVER CHART (Stacked Bar)
+                // 1. SPECIES COVER CHART (Stacked Bar)
                 const ctxSpecies = document.getElementById('project-species-chart');
                 if (ctxSpecies) {
                     const engine = new AnalysisEngine(project.ID, state);
@@ -22888,7 +22625,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
 
             showToast('Running data quality audit...', 'info');
             const issues = [];
-            const metric = project.Metric || 'phyto';
+            const metric = project.Metric || 'cover';
 
             // Get all trials for this project
             const trials = state.trials.filter(t => t.ProjectID === projectId);
@@ -22906,7 +22643,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     const eff = safeJsonParse(rep.EfficacyDataJSON, []);
                     if (eff.length === 0) return;
                     const obs = eff.sort((a, b) => b.daa - a.daa)[0];
-                    const val = parseFloat(obs.phyto || 0);
+                    const val = window.computeObservationTotalCover(obs, rep);
 
                     // Get Photo (Closest to Obs Date)
                     const photos = safeJsonParse(rep.PhotoURLs, []);
@@ -23345,12 +23082,10 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     // 1.1 BIOLOGICAL CONTEXT
                     const allTrials = state.trials.filter(t => t.ProjectID === projectId);
                     const weedSpecies = new Set();
-                    let maxPhyto = 0;
                     allTrials.forEach(t => {
                         const eff = typeof t.EfficacyDataJSON === 'string' ? JSON.parse(t.EfficacyDataJSON) : (t.EfficacyDataJSON || []);
                         eff.forEach(e => {
                             if (e.weedDetails) e.weedDetails.forEach(w => weedSpecies.add(w.species));
-                            if (e.phyto > maxPhyto) maxPhyto = e.phyto;
                         });
                     });
 
@@ -23362,7 +23097,6 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
 
                     context += `\nSCIENTIFIC CONTEXT:\n`;
                     context += `- Target Weed Species: ${[...weedSpecies].join(', ') || 'General Weed Pressure'}\n`;
-                    context += `- Observed Crop Phytotoxicity (Max): ${maxPhyto}/10\n`;
                     context += `- Statistical Significance (P-Value): ${pValue}\n`;
                     context += `- Experimental Precision (CV): ${cvValue}%\n`;
 
@@ -23403,7 +23137,7 @@ Technical description of experiment design (RCBD), target species, and aim.
 Deep dive into treatment performance. Reference specific mean values of ${project.Metric}. Discuss P-value and CV reliability.
 
 **Conclusions**
-Specific agronomic recommendation based on data trends, including crop safety (phytotoxicity).`;
+Specific agronomic recommendation based on treatment performance trends and weed suppression outcomes.`;
 
             try {
                 const conclusion = await window.aiAnalyzer.generateText(prompt);
@@ -23461,7 +23195,6 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                         if (rep && rep.observations) {
                             // Find the observation matching this metric
                             const obs = rep.observations.find(o => {
-                                if (issue.metric === 'phyto') return o.phyto !== undefined;
                                 if (issue.metric === 'cover') return o.cover !== undefined;
                                 return false;
                             });
@@ -23480,11 +23213,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                                     // Note: 'obs' above is from project.treatments. 'eData' is raw array.
                                     // We need to match by timestamp or property.
                                     const match = eData.find(e => {
-                                        // Match by loosely comparing values or timestamp if available
-                                        // If we changed Phyto:
-                                        if (issue.metric === 'phyto') return e.phyto == obs.phyto || e.daa == obs.daa;
-                                        // This value match is risky because we just changed 'obs'!
-                                        // Better to use DAA and/or Date if available.
+                                        // Match by DAA for cover updates.
                                         return e.daa == obs.daa;
                                     });
 
@@ -23626,7 +23355,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                 });
                 charts.cover = coverCanvas.toDataURL('image/png');
 
-                // Non-selective workflow: no phytotoxicity chart generation.
+                // Non-selective workflow: no secondary safety chart generation.
                 charts.phyto = null;
 
             } catch (err) {
@@ -23788,10 +23517,9 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                 // 1. Prepare Data & Charts
                 const chartImages = await generateScientificCharts(trial);
                 const coverChartImg = chartImages.cover;
-                const phytoChartImg = chartImages.phyto;
 
                 // 2. Generate HTML Content
-                const contentHtml = await generateScientificHTML(trial, coverChartImg, phytoChartImg, options);
+                const contentHtml = await generateScientificHTML(trial, coverChartImg, options);
 
                 // 3. Convert to DOCX
                 const fullHtml = `<!DOCTYPE html>
@@ -23958,40 +23686,11 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                 }
 
                 // 3. Phyto Chart
-                const phytoCanvas = document.createElement('canvas');
-                phytoCanvas.width = 1600; phytoCanvas.height = 800;
-                tempDiv.appendChild(phytoCanvas);
-
                 const engine = new AnalysisEngine(projectId, state);
                 const allDaas = new Set();
                 engine.trials.forEach(t => { safeJsonParse(t.EfficacyDataJSON, []).forEach(e => allDaas.add(e.daa)); });
                 const sortedDaas = [...allDaas].sort((a, b) => a - b);
-
-                if (sortedDaas.length > 0) {
-                    const phytoDatasets = engine.treatments.map((tName, i) => {
-                        const data = sortedDaas.map(d => {
-                            const repValues = engine.getData('phyto', null, parseInt(d))[tName];
-                            return repValues ? jStat.mean(repValues) : 0;
-                        });
-                        return {
-                            label: tName, data,
-                            borderColor: colors[i % colors.length],
-                            backgroundColor: colors[i % colors.length] + '33',
-                            tension: 0.3, borderWidth: 3, pointRadius: 3
-                        };
-                    });
-
-                    new Chart(phytoCanvas, {
-                        type: 'line', data: { labels: sortedDaas.map(d => `${d} DAA`), datasets: phytoDatasets },
-                        options: {
-                            responsive: false, animation: false,
-                            plugins: { title: { display: true, text: 'Phytotoxicity Over Time', font: { size: 32, weight: 'bold' } }, legend: { position: 'right', labels: { font: { size: 20 } } } },
-                            scales: { y: { min: 0, max: 10, title: { display: true, text: 'Score', font: { size: 24 } }, ticks: { font: { size: 18 } } }, x: { ticks: { font: { size: 18 } } } }
-                        }
-                    });
-                    await new Promise(r => setTimeout(r, 300));
-                    chartImages.phytoTimeline = phytoCanvas.toDataURL('image/png');
-                }
+                chartImages.phytoTimeline = null;
 
             } catch (e) {
                 console.warn('DOC Chart Gen Error:', e);
@@ -24002,7 +23701,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
             return chartImages;
         }
 
-        async function generateScientificHTML(trial, coverChartImg, phytoChartImg, options = {}) {
+        async function generateScientificHTML(trial, coverChartImg, options = {}) {
             const efficacyData = safeJsonParse(trial.EfficacyDataJSON, []);
             const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))];
             const trialDate = new Date(trial.Date).toLocaleDateString();
@@ -24011,7 +23710,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
 
             // Narrative
             let narrativeHtml = "";
-            const narrativeText = normalizeReportText((aiSummary.scientificNarrative || '').trim() || `Methodology\nTrial conducted on ${trialDate} under recorded field conditions.\n\nResults\n${derivedInterpretation.coverSummary} ${derivedInterpretation.phytoSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`);
+            const narrativeText = normalizeReportText((aiSummary.scientificNarrative || '').trim() || `Methodology\nTrial conducted on ${trialDate} under recorded field conditions.\n\nResults\n${derivedInterpretation.coverSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`);
             if (narrativeText) {
                 narrativeHtml = formatReportNarrativeHtml(narrativeText);
             } else {
@@ -24101,10 +23800,6 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                 ${coverChartImg ? `<div class="img-container"><img src="${coverChartImg}" width="600" /></div>` : '<p>No efficacy chart available.</p>'}
                 <p>${normalizeReportText((aiSummary.cover || '').trim() || derivedInterpretation.coverSummary)}</p>
 
-                <h2>${REPORT_SECTIONS.trial.phytotoxicity}</h2>
-                ${phytoChartImg ? `<div class="img-container"><img src="${phytoChartImg}" width="600" /></div>` : '<p>No phytotoxicity chart available.</p>'}
-                <p>${normalizeReportText((aiSummary.phyto || '').trim() || derivedInterpretation.phytoSummary)}</p>
-
                 ${photosHtml}
             `;
         }
@@ -24122,7 +23817,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
 
                 const performanceChartImg = chartImages.finalPerformance || "";
                 const wceChartImg = chartImages.wceTimeline || "";
-                const phytoChartImg = chartImages.phytoTimeline || "";
+                const phytoChartImg = "";
 
 
 
@@ -24225,7 +23920,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                         ${renderMeansTableHTML(groupedResults)}
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.detailed}</h3>
-                        ${phytoChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${phytoChartImg}" width="600" /><br/><em>Figure 3: Crop Phytotoxicity Over Time</em></div>` : '<p>No phytotoxicity data available.</p>'}
+                        <p>Species-level interpretation is based on weed cover dynamics and WCE trends across treatments.</p>
 
                         <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.photo}</h3>
                         ${treatments.map(t => {
