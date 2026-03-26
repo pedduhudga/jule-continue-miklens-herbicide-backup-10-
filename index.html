@@ -3317,6 +3317,27 @@ IMPORTANT:
                 return `${keyIndex}:${model}`;
             }
 
+            // Returns true if at least one OTHER key (different project) is not blocked for this model.
+            // Used to decide whether to rotate key (stay on same model) vs rotate model.
+            function hasUnblockedKeyForModel(model) {
+                const blockedModels = window._geminiBlockedModels || {};
+                const currentIdx = state.settings.currentApiKeyIndex || 0;
+                return (state.settings.apiKeys || []).some((_, ki) => {
+                    if (ki === currentIdx) return false;
+                    const bk = getGeminiQuotaBlockKey(model, ki);
+                    return !blockedModels[bk] || Date.now() >= blockedModels[bk];
+                });
+            }
+
+            // Returns true if ALL keys across all projects are daily-blocked for this model.
+            function isModelExhaustedAcrossAllKeys(model) {
+                const blockedModels = window._geminiBlockedModels || {};
+                return (state.settings.apiKeys || [{ _placeholder: true }]).every((_, ki) => {
+                    const bk = getGeminiQuotaBlockKey(model, ki);
+                    return blockedModels[bk] && Date.now() < blockedModels[bk];
+                });
+            }
+
             function getGenAIClient() {
                 const activeKey = getActiveApiKey();
                 if (!activeKey) {
@@ -4677,22 +4698,28 @@ IMPORTANT:
                 if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
             }
 
-            function rotateApiKey() {
+            // preserveModel=true  → keep current model (rotating key to try same model on a different project)
+            // preserveModel=false → reset model to highest priority (general-purpose key rotation)
+            function rotateApiKey(preserveModel = false) {
                 const keyCount = state.settings.apiKeys.length;
                 if (keyCount <= 1) {
                     console.warn(`Gemini key rotation unavailable: only ${keyCount} key loaded in runtime settings.`);
-                    return false; // Cannot rotate if 0 or 1 keys
+                    return false;
                 }
 
                 const newIndex = (state.settings.currentApiKeyIndex + 1) % keyCount;
                 state.settings.currentApiKeyIndex = newIndex;
-                state.settings.apiModel = GEMINI_MODEL_PRIORITY[0];
+                if (!preserveModel) {
+                    state.settings.apiModel = GEMINI_MODEL_PRIORITY[0];
+                }
                 localStorage.setItem('appSettings', JSON.stringify(state.settings));
                 const modelSelect = document.getElementById('settings-api-model');
                 if (modelSelect) modelSelect.value = state.settings.apiModel;
-                console.info(`Switched Gemini runtime to key ${newIndex + 1}/${keyCount} and reset model priority to ${state.settings.apiModel}.`);
-                showToast(`API quota likely exceeded. Trying next key (${newIndex + 1}/${keyCount})...`, 'info');
-
+                const note = preserveModel
+                    ? `keeping model ${state.settings.apiModel} (different project may have quota)`
+                    : `reset to ${state.settings.apiModel}`;
+                console.info(`Switched Gemini to key ${newIndex + 1}/${keyCount} — ${note}`);
+                showToast(`Trying key ${newIndex + 1}/${keyCount}...`, 'info');
                 return true;
             }
 
@@ -4703,17 +4730,35 @@ IMPORTANT:
                     throw new Error('ALL_KEYS_EXHAUSTED');
                 }
 
-                // Skip models known to be exhausted this session
+                // Skip key+model combos known to be blocked (daily quota or rate limit)
                 const blockedModels = window._geminiBlockedModels || (window._geminiBlockedModels = {});
                 const currentModel = getActiveApiModel();
                 const currentBlockKey = getGeminiQuotaBlockKey(currentModel);
+
                 if (blockedModels[currentBlockKey] && Date.now() < blockedModels[currentBlockKey]) {
-                    console.warn(`Skipping ${currentModel} for key ${state.settings.currentApiKeyIndex + 1} (blocked until ${new Date(blockedModels[currentBlockKey]).toLocaleTimeString()})`);
-                    if (rotateApiModel()) {
-                        return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
-                    }
-                    if (rotateApiKey()) {
-                        return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                    const msRemaining = blockedModels[currentBlockKey] - Date.now();
+                    // Blocks > 5 min = daily project quota; blocks ≤ 5 min = per-minute rate limit
+                    const isLongTermBlock = msRemaining > 5 * 60 * 1000;
+                    console.warn(`Skipping ${currentModel} key ${state.settings.currentApiKeyIndex + 1} (${Math.ceil(msRemaining / 60000)}m left, ${isLongTermBlock ? 'daily quota' : 'rate limit'})`);
+
+                    if (isLongTermBlock) {
+                        // Daily quota: rotate to a DIFFERENT project's key — it has independent quota for this model
+                        if (hasUnblockedKeyForModel(currentModel) && rotateApiKey(true)) {
+                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                        }
+                        // All keys exhausted for this model → move to next model, restart from key 0
+                        state.settings.currentApiKeyIndex = 0;
+                        if (rotateApiModel()) {
+                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                        }
+                    } else {
+                        // Short-term rate limit: try next model (fast), then rotate key
+                        if (rotateApiModel()) {
+                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                        }
+                        if (rotateApiKey()) {
+                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                        }
                     }
                     throw new Error('ALL_KEYS_EXHAUSTED');
                 }
@@ -4750,36 +4795,53 @@ IMPORTANT:
                         const retryDelaySec = parseRetryDelaySec(error.message || '');
                         window.geminiQuotaBackoffUntil = Math.max(window.geminiQuotaBackoffUntil || 0, Date.now() + (retryDelaySec * 1000));
 
-                        // Block this model for the retry delay so we don't waste calls on it
+                        // Block this specific key+model pair to avoid redundant retries
                         const currentModel = getActiveApiModel();
                         const blockedModels = window._geminiBlockedModels || (window._geminiBlockedModels = {});
                         const currentBlockKey = getGeminiQuotaBlockKey(currentModel);
-                        // If limit:0 detected (daily quota fully depleted), block for 1 hour
+                        const keyIdx = state.settings.currentApiKeyIndex + 1;
+
+                        // Daily quota detection: PerDay in quota name, or limit:0 (free-tier exhausted)
                         const isZeroQuota = errorMessage.includes('limit: 0');
-                        blockedModels[currentBlockKey] = Date.now() + ((isZeroQuota ? 3600 : retryDelaySec) * 1000);
-                        console.warn(`Blocked ${currentModel} for key ${state.settings.currentApiKeyIndex + 1} for ${isZeroQuota ? '1 hour (zero quota)' : retryDelaySec + 's'}`);
+                        const isDailyQuota = isZeroQuota ||
+                            errorMessage.includes('perday') ||
+                            (error.message || '').includes('PerDay');
 
-                        // Fast fallback: free tier often has 0 quota for Pro models; switch to stable flash.
-                        if (currentModel.includes('pro')) {
-                            state.settings.apiModel = 'gemini-2.5-flash';
-                            localStorage.setItem('appSettings', JSON.stringify(state.settings));
-                            const modelSelect = document.getElementById('settings-api-model');
-                            if (modelSelect) modelSelect.value = state.settings.apiModel;
-                            console.warn(`Quota hit on ${currentModel}. Switching to gemini-2.5-flash.`);
-                            await new Promise(resolve => setTimeout(resolve, 300));
-                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
-                        }
+                        if (isDailyQuota) {
+                            // Daily project quota — block this key+model for 23h (resets ~midnight Pacific)
+                            // IMPORTANT: each key is from a DIFFERENT Google project → independent daily quota.
+                            // Rotate to next key and try the SAME model — it may work on the next project.
+                            blockedModels[currentBlockKey] = Date.now() + (82800 * 1000); // 23 hours
+                            console.warn(`Daily quota hit: ${currentModel} key ${keyIdx} blocked for 23h. Checking other project keys...`);
+                            showToast(`Key ${keyIdx} daily limit reached for ${currentModel}. Trying next project key...`, 'warning');
 
-                        console.warn(`Quota error with key index ${state.settings.currentApiKeyIndex}. Attempting model/key rollover.`);
-                        if (rotateApiModel()) {
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                            if (hasUnblockedKeyForModel(currentModel) && rotateApiKey(true)) {
+                                // Another project's key → try the same model immediately
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                                return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                            }
+                            // All project keys exhausted for this model → rotate model, restart from key 0
+                            console.warn(`All ${keyCount} project keys exhausted for ${currentModel}. Rotating to next model.`);
+                            state.settings.currentApiKeyIndex = 0;
+                            if (rotateApiModel()) {
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                                return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                            }
+                        } else {
+                            // Per-minute / transient rate limit — block briefly, try next model first
+                            blockedModels[currentBlockKey] = Date.now() + (retryDelaySec * 1000);
+                            console.warn(`Rate limit: ${currentModel} key ${keyIdx} blocked for ${retryDelaySec}s. Rotating model...`);
+
+                            if (rotateApiModel()) {
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                                return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                            }
+                            if (rotateApiKey()) {
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                                return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                            }
                         }
-                        if (rotateApiKey()) {
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                            return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
-                        }
-                        throw new Error(`QUOTA_EXCEEDED: API quota exhausted. Retry after ~${retryDelaySec}s or use another key/model.`);
+                        throw new Error(`QUOTA_EXCEEDED: All ${keyCount} keys and all models exhausted. Add keys from different Google projects or wait for daily quota reset.`);
                     }
 
                     if (statusCode === 403 || errorMessage.includes('permission denied') || errorMessage.includes('403')) {
@@ -15526,7 +15588,8 @@ Style Guidelines:
                 const trials = state.trials || [];
                 let updatedTrials = 0;
                 let updatedObs = 0;
-                let skippedTrials = 0;
+                let skippedNoData = 0;   // no EfficacyDataJSON / no observations
+                let skippedOkay = 0;     // data already correct, nothing to change
                 let errorCount = 0;
 
                 const clamp01 = (v) => Math.max(0, Math.min(100, v));
@@ -15571,13 +15634,13 @@ Style Guidelines:
                     try {
                         const arr = extractEfficacyArrayAny(t.EfficacyDataJSON);
                         if (!arr || arr.length === 0) {
-                            skippedTrials++;
+                            skippedNoData++;
                             continue;
                         }
 
                         const normalized = validateEfficacyData(arr);
                         if (!Array.isArray(normalized) || normalized.length === 0) {
-                            skippedTrials++;
+                            skippedNoData++;
                             continue;
                         }
 
@@ -15642,7 +15705,7 @@ Style Guidelines:
                         });
 
                         if (!changed) {
-                            skippedTrials++;
+                            skippedOkay++;
                             continue;
                         }
 
@@ -15659,9 +15722,9 @@ Style Guidelines:
                 }
 
                 if (progressEl) {
-                    progressEl.textContent = `Done. Updated trials ${updatedTrials}. Updated observations ${updatedObs}. Skipped trials ${skippedTrials}. Errors ${errorCount}.`;
+                    progressEl.textContent = `Done. Updated trials ${updatedTrials} (${updatedObs} observations). Already correct: ${skippedOkay}. No data: ${skippedNoData}. Errors ${errorCount}.`;
                 }
-                showToast(`Full rebuild complete. Updated trials ${updatedTrials}.`, errorCount > 0 ? 'warning' : 'success');
+                showToast(`Full rebuild complete. Updated ${updatedTrials} trial(s). ${skippedOkay} already correct, ${skippedNoData} had no observations.`, errorCount > 0 ? 'warning' : 'success');
 
                 if (typeof renderEfficacyRepairScan === 'function') {
                     await renderEfficacyRepairScan();
