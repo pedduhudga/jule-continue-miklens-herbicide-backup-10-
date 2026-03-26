@@ -18540,7 +18540,7 @@ Style Guidelines:
                         item.lastError = errMsg;
 
                         if (errMsg.toLowerCase().includes('driveapp') || errMsg.toLowerCase().includes('access denied')) {
-                            showToast('Drive permission denied by server. Run triggerDrivePermissions() in Apps Script and redeploy the web app.', 'error');
+                            showToast('Drive permission denied by server. In Apps Script deploy Web App as "Execute as: Me", run triggerDrivePermissions() once, then redeploy.', 'error');
                         }
                         console.groupEnd();
                     }
