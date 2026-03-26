@@ -3313,6 +3313,10 @@ IMPORTANT:
                 return 'gemini-2.5-flash';
             }
 
+            function getGeminiQuotaBlockKey(model, keyIndex = state.settings.currentApiKeyIndex || 0) {
+                return `${keyIndex}:${model}`;
+            }
+
             function getGenAIClient() {
                 const activeKey = getActiveApiKey();
                 if (!activeKey) {
@@ -4695,8 +4699,9 @@ IMPORTANT:
                 // Skip models known to be exhausted this session
                 const blockedModels = window._geminiBlockedModels || (window._geminiBlockedModels = {});
                 const currentModel = getActiveApiModel();
-                if (blockedModels[currentModel] && Date.now() < blockedModels[currentModel]) {
-                    console.warn(`Skipping ${currentModel} (blocked until ${new Date(blockedModels[currentModel]).toLocaleTimeString()})`);
+                const currentBlockKey = getGeminiQuotaBlockKey(currentModel);
+                if (blockedModels[currentBlockKey] && Date.now() < blockedModels[currentBlockKey]) {
+                    console.warn(`Skipping ${currentModel} for key ${state.settings.currentApiKeyIndex + 1} (blocked until ${new Date(blockedModels[currentBlockKey]).toLocaleTimeString()})`);
                     if (rotateApiModel()) {
                         return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                     }
@@ -4738,10 +4743,11 @@ IMPORTANT:
                         // Block this model for the retry delay so we don't waste calls on it
                         const currentModel = getActiveApiModel();
                         const blockedModels = window._geminiBlockedModels || (window._geminiBlockedModels = {});
+                        const currentBlockKey = getGeminiQuotaBlockKey(currentModel);
                         // If limit:0 detected (daily quota fully depleted), block for 1 hour
                         const isZeroQuota = errorMessage.includes('limit: 0');
-                        blockedModels[currentModel] = Date.now() + ((isZeroQuota ? 3600 : retryDelaySec) * 1000);
-                        console.warn(`Blocked ${currentModel} for ${isZeroQuota ? '1 hour (zero quota)' : retryDelaySec + 's'}`);
+                        blockedModels[currentBlockKey] = Date.now() + ((isZeroQuota ? 3600 : retryDelaySec) * 1000);
+                        console.warn(`Blocked ${currentModel} for key ${state.settings.currentApiKeyIndex + 1} for ${isZeroQuota ? '1 hour (zero quota)' : retryDelaySec + 's'}`);
 
                         // Fast fallback: free tier often has 0 quota for Pro models; switch to stable flash.
                         if (currentModel.includes('pro')) {
@@ -11372,6 +11378,11 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                 state.settings = newSettings;
                 localStorage.setItem('appSettings', JSON.stringify(state.settings));
+
+                if (oldKeyJson !== newKeyJson) {
+                    window._geminiBlockedModels = {};
+                    window.geminiQuotaBackoffUntil = 0;
+                }
 
                 if (isAdminUser) {
                     // CRITICAL: Sync global settings to backend so online QR codes reflect current preferences
