@@ -4683,7 +4683,10 @@ IMPORTANT:
 
                 const newIndex = (state.settings.currentApiKeyIndex + 1) % keyCount;
                 state.settings.currentApiKeyIndex = newIndex;
+                state.settings.apiModel = GEMINI_MODEL_PRIORITY[0];
                 localStorage.setItem('appSettings', JSON.stringify(state.settings));
+                const modelSelect = document.getElementById('settings-api-model');
+                if (modelSelect) modelSelect.value = state.settings.apiModel;
                 showToast(`API quota likely exceeded. Trying next key (${newIndex + 1}/${keyCount})...`, 'info');
 
                 return true;
@@ -4703,6 +4706,9 @@ IMPORTANT:
                 if (blockedModels[currentBlockKey] && Date.now() < blockedModels[currentBlockKey]) {
                     console.warn(`Skipping ${currentModel} for key ${state.settings.currentApiKeyIndex + 1} (blocked until ${new Date(blockedModels[currentBlockKey]).toLocaleTimeString()})`);
                     if (rotateApiModel()) {
+                        return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
+                    }
+                    if (rotateApiKey()) {
                         return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                     }
                     throw new Error('ALL_KEYS_EXHAUSTED');
