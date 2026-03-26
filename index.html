@@ -12191,10 +12191,10 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         'export-scientific-trial-report-no-ing': () => generateScientificSingleTrialReport(id, { withIngredients: false }),
                         'export-scientific-trial-report-with-ing': () => generateScientificSingleTrialReport(id, { withIngredients: true }),
                         'export-pdf-efficacy-no-ingredients': () => openReportPreviewModal(id, { withIngredients: false, withWeeds: true, withEfficacy: true, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
-                        'export-pdf-ingredients': () => generateComprehensivePdf(id, { withIngredients: true, withEfficacy: false, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
-                        'export-pdf-no-ingredients': () => generateComprehensivePdf(id, { withIngredients: false, withEfficacy: false, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
-                        'export-pdf-weeds-ingredients': () => generateComprehensivePdf(id, { withIngredients: true, withWeeds: true, withEfficacy: false, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
-                        'export-pdf-weeds': () => generateComprehensivePdf(id, { withIngredients: false, withWeeds: true, withEfficacy: false, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
+                        'export-pdf-ingredients': () => generateComprehensivePdf(id, { withIngredients: true, withEfficacy: true, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
+                        'export-pdf-no-ingredients': () => generateComprehensivePdf(id, { withIngredients: false, withEfficacy: true, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
+                        'export-pdf-weeds-ingredients': () => generateComprehensivePdf(id, { withIngredients: true, withWeeds: true, withEfficacy: true, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
+                        'export-pdf-weeds': () => generateComprehensivePdf(id, { withIngredients: false, withWeeds: true, withEfficacy: true, withTimeline: state.settings.includeTimeline, showPhotoDates: state.settings.showPhotoDates }),
                         'export-ppt': () => generatePpt(id),
                         'export-json': exportJson,
                         'export-zip': exportWithPhotos,
@@ -13993,9 +13993,10 @@ Style Guidelines:
                     let xOffset = 14;
                     for (let i = 0; i < photos.length; i++) {
                         const p = photos[i];
-                        if (!p.url) continue;
+                        const photoSrc = p.url || p.fileData;
+                        if (!photoSrc) continue;
                         try {
-                            const imgData = await getImageAsResizedBase64(p.url, 300);
+                            const imgData = await getImageAsResizedBase64(photoSrc, 300);
                             if (imgData) {
                                 // Calculate aspect ratio and proper dimensions
                                 const img = new Image();
@@ -14058,10 +14059,11 @@ Style Guidelines:
                     }
 
                     for (const p of weedPhotos) {
-                        if (!p.url) continue;
+                        const photoSrc = p.url || p.fileData;
+                        if (!photoSrc) continue;
                         if (weedY > 220) { doc.addPage(); weedY = 20; }
                         try {
-                            const imgData = await getImageAsResizedBase64(p.url, 300);
+                            const imgData = await getImageAsResizedBase64(photoSrc, 300);
                             if (imgData) {
                                 // Calculate aspect ratio and proper dimensions
                                 const img = new Image();
@@ -14107,17 +14109,23 @@ Style Guidelines:
             async function generateComprehensivePdf(trialId, options = { withIngredients: true, withWeeds: false, chartImages: null }) {
                 // If chartImages are provided but we want high quality, we might re-generate them.
                 // However, let's check if we can generate them live here.
-                if (!options.chartImages || !options.chartImages.cover) {
+                const missingCharts = !options.chartImages
+                    || !options.chartImages.cover
+                    || !options.chartImages.wceConfidence
+                    || !options.chartImages.speciesDistribution
+                    || !options.chartImages.environmentSuitability;
+
+                if (missingCharts) {
                     try {
                         const trial = state.trials.find(t => t.ID === trialId);
                         if (trial) {
                             const highResCharts = await generateScientificCharts(trial);
                             options.chartImages = options.chartImages || {};
-                            options.chartImages.cover = highResCharts.cover;
+                            options.chartImages.cover = options.chartImages.cover || highResCharts.cover;
                             options.chartImages.phyto = null;
-                            options.chartImages.wceConfidence = highResCharts.wceConfidence || null;
-                            options.chartImages.speciesDistribution = highResCharts.speciesDistribution || null;
-                            options.chartImages.environmentSuitability = highResCharts.environmentSuitability || null;
+                            options.chartImages.wceConfidence = options.chartImages.wceConfidence || highResCharts.wceConfidence || null;
+                            options.chartImages.speciesDistribution = options.chartImages.speciesDistribution || highResCharts.speciesDistribution || null;
+                            options.chartImages.environmentSuitability = options.chartImages.environmentSuitability || highResCharts.environmentSuitability || null;
                         }
                     } catch (e) {
                         console.error("Failed to generate high-res charts for PDF:", e);
@@ -14481,9 +14489,10 @@ Style Guidelines:
                     let xOffset = 14;
                     for (let i = 0; i < photos.length; i++) {
                         const p = photos[i];
-                        if (!p.url) continue;
+                        const photoSrc = p.url || p.fileData;
+                        if (!photoSrc) continue;
                         try {
-                            const imgData = await getImageAsResizedBase64(p.url, 300); // Helper to get Base64
+                            const imgData = await getImageAsResizedBase64(photoSrc, 300); // Helper to get Base64
                             if (imgData) {
                                 // Calculate aspect ratio and proper dimensions
                                 const img = new Image();
@@ -14552,10 +14561,11 @@ Style Guidelines:
                         }
 
                         for (const p of weedPhotos) {
-                            if (!p.url) continue;
+                            const photoSrc = p.url || p.fileData;
+                            if (!photoSrc) continue;
                             if (weedY > 220) { doc.addPage(); weedY = 20; }
                             try {
-                                const imgData = await getImageAsResizedBase64(p.url, 300);
+                                const imgData = await getImageAsResizedBase64(photoSrc, 300);
                                 if (imgData) {
                                     // Calculate aspect ratio and proper dimensions
                                     const img = new Image();
@@ -15104,9 +15114,11 @@ Style Guidelines:
             }
 
             async function getImageAsResizedBase64(url, width = 800) {
-                if (url.startsWith('data:image')) return url;
+                if (!url) return null;
+                const source = String(url);
+                if (source.startsWith('data:image')) return source;
                 // Use a proxy to avoid CORS if needed, or fetch directly if allowed
-                const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=${width}&output=jpg&q=80`;
+                const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(source)}&w=${width}&output=jpg&q=80`;
                 try {
                     const res = await fetch(proxyUrl);
                     const blob = await res.blob();
@@ -15830,8 +15842,13 @@ Style Guidelines:
 
                     let xPos = 0.5;
                     for (const p of photos) {
-                        if (p.url) {
-                            slide2.addImage({ path: p.url, x: xPos, y: 1.5, w: 3, h: 3 });
+                        const photoSrc = p.url || p.fileData;
+                        if (photoSrc) {
+                            if (String(photoSrc).startsWith('data:image/')) {
+                                slide2.addImage({ data: photoSrc, x: xPos, y: 1.5, w: 3, h: 3 });
+                            } else {
+                                slide2.addImage({ path: photoSrc, x: xPos, y: 1.5, w: 3, h: 3 });
+                            }
                             xPos += 3.2;
                         }
                     }
@@ -15952,9 +15969,10 @@ Style Guidelines:
 
                 for (let i = 0; i < allPhotos.length; i++) {
                     const p = allPhotos[i];
-                    if (p.url) {
+                    const photoSrc = p.url || p.fileData;
+                    if (photoSrc) {
                         try {
-                            const imgData = await getImageAsResizedBase64(p.url, 1000);
+                            const imgData = await getImageAsResizedBase64(photoSrc, 1000);
                             if (imgData) {
                                 // Remove data:image/jpeg;base64, prefix
                                 const base64Data = imgData.split(',')[1];
@@ -17321,6 +17339,10 @@ Style Guidelines:
                 };
                 const userSettings = safeJsonParse(project.ReportSettingsJSON) || {};
                 const settings = Object.assign({}, defaults, userSettings);
+                settings.stats = true;
+                settings.efficacy = true;
+                settings.detailed = true;
+                settings.photos = true;
 
                 showToast('Generating Enhanced Regulatory Report...', 'info');
 
@@ -19101,12 +19123,16 @@ Style Guidelines:
 
                 const generatePdfBtn = document.getElementById('generate-pdf-from-preview');
                 if (generatePdfBtn) {
-                    generatePdfBtn.onclick = () => {
+                    generatePdfBtn.onclick = async () => {
                         // Capture canvas images
                         const coverCanvas = document.getElementById('preview-cover-canvas');
+                        const fullCharts = await generateScientificCharts(trial);
                         const chartImages = {
                             cover: coverCanvas ? coverCanvas.toDataURL('image/png') : null,
-                            secondary: null
+                            secondary: null,
+                            wceConfidence: fullCharts?.wceConfidence || null,
+                            speciesDistribution: fullCharts?.speciesDistribution || null,
+                            environmentSuitability: fullCharts?.environmentSuitability || null
                         };
                         const showPhotoDates = document.getElementById('show-photo-dates')?.checked || state.settings.showPhotoDates;
                         const withTimeline = document.getElementById('include-timeline')?.checked || state.settings.includeTimeline;
@@ -25153,9 +25179,10 @@ Specific agronomic recommendation based on treatment performance trends and weed
 
             if (photos.length > 0) {
                 for (const p of photos) {
-                    if (p.url) {
+                    const photoSrc = p.url || p.fileData;
+                    if (photoSrc) {
                         try {
-                            const base64 = await getImageAsResizedBase64(p.url, 600); // Higher resolution for export
+                            const base64 = await getImageAsResizedBase64(photoSrc, 600); // Higher resolution for export
                             if (base64) {
                                 processedPhotos.push({
                                     base64: base64,
@@ -25373,9 +25400,10 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     // We'll take up to 2 representative photos per trial to avoid huge DOCs
                     let count = 0;
                     for (const p of photos) {
-                        if (p.url && count < 2) {
+                        const photoSrc = p.url || p.fileData;
+                        if (photoSrc && count < 2) {
                             try {
-                                const base64 = await getImageAsResizedBase64(p.url, 600);
+                                const base64 = await getImageAsResizedBase64(photoSrc, 600);
                                 if (base64) {
                                     photosByTreatment[tName].push({
                                         base64: base64,
