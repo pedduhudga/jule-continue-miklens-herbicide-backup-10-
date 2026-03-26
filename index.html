@@ -11728,6 +11728,14 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 let finalSummaries = { ...currentSummaries };
                 let summariesWereUpdated = false;
 
+                if (finalSummaries.cover) {
+                    const cleanedCover = normalizeReportText(finalSummaries.cover);
+                    if (cleanedCover !== finalSummaries.cover) {
+                        finalSummaries.cover = cleanedCover;
+                        summariesWereUpdated = true;
+                    }
+                }
+
                 // Determine context for AI based on trial completion
                 const isFinal = String(trial.IsCompleted).toLowerCase() === 'true' || String(trial.ControlFinalized).toLowerCase() === 'true';
                 const status = isFinal ? "Finalized/Completed" : "Ongoing";
@@ -13539,28 +13547,32 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     ${wceData.map(d => `- ${d.species}: ${d.wce.toFixed(1)}%`).join('\n')}`;
                     }
 
-                    const prompt = `Act as a professional Agronomist and Data Analyst. Your task is to analyze herbicide trial data and generate reports that are strictly technical, objective, and devoid of subjective adjectives like 'excellent,' 'promising,' or 'perfect.'
+                    const prompt = `Act as a professional agronomist and data analyst.
 
-                    1. Data Analysis Guidelines:
-                    - **Tone**: Use professional agricultural terminology (e.g., chlorosis, necrosis, desiccation, biomass reduction).
-                    - **Control Dynamics**: Describe weed cover reduction using specific percentage ranges and timing (e.g., '95% burndown achieved by Day 6').
-                    - **Selectivity**: Explicitly identify which species were controlled and which showed resistance.
-                    - **Constraint**: Never use 'Based on the data' or 'The report shows.' Speak as the investigator: 'Observations indicate...' or 'The trial confirms...'
-                    
-                    2. Context & Data:
-                    - **Chart**: ${chartType} chart titled "${chartTitle}" for ${seriesName}.
-                    - **Trial Status**: ${trialStatus}
-                    - **Verdict Input**: ${userResult ? userResult : "Not provided (derive from cover trend and WCE)"}
-                    ${weatherContext}
-                    ${weedIdContext}
-                    ${wceContext}
+Write strictly technical, objective report text in plain text only.
+Do not use markdown symbols or formatting (no #, *, **, -, bullet lists, or code blocks).
+Avoid subjective adjectives such as excellent, perfect, remarkable, or promising.
+Use investigator-style scientific language.
 
-                    Data Points (x=Day, y=Value):
-                    ${JSON.stringify(datasets)}
+Context:
+Chart type: ${chartType}
+Chart title: ${chartTitle}
+Series: ${seriesName}
+Trial status: ${trialStatus}
+Verdict input: ${userResult ? userResult : "Not provided (derive from cover trend and WCE)"}
+${weatherContext}
+${weedIdContext}
+${wceContext}
 
-                    3. Required Report Sections:
-                    - **Result Paragraph**: A single, dense paragraph summarizing the trial's performance based on the DA-A (Days After Application) timeline. Incorporate the environmental logic if relevant (e.g., "High humidity optimized uptake...").
-                    - **Conclusion**: A technical summary of the formula's efficacy, specifically referencing the WCE values and species-specific susceptibility.`;
+Data points (x=Day, y=Value):
+${JSON.stringify(datasets)}
+
+Output format (plain text only):
+Result Paragraph
+Conclusion
+
+The result paragraph must summarize DA-A performance trend and mention environmental influence if relevant.
+The conclusion must state efficacy using WCE and species-specific susceptibility.`;
 
                     let summaryText;
                     try {
@@ -13580,10 +13592,12 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         }
                     }
 
-                    // Cache the result
-                    aiSummaryCache.set(cacheKey, summaryText);
+                    const normalizedSummaryText = normalizeReportText(summaryText);
 
-                    return summaryText;
+                    // Cache the result
+                    aiSummaryCache.set(cacheKey, normalizedSummaryText);
+
+                    return normalizedSummaryText;
                 } catch (error) {
                     console.error('AI Summary Error:', error);
                     return "AI summary could not be generated at this time.";
@@ -14460,17 +14474,44 @@ Style Guidelines:
                 let out = String(text)
                     .replace(/\r\n/g, '\n')
                     .replace(/```[\s\S]*?```/g, ' ')
+                    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
                     .replace(/^#+\s*/gm, '')
                     .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    .replace(/__([^_]+)__/g, '$1')
                     .replace(/\*([^*\n]+)\*/g, '$1')
+                    .replace(/_([^_\n]+)_/g, '$1')
                     .replace(/`([^`]+)`/g, '$1')
                     .replace(/[ \t]{2,}/g, ' ')
                     .replace(/\n{3,}/g, '\n\n');
 
                 out = out
                     .split('\n')
-                    .map(line => line.replace(/[ \t]{2,}/g, ' ').trimEnd())
+                    .map(line => {
+                        let cleaned = String(line || '').replace(/\u200B/g, '').trimEnd();
+
+                        if (/^\s*\|.*\|\s*$/.test(cleaned)) {
+                            cleaned = cleaned
+                                .replace(/^\s*\|/, '')
+                                .replace(/\|\s*$/, '')
+                                .split('|')
+                                .map(cell => cell.trim())
+                                .filter(Boolean)
+                                .join(' - ');
+                        }
+
+                        cleaned = cleaned
+                            .replace(/^\s*>\s*/, '')
+                            .replace(/^\s*#{1,6}\s*/, '')
+                            .replace(/^\s*[-+*•]\s+/, '')
+                            .replace(/^\s*\d+[.)]\s+/, '')
+                            .replace(/^\s*[-:|]{3,}\s*$/, '')
+                            .replace(/[ \t]{2,}/g, ' ')
+                            .trimEnd();
+
+                        return cleaned;
+                    })
                     .join('\n')
+                    .replace(/\n\s*\n\s*\n+/g, '\n\n')
                     .trim();
 
                 return out;
@@ -16773,14 +16814,14 @@ Style Guidelines:
     
     Task: Write a professional summary with three sections: Methodology, Results, and Conclusion.
     - Consistency: Maintain a human, technical tone. Avoid robotic AI phrases.
-    - Formatting: Plain text only. NO markdown (no **bold**, no *italic*, no # headers).
+    - Formatting: Plain text only. No markdown symbols or heading markers.
     - Methodology: Describe design and goal.
     - Results: Interpret statistical significance and treatment differences.
     - Conclusion: Technical recommendation for commercial or research application.`;
 
                         // USE NEW AI ANALYZER
                         const summaryResponse = await window.aiAnalyzer.generateText(summaryContext);
-                        aiExecutiveSummary = summaryResponse || 'Executive summary generation not available.';
+                        aiExecutiveSummary = normalizeReportText(summaryResponse || 'Executive summary generation not available.');
 
                         // Save it back to project locally so we don't regenerate again just for this session
                         project.Conclusion = aiExecutiveSummary;
@@ -18108,13 +18149,13 @@ Style Guidelines:
                 const summaries = safeJsonParse(trial.AISummariesJSON, {});
                 const coverInput = document.getElementById('cover-summary-textarea');
 
-                coverInput.value = summaries.cover || 'Generating professional analysis...';
+                coverInput.value = normalizeReportText(summaries.cover || 'Generating professional analysis...');
 
                 if (!summaries.cover) {
                     // This is async and might take time, but the graphs are already visible
                     await updateTrialAISummaries(trialId);
                     const newSum = safeJsonParse(state.trials.find(t => t.ID === trialId).AISummariesJSON);
-                    coverInput.value = newSum.cover || 'Analysis generation failed.';
+                    coverInput.value = normalizeReportText(newSum.cover || 'Analysis generation failed.');
                 }
 
                 // Add persistence listeners
@@ -18124,7 +18165,7 @@ Style Guidelines:
                     const t = state.trials.find(tr => tr.ID === trialId);
                     if (t) {
                         const s = safeJsonParse(t.AISummariesJSON, {});
-                        s.cover = coverInput.value;
+                        s.cover = normalizeReportText(coverInput.value);
                         t.AISummariesJSON = JSON.stringify(s);
 
                         clearTimeout(saveTimeout);
@@ -23392,17 +23433,17 @@ Tone & Style Guidelines (STRICT):
 - If data is provided, NEVER say it is "unavailable".
 
 Required Sections:
-**Methodology**
+Methodology
 Technical description of experiment design (RCBD), target species, and aim.
 
-**Results**
+Results
 Deep dive into treatment performance. Reference specific mean values of ${project.Metric}. Discuss P-value and CV reliability.
 
-**Conclusions**
+Conclusions
 Specific agronomic recommendation based on treatment performance trends and weed suppression outcomes.`;
 
             try {
-                const conclusion = await window.aiAnalyzer.generateText(prompt);
+                const conclusion = normalizeReportText(await window.aiAnalyzer.generateText(prompt));
 
                 // Update Local State
                 project.Conclusion = conclusion;
