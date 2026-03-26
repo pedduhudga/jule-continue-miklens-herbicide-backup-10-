@@ -1204,6 +1204,18 @@
                     const n = typeof v === 'number' ? v : parseFloat(v);
                     return isFinite(n) ? n : null;
                 };
+                const deriveTotalCoverFromDetails = (details) => {
+                    if (!Array.isArray(details) || details.length === 0) return null;
+                    const covers = details
+                        .map(w => toNum(w?.cover))
+                        .filter(v => v !== null)
+                        .map(v => clamp(v, 0, 100));
+                    if (!covers.length) return null;
+                    const additive = covers.reduce((s, v) => s + v, 0);
+                    if (additive <= 100) return clamp(additive, 0, 100);
+                    const unionProb = 1 - covers.reduce((p, v) => p * (1 - (v / 100)), 1);
+                    return clamp(unionProb * 100, 0, 100);
+                };
 
                 const normalized = [];
 
@@ -1221,6 +1233,17 @@
                             delete obs.phyto;
                         } else {
                             obs.phyto = clamp(phyto, 0, 100);
+                        }
+                    }
+
+                    if (obs.phi !== undefined && obs.phi !== null && obs.phi !== '') {
+                        const phi = toNum(obs.phi);
+                        if (phi === null) {
+                            delete obs.phi;
+                        } else {
+                            // Backward compatibility: older observations may store PHI as 0-1.
+                            const normalizedPhi = phi <= 1 ? phi * 100 : phi;
+                            obs.phi = clamp(normalizedPhi, 0, 100);
                         }
                     }
 
@@ -1279,6 +1302,23 @@
                         }
                     }
 
+                    if (obs.weedCover !== undefined && obs.weedCover !== null && obs.weedCover !== '') {
+                        const wc = toNum(obs.weedCover);
+                        if (wc === null) {
+                            delete obs.weedCover;
+                        } else {
+                            obs.weedCover = clamp(wc, 0, 100);
+                        }
+                    }
+
+                    if ((obs.weedCover === undefined || obs.weedCover === null || obs.weedCover === '') && Array.isArray(obs.weedDetails) && obs.weedDetails.length > 0) {
+                        const derivedCover = deriveTotalCoverFromDetails(obs.weedDetails);
+                        if (derivedCover !== null && derivedCover !== undefined) {
+                            obs.weedCover = derivedCover;
+                            if (!obs.weedCoverMode) obs.weedCoverMode = 'auto';
+                        }
+                    }
+
                     normalized.push(obs);
                 });
 
@@ -1293,6 +1333,27 @@
                     return isFinite(n) ? n : null;
                 };
 
+                const inferCoverFromDetails = (details) => {
+                    if (!Array.isArray(details) || details.length === 0) return null;
+                    const covers = details
+                        .map(w => toNum0(w?.cover))
+                        .filter(v => v !== null)
+                        .map(v => clamp01(v));
+                    if (!covers.length) return null;
+
+                    const additive = covers.reduce((s, v) => s + v, 0);
+                    if (additive <= 100) return clamp01(additive);
+
+                    // Overlap-aware total cover (independence assumption).
+                    const unionProb = 1 - covers.reduce((p, v) => p * (1 - (v / 100)), 1);
+                    return clamp01(unionProb * 100);
+                };
+
+                if (obs && String(obs.weedCoverMode || '').toLowerCase() === 'grid-manual' && obs.weedCover !== undefined && obs.weedCover !== null && obs.weedCover !== '') {
+                    const v = toNum0(obs.weedCover);
+                    return v === null ? null : clamp01(v);
+                }
+
                 if (obs && obs.weedCover !== undefined && obs.weedCover !== null && obs.weedCover !== '') {
                     const v = toNum0(obs.weedCover);
                     return v === null ? null : clamp01(v);
@@ -1302,8 +1363,7 @@
                     return v === null ? null : clamp01(v);
                 }
                 if (obs && Array.isArray(obs.weedDetails) && obs.weedDetails.length > 0) {
-                    const sum = obs.weedDetails.reduce((s, w) => s + (toNum0(w?.cover) || 0), 0);
-                    return clamp01(sum);
+                    return inferCoverFromDetails(obs.weedDetails);
                 }
                 if (trial && trial.WeedSpecies) {
                     return null;
@@ -1868,6 +1928,60 @@ IMPORTANT:
                     return { row, col, cellId: `${row},${col}` };
                 },
 
+                extractDriveFileId: function (url) {
+                    const raw = String(url || '');
+                    const m = raw.match(/(?:[?&]id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
+                    return m ? m[1] : null;
+                },
+
+                buildImageCandidates: async function (imageDataUrl) {
+                    const raw = String(imageDataUrl || '').trim();
+                    if (!raw) return [];
+
+                    const candidates = [];
+                    const isDataUri = /^data:image\//i.test(raw);
+                    if (isDataUri) {
+                        candidates.push(raw);
+                    } else {
+                        candidates.push(raw);
+
+                        const driveId = this.extractDriveFileId(raw);
+                        if (driveId) {
+                            candidates.push(`https://drive.google.com/thumbnail?id=${driveId}&sz=w1600`);
+                            candidates.push(`https://drive.google.com/uc?export=view&id=${driveId}`);
+
+                            try {
+                                if (typeof apiCall === 'function') {
+                                    const base64Result = await apiCall('getImageBase64', { imageUrl: raw }, false);
+                                    if (base64Result && base64Result.base64) {
+                                        const mime = base64Result.mimeType || 'image/jpeg';
+                                        candidates.unshift(`data:${mime};base64,${base64Result.base64}`);
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('[Grid] Backend base64 image fetch failed:', e?.message || e);
+                            }
+                        }
+
+                        // Keep external proxies as last-resort fallbacks.
+                        candidates.push(`https://images.weserv.nl/?url=${encodeURIComponent(raw)}&w=1600&output=jpg`);
+                        candidates.push(`https://corsproxy.io/?${encodeURIComponent(raw)}`);
+                    }
+
+                    // Unique + non-empty candidates only
+                    return Array.from(new Set(candidates.filter(Boolean)));
+                },
+
+                tryLoadImage: function (src) {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        if (!/^data:image\//i.test(src)) img.crossOrigin = 'anonymous';
+                        img.onload = () => resolve(img);
+                        img.onerror = () => reject(new Error('Failed to load source'));
+                        img.src = src;
+                    });
+                },
+
                 initialize: function (imageDataUrl, container, preSelected = new Set()) {
                     this.selectedCells = new Set(preSelected);
                     this.currentImage = imageDataUrl;
@@ -1880,66 +1994,51 @@ IMPORTANT:
                     this.canvas.style.touchAction = 'none';
                     this.ctx = this.canvas.getContext('2d');
 
-                    container.innerHTML = '<div class="flex items-center justify-center h-64"><p class="text-slate-500 animate-pulse">Loading image via proxy...</p></div>';
+                    container.innerHTML = '<div class="flex items-center justify-center h-64"><p class="text-slate-500 animate-pulse">Loading image for grid analysis...</p></div>';
 
-                    // Use CORS-anywhere proxy to bypass Google Drive restrictions from file:// origins
-                    const corsProxy = 'https://corsproxy.io/?';
-                    const proxiedUrl = corsProxy + encodeURIComponent(imageDataUrl);
+                    (async () => {
+                        try {
+                            const candidates = await this.buildImageCandidates(imageDataUrl);
+                            if (!candidates.length) throw new Error('No valid image source provided.');
 
-                    // Fetch via proxy and convert to base64
-                    fetch(proxiedUrl)
-                        .then(response => {
-                            if (!response.ok) throw new Error(`Proxy fetch failed: ${response.status}`);
-                            return response.blob();
-                        })
-                        .then(blob => {
-                            return new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => resolve(reader.result);
-                                reader.onerror = reject;
-                                reader.readAsDataURL(blob);
-                            });
-                        })
-                        .then(dataUrl => {
-                            this.imgObject = new Image();
+                            let loaded = null;
+                            for (const src of candidates) {
+                                try {
+                                    loaded = await this.tryLoadImage(src);
+                                    if (loaded) break;
+                                } catch (e) {
+                                    // Try next source silently.
+                                }
+                            }
 
-                            this.imgObject.onload = () => {
-                                const maxWidth = container.clientWidth || 600;
-                                const scale = Math.min(1, maxWidth / this.imgObject.width);
-                                this.canvas.width = this.imgObject.width * scale;
-                                this.canvas.height = this.imgObject.height * scale;
-                                this.cellWidth = this.canvas.width / this.gridSize;
-                                this.cellHeight = this.canvas.height / this.gridSize;
+                            if (!loaded) throw new Error('All image sources failed to load.');
+                            this.imgObject = loaded;
 
-                                container.innerHTML = '';
-                                container.appendChild(this.canvas);
-                                this.drawGrid();
+                            const maxWidth = container.clientWidth || 600;
+                            const scale = Math.min(1, maxWidth / this.imgObject.width);
+                            this.canvas.width = this.imgObject.width * scale;
+                            this.canvas.height = this.imgObject.height * scale;
+                            this.cellWidth = this.canvas.width / this.gridSize;
+                            this.cellHeight = this.canvas.height / this.gridSize;
 
-                                this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
-                                this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e));
-                                this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
-                                this.canvas.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
-                                this.canvas.addEventListener('pointerleave', (e) => this.handlePointerUp(e));
-                            };
+                            container.innerHTML = '';
+                            container.appendChild(this.canvas);
+                            this.drawGrid();
 
-                            this.imgObject.onerror = (e) => {
-                                console.error('Grid Base64 Image Load Error:', e);
-                                container.innerHTML = `<div class="text-center p-4 text-red-600">
-                                    <p class="font-bold">Image Load Failed</p>
-                                    <p class="text-sm">Could not process image data.</p>
-                                </div>`;
-                            };
-
-                            this.imgObject.src = dataUrl;
-                        })
-                        .catch(err => {
-                            console.error('CORS Proxy Error:', err);
-                            container.innerHTML = `<div class="text-center p-4 text-orange-600">
-                                <p class="font-bold">⚠️ Proxy Loading Failed</p>
-                                <p class="text-sm">Could not fetch image via proxy: ${err.message}</p>
-                                <p class="text-xs mt-2 text-gray-500">This feature requires internet access and works best when the app is hosted on a web server.</p>
+                            this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
+                            this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e));
+                            this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
+                            this.canvas.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
+                            this.canvas.addEventListener('pointerleave', (e) => this.handlePointerUp(e));
+                        } catch (err) {
+                            console.error('[Grid] Image loading failed:', err);
+                            container.innerHTML = `<div class="text-center p-4 text-red-600">
+                                <p class="font-bold">Image Load Failed</p>
+                                <p class="text-sm">${sanitizeHTML(err.message || 'Could not load trial photo for grid analysis.')}</p>
+                                <p class="text-xs mt-2 text-gray-500">Tip: Ensure the photo URL is valid and Google Drive sharing/permissions are correct.</p>
                             </div>`;
-                        });
+                        }
+                    })();
                 },
 
                 drawGrid: function () {
@@ -2200,11 +2299,38 @@ IMPORTANT:
                 const efficacyData = safeJsonParse(trial.EfficacyDataJSON);
                 if (!efficacyData[obsIndex]) return;
 
-                efficacyData[obsIndex].weedCoverGrid = gridData.cover;
-                efficacyData[obsIndex].weedCoverGridCells = gridData.selectedCells;
-                efficacyData[obsIndex].weedCoverGridSize = gridData.gridSize;
+                const correctedCover = Math.max(0, Math.min(100, parseFloat(gridData?.cover) || 0));
+
+                efficacyData[obsIndex].weedCoverGrid = correctedCover;
+                efficacyData[obsIndex].weedCoverGridCells = Array.isArray(gridData?.selectedCells) ? gridData.selectedCells : [];
+                efficacyData[obsIndex].weedCoverGridSize = parseInt(gridData?.gridSize, 10) || 10;
                 efficacyData[obsIndex].weedCoverMode = 'grid-manual';
-                efficacyData[obsIndex].weedCover = gridData.cover;
+                efficacyData[obsIndex].weedCover = correctedCover;
+
+                // Scientific consistency: keep species composition, but rescale to manual total cover.
+                const details = Array.isArray(efficacyData[obsIndex].weedDetails) ? efficacyData[obsIndex].weedDetails : [];
+                if (details.length > 0) {
+                    const numeric = details.map(w => ({
+                        ...w,
+                        cover: Math.max(0, parseFloat(w?.cover) || 0)
+                    }));
+                    const sum = numeric.reduce((s, w) => s + w.cover, 0);
+
+                    if (sum > 0 && correctedCover >= 0) {
+                        const factor = correctedCover / sum;
+                        let scaledSum = 0;
+                        for (let i = 0; i < numeric.length; i++) {
+                            const scaled = Math.max(0, Math.min(100, +(numeric[i].cover * factor).toFixed(1)));
+                            numeric[i].cover = scaled;
+                            scaledSum += scaled;
+                        }
+                        const delta = +(correctedCover - scaledSum).toFixed(1);
+                        if (numeric.length > 0 && Math.abs(delta) > 0) {
+                            numeric[0].cover = Math.max(0, Math.min(100, +(numeric[0].cover + delta).toFixed(1)));
+                        }
+                        efficacyData[obsIndex].weedDetails = numeric;
+                    }
+                }
 
                 trial.EfficacyDataJSON = JSON.stringify(efficacyData);
                 await apiCall('updateTrialRecord', { ID: trial.ID, EfficacyDataJSON: trial.EfficacyDataJSON }, false);
@@ -4308,7 +4434,7 @@ IMPORTANT:
                         const matching = weedLower ? weedDetails.find(w => String(w?.species || '').toLowerCase().includes(weedLower)) : null;
                         return matching
                             ? (parseFloat(matching?.cover || 0) || 0)
-                            : weedDetails.reduce((sum, w) => sum + (parseFloat(w?.cover || 0) || 0), 0);
+                            : (window.computeObservationTotalCover(o, trial) ?? 0);
                     };
 
                     const isProjectPlot = String(trial?.ProjectID || '').trim() !== '';
@@ -5714,9 +5840,26 @@ IMPORTANT:
                                     return isFinite(n) ? n : 0;
                                 };
                                 const clamp01 = (v) => Math.max(0, Math.min(100, v));
+                                const normalizePhi = (v) => {
+                                    const n = parseFloat(v);
+                                    if (!isFinite(n)) return null;
+                                    return clamp01(n <= 1 ? n * 100 : n);
+                                };
+                                const formatPhi = (v) => {
+                                    const n = normalizePhi(v);
+                                    return n === null ? '—' : n.toFixed(1);
+                                };
+                                const phiBadgeClass = (v) => {
+                                    if (v === '—') return '';
+                                    const n = parseFloat(v);
+                                    if (!isFinite(n)) return '';
+                                    if (n < 40) return 'bg-red-50 text-red-700 border-red-200';
+                                    if (n < 70) return 'bg-amber-50 text-amber-700 border-amber-200';
+                                    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                };
 
                                 const weedDetails = Array.isArray(obs.weedDetails) ? obs.weedDetails : [];
-                                const derivedTotalCover = clamp01(weedDetails.reduce((s, w) => s + parseCover(w?.cover), 0));
+                                const derivedTotalCover = clamp01(window.computeObservationTotalCover(obs, trial) ?? 0);
                                 const hasStoredCover = obs.weedCover !== undefined && obs.weedCover !== null && obs.weedCover !== '';
                                 const displayCover = hasStoredCover ? clamp01(parseCover(obs.weedCover)) : (weedDetails.length > 0 ? derivedTotalCover : undefined);
                                 const displayCoverMode = obs.weedCoverMode || (hasStoredCover ? 'stored' : (weedDetails.length > 0 ? 'auto' : ''));
@@ -5727,8 +5870,8 @@ IMPORTANT:
                                         const coverCell = idx === 0 && displayCover !== undefined
                                             ? `<span class="px-2 py-1 bg-slate-100 text-slate-800 rounded font-semibold">Total ${displayCover.toFixed(1)}%</span> <span class="text-xs text-gray-400">(${sanitizeHTML(displayCoverMode) || 'auto'})</span>`
                                             : '<span class="text-gray-300">—</span>';
-                                        const phiValue = obs.phi !== undefined && obs.phi !== null && !isNaN(parseFloat(obs.phi)) ? parseFloat(obs.phi).toFixed(3) : '—';
-                                        const phiCell = idx === 0 && phiValue !== '—' ? `<span class="px-2 py-1 rounded shadow-sm border border-emerald-200 font-bold ${parseFloat(phiValue) < 0.15 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700'}">${phiValue}</span>` : '<span class="text-gray-300">—</span>';
+                                        const phiValue = formatPhi(obs.phi);
+                                        const phiCell = idx === 0 && phiValue !== '—' ? `<span class="px-2 py-1 rounded shadow-sm border font-bold ${phiBadgeClass(phiValue)}">${phiValue}</span>` : '<span class="text-gray-300">—</span>';
                                         const statusText = idx === 0 ? String(obs.weedStatus || obs.status || '—') : '—';
                                         const notesText = idx === 0 ? String(obs.notes || '') : '';
                                         const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">📐</button>` : '';
@@ -5746,8 +5889,8 @@ IMPORTANT:
                                     const coverCell = speciesCover !== null
                                         ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold">${speciesCover.toFixed(1)}%</span>${totalBadge}`
                                         : `<span class="text-gray-300">—</span>${totalBadge}`;
-                                    const phiValue = obs.phi !== undefined && obs.phi !== null && !isNaN(parseFloat(obs.phi)) ? parseFloat(obs.phi).toFixed(3) : '—';
-                                    const phiCell = idx === 0 && phiValue !== '—' ? `<span class="px-2 py-1 rounded shadow-sm border border-emerald-200 font-bold ${parseFloat(phiValue) < 0.15 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700'}">${phiValue}</span>` : '<span class="text-gray-300">—</span>';
+                                    const phiValue = formatPhi(obs.phi);
+                                    const phiCell = idx === 0 && phiValue !== '—' ? `<span class="px-2 py-1 rounded shadow-sm border font-bold ${phiBadgeClass(phiValue)}">${phiValue}</span>` : '<span class="text-gray-300">—</span>';
                                     const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">📐</button>` : '';
                                     const speciesText = String(wd?.species || wd?.name || wd?.weed || wd?.weedSpecies || '—');
                                     const statusText = String(wd?.status || wd?.Status || wd?.weedStatus || '—');
@@ -6790,8 +6933,9 @@ IMPORTANT:
                     const phiColor = (phi) => {
                         const v = parseFloat(phi);
                         if (!isFinite(v)) return '#94a3b8';
-                        if (v >= 0.3) return '#22c55e';  // Healthy
-                        if (v >= 0.15) return '#f59e0b'; // Moderate
+                        const normalized = Math.max(0, Math.min(100, v <= 1 ? v * 100 : v));
+                        if (normalized >= 70) return '#22c55e';  // Healthy
+                        if (normalized >= 40) return '#f59e0b'; // Moderate
                         return '#ef4444';                 // Stressed
                     };
 
@@ -6820,7 +6964,9 @@ IMPORTANT:
                             className: 'shadow-lg dropdown' // Adding a slight shadow effect if Leaflet allows
                         }).addTo(map);
 
-                        const phiStr = phi !== undefined && phi !== null ? parseFloat(phi).toFixed(3) : 'N/A';
+                        const phiNum = parseFloat(phi);
+                        const phiNormalized = isFinite(phiNum) ? Math.max(0, Math.min(100, phiNum <= 1 ? phiNum * 100 : phiNum)) : null;
+                        const phiStr = phiNormalized !== null ? phiNormalized.toFixed(1) : 'N/A';
                         circle.bindPopup(`
                             <div style="min-width:180px;font-family:Outfit,sans-serif;">
                                 <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${sanitizeHTML(trial.FormulationName || 'Unknown')}</div>
@@ -18497,8 +18643,7 @@ Style Guidelines:
 
                                                 // Calculate total weed cover from individual species
                                                 if (eff.weedDetails && eff.weedDetails.length > 0) {
-                                                    const totalCover = eff.weedDetails.reduce((sum, wd) => sum + (wd.cover || 0), 0);
-                                                    newObs.weedCover = Math.min(100, totalCover); // Cap at 100%
+                                                    newObs.weedCover = window.computeObservationTotalCover({ weedDetails: eff.weedDetails }, t);
                                                     newObs.weedCoverMode = 'auto';
                                                     console.log(`[Weed Cover] Calculated total from species: ${newObs.weedCover}% from ${eff.weedDetails.length} species`);
                                                 }
@@ -19219,8 +19364,8 @@ Style Guidelines:
                     if (specificMatch) {
                         efficacyVal = 100 - parseFloat(specificMatch.cover || 0);
                     } else {
-                        const sumCover = weedDetails.reduce((s, w) => s + parseFloat(w.cover || 0), 0);
-                        efficacyVal = 100 - (sumCover / (weedDetails.length || 1));
+                        const totalCover = window.computeObservationTotalCover(lastObs, trial);
+                        efficacyVal = 100 - (isFinite(totalCover) ? totalCover : 0);
                     }
 
                     if (!formulationMatches[trial.FormulationID]) {
@@ -22796,9 +22941,7 @@ Specific agronomic recommendation based on data trends, including crop safety (p
                     data.forEach(d => {
                         const x = parseFloat(d.daa);
                         if (!isFinite(x)) return;
-                        const total = (d.weedDetails || []).reduce((sum, w) => sum + (parseFloat(w.cover) || 0), 0);
-                        const fallback = d.weedCover !== undefined ? d.weedCover : (d.cover !== undefined ? d.cover : 0);
-                        const y = isFinite(total) && total > 0 ? total : parseFloat(fallback);
+                        const y = window.computeObservationTotalCover(d, trial);
                         if (!isFinite(y)) return;
                         if (!byDaa.has(x)) byDaa.set(x, []);
                         byDaa.get(x).push(y);
