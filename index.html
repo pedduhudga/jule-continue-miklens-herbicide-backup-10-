@@ -2896,9 +2896,9 @@ IMPORTANT:
                 modal.style.cssText = 'display:flex!important;position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100%!important;background:rgba(0,0,0,0.7)!important;z-index:10000!important;align-items:center!important;justify-content:center!important;overflow-y:auto!important;';
                 modal.innerHTML = `
                     <div class="modal-content bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl mx-auto my-8 max-h-[90vh] overflow-y-auto" style="position:relative;z-index:10001;">
-                        <h3 class="text-xl font-bold mb-3 text-slate-800">?? Grid-Based Weed Cover Assessment</h3>
+                        <h3 class="text-xl font-bold mb-3 text-slate-800">Grid-Based Weed Cover Assessment</h3>
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm">
-                            <p class="font-semibold text-blue-900">?? Instructions:</p>
+                            <p class="font-semibold text-blue-900">Instructions:</p>
                             <ol class="list-decimal ml-5 mt-1 text-blue-800 space-y-1">
                                         <li><strong>Click or drag</strong> to mark weed areas (ignore crop rows)</li>
                                 <li>Choose grid size for precision (more cells = more accurate)</li>
@@ -2938,7 +2938,7 @@ IMPORTANT:
                         </div>
                         <div class="flex justify-end gap-3 mt-4 pt-4 border-t">
                             <button id="grid-cancel-btn" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg hover:bg-slate-300">Cancel</button>
-                            <button id="grid-save-btn" class="btn-primary text-white px-6 py-2 rounded-lg">? Use Grid Value</button>
+                            <button id="grid-save-btn" class="btn-primary text-white px-6 py-2 rounded-lg">Use Grid Value</button>
                         </div>
                     </div>
                 `;
@@ -4235,23 +4235,23 @@ IMPORTANT:
                     if (!response && lastError) throw lastError;
 
                     if (response && extractResponseText(response)) {
-                        showToast(`? API key is valid and working! (${usedModel})`, 'success');
+                        showToast(`Success: API key is valid and working (${usedModel})`, 'success');
                         console.log('API Test Response:', extractResponseText(response));
                     } else {
-                        showToast('?? API responded but with unexpected format.', 'error');
+                        showToast('Error: API responded with unexpected format.', 'error');
                     }
                 } catch (error) {
                     console.error('API Key Test Error:', error);
                     const errorMsg = (error.message || '').toLowerCase();
 
                     if (errorMsg.includes('api key not valid') || errorMsg.includes('invalid')) {
-                        showToast('? API key is INVALID. Please check your key.', 'error');
+                        showToast('Error: API key is invalid. Please check your key.', 'error');
                     } else if (errorMsg.includes('quota') || errorMsg.includes('429') || errorMsg.includes('resource exhausted')) {
-                        showToast('?? API key is valid but QUOTA EXHAUSTED. Wait or use different account.', 'error');
+                        showToast('Warning: API key is valid but quota is exhausted. Wait or use a different account.', 'error');
                     } else if (errorMsg.includes('permission') || errorMsg.includes('403')) {
-                        showToast('? API key lacks permissions. Enable Generative Language API in Google Cloud.', 'error');
+                        showToast('Error: API key lacks permissions. Enable Generative Language API in Google Cloud.', 'error');
                     } else {
-                        showToast(`? API Error: ${error.message}`, 'error');
+                        showToast(`API error: ${error.message}`, 'error');
                     }
                 }
             }
@@ -4306,9 +4306,9 @@ IMPORTANT:
                     if (!response && lastError) throw lastError;
 
                     if (response && extractResponseText(response)) {
-                        showToast(`? Key ${idx + 1} working! (${usedModel})`, 'success');
+                        showToast(`Key ${idx + 1} working! (${usedModel})`, 'success');
                     } else {
-                        showToast(`?? Key ${idx + 1} responded with unexpected format.`, 'error');
+                        showToast(`Error: Key ${idx + 1} responded with unexpected format.`, 'error');
                     }
                 } catch (error) {
                     console.error('API Key Test Error:', error);
@@ -4316,15 +4316,15 @@ IMPORTANT:
                     const errStatus = error.status || 0;
 
                     if (errStatus === 400 || errorMsg.includes('api key not valid') || errorMsg.includes('invalid')) {
-                        showToast(`? Key ${idx + 1} is INVALID.`, 'error');
+                        showToast(`Key ${idx + 1} is INVALID.`, 'error');
                     } else if (errStatus === 429 || errorMsg.includes('quota') || errorMsg.includes('429') || errorMsg.includes('resource exhausted')) {
-                        showToast(`?? Key ${idx + 1} is valid but QUOTA EXHAUSTED.`, 'error');
+                        showToast(`Error: Key ${idx + 1} is valid but quota is exhausted.`, 'error');
                     } else if (errStatus === 404 || errorMsg.includes('not_found') || errorMsg.includes('not found') || errorMsg.includes('unsupported') || errorMsg.includes('v1beta')) {
-                        showToast(`?? Model not supported for Key ${idx + 1}. Try a different model.`, 'error');
+                        showToast(`Error: Model not supported for Key ${idx + 1}. Try a different model.`, 'error');
                     } else if (errorMsg.includes('permission') || errorMsg.includes('403')) {
-                        showToast(`? Key ${idx + 1} lacks permissions.`, 'error');
+                        showToast(`Key ${idx + 1} lacks permissions.`, 'error');
                     } else {
-                        showToast(`? Key ${idx + 1} error: ${error.message}`, 'error');
+                        showToast(`Key ${idx + 1} error: ${error.message}`, 'error');
                     }
                 }
             }
@@ -6558,7 +6558,7 @@ IMPORTANT:
                                     <div class="md:col-span-2 flex items-center gap-2">
                                         <input type="text" name="location" placeholder="Location Name or Lat,Lon" class="p-2 border rounded-md w-full form-input">
                                         <button type="button" data-action="get-location" class="bg-slate-200 p-2 rounded-lg text-sm flex-shrink-0" title="Get GPS Location"><i data-lucide="map-pin"></i></button>
-                                        <button type="button" data-action="pick-on-map" class="bg-emerald-100 text-emerald-700 p-2 rounded-lg text-sm flex-shrink-0 font-medium" title="Pick Exact Location on Map">???</button>
+                                        <button type="button" data-action="pick-on-map" class="bg-emerald-100 text-emerald-700 p-2 rounded-lg text-sm flex-shrink-0 font-medium" title="Pick Exact Location on Map"><i data-lucide="map" class="h-4 w-4"></i></button>
                                     </div>
                                     <button type="button" data-action="fetch-trial-weather" class="btn-primary text-white px-4 py-2 rounded-lg text-sm w-full">Fetch Weather</button>
                                 </div>
@@ -6569,7 +6569,7 @@ IMPORTANT:
                                     <input type="text" name="rain" placeholder="Rain (mm)" class="p-2 border rounded-md text-sm form-input">
                                 </div>
                                 <div id="soil-data-panel" class="hidden mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                                    <h5 class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-1"><i data-lucide="earth" class="h-3 w-3"></i> ?? Soil Profile (0-30cm depth)</h5>
+                                    <h5 class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-1"><i data-lucide="earth" class="h-3 w-3"></i> Soil Profile (0-30cm depth)</h5>
                                     <div id="soil-data-content" class="grid grid-cols-2 md:grid-cols-5 gap-3">
                                         <div class="space-y-1">
                                             <label class="text-[10px] font-bold text-amber-800 uppercase block">pH</label>
@@ -6660,7 +6660,7 @@ IMPORTANT:
 
                             const hasEfficacyData = efficacyData.length > 0;
                             const efficacyCharts = hasEfficacyData ? `<div class="mt-6 col-span-1 md:col-span-2"><h4 class="text-lg font-semibold mb-2 text-slate-700">Efficacy Over Time</h4><p class="text-xs text-gray-500 -mt-2 mb-4">Each line represents a unique weed species identified across all trial observations.</p><div class="bg-slate-50 p-4 rounded-lg"><h5 class="text-md font-semibold mb-2 text-slate-700">% Weed Cover by Species</h5><div class="h-64"><canvas id="single-cover-chart"></canvas></div></div></div>` : '<div class="mt-6 col-span-1 md:col-span-2"><p class="text-gray-500">No quantitative efficacy data logged for this trial.</p></div>';
-                            const weedStatusTable = hasEfficacyData ? `<div class="mt-6 col-span-1 md:col-span-2"><h4 class="text-lg font-semibold mb-2 text-slate-700">Weed Status Timeline</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">DA-A</th><th class="px-4 py-2 text-left font-medium text-slate-500">Species</th><th class="px-4 py-2 text-left font-medium text-slate-500">Status</th><th class="px-4 py-2 text-left font-medium text-slate-500">% Cover ??</th><th class="px-4 py-2 text-left font-medium text-slate-500">Notes</th><th class="px-4 py-2 text-center font-medium text-slate-500">Grid</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${efficacyData.flatMap((obs, obsIdx) => {
+                            const weedStatusTable = hasEfficacyData ? `<div class="mt-6 col-span-1 md:col-span-2"><h4 class="text-lg font-semibold mb-2 text-slate-700">Weed Status Timeline</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">DA-A</th><th class="px-4 py-2 text-left font-medium text-slate-500">Species</th><th class="px-4 py-2 text-left font-medium text-slate-500">Status</th><th class="px-4 py-2 text-left font-medium text-slate-500">% Cover</th><th class="px-4 py-2 text-left font-medium text-slate-500">Notes</th><th class="px-4 py-2 text-center font-medium text-slate-500">Grid</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${efficacyData.flatMap((obs, obsIdx) => {
 
                                 // DEBUG: Log each observation
                                 const parseCover = (v) => {
@@ -6692,7 +6692,7 @@ IMPORTANT:
                                         const baseNotes = idx === 0 ? String(obs.notes || '') : '';
                                         const qaNotes = idx === 0 && obs.validationNotes ? ` [QC] ${obs.validationNotes}` : '';
                                         const notesText = `${baseNotes}${qaNotes}`.trim();
-                                        const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">??</button>` : '';
+                                        const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">Grid</button>` : '';
                                         return `<tr><td class="p-2 font-semibold">${idx === 0 ? obs.daa : ''}</td><td class="p-2">${sanitizeHTML(sp)}</td><td class="p-2">${sanitizeHTML(statusText)}</td><td class="p-2">${coverCell}</td><td class="p-2">${sanitizeHTML(notesText)}</td><td class="p-2 text-center">${gridBtn}</td></tr>`;
                                     });
                                     return rows;
@@ -6707,7 +6707,7 @@ IMPORTANT:
                                     const coverCell = speciesCover !== null
                                         ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold">${speciesCover.toFixed(1)}%</span>${totalBadge}`
                                         : `<span class="text-gray-300">-</span>${totalBadge}`;
-                                    const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">??</button>` : '';
+                                    const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">Grid</button>` : '';
                                     const speciesText = String(wd?.species || wd?.name || wd?.weed || wd?.weedSpecies || '-');
                                     const statusText = String(wd?.status || wd?.Status || wd?.weedStatus || '-');
                                     const baseNotes = String(wd?.notes || wd?.note || '');
@@ -6770,7 +6770,7 @@ IMPORTANT:
                                     <!-- REPORT TAB -->
                                     <div id="trial-detail-report" class="trial-detail-content">
                                         ${alertsHtml}
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="space-y-2 text-gray-800"><p><strong>Investigator:</strong> ${sanitizeHTML(trial.InvestigatorName) || 'N/A'}</p><p><strong>Location:</strong> ${sanitizeHTML(trial.Location) || 'N/A'}</p><p><strong>Dosage:</strong> ${sanitizeHTML(trial.Dosage) || 'N/A'}</p><p><strong>Weed Species:</strong> ${sanitizeHTML(trial.WeedSpecies) || 'N/A'}</p><p><strong>Date:</strong> ${new Date(trial.Date).toLocaleDateString()}</p><p><strong>Result:</strong> ${sanitizeHTML(trial.Result) || 'N/A'}</p>${trial.Temperature ? `<div class="mt-4 pt-4 border-t"><p class="font-semibold text-gray-500 text-sm">Weather on Trial Date</p><div class="grid grid-cols-2 gap-2 mt-1"><p><strong>Temp:</strong> ${trial.Temperature}°C</p><p><strong>Humidity:</strong> ${trial.Humidity}%</p><p><strong>Wind:</strong> ${trial.Windspeed || '0'} km/h</p><p><strong>Rain:</strong> ${trial.Rain || '0'} mm</p></div></div>` : ''}${(() => { let soilStr = ''; if (trial.SoilDataJSON) { try { const soil = JSON.parse(trial.SoilDataJSON); if (Object.keys(soil).length > 0) { soilStr = `<div class="mt-4 pt-4 border-t"><p class="font-semibold text-amber-700 text-sm flex items-center gap-1">?? Soil Profile (0-30cm)</p><div class="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2"><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">pH</span><strong class="text-amber-900 text-sm">${soil.ph}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Clay %</span><strong class="text-amber-900 text-sm">${soil.clay}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Sand %</span><strong class="text-amber-900 text-sm">${soil.sand}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Org Carbon</span><strong class="text-amber-900 text-sm">${soil.organicCarbon}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Texture</span><strong class="text-amber-900 text-sm">${soil.texture}</strong></div></div></div>`; } } catch(e) {} } return soilStr; })()}<div class="mt-4 pt-4 border-t"><p><strong>Conclusion:</strong> ${sanitizeHTML(trial.Conclusion) || 'N/A'}</p><p><strong>Notes:</strong> ${sanitizeHTML(trial.Notes) || 'N/A'}</p></div></div><div>${photoTable} ${weedTable}</div>${efficacyCharts} ${weedStatusTable}</div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="space-y-2 text-gray-800"><p><strong>Investigator:</strong> ${sanitizeHTML(trial.InvestigatorName) || 'N/A'}</p><p><strong>Location:</strong> ${sanitizeHTML(trial.Location) || 'N/A'}</p><p><strong>Dosage:</strong> ${sanitizeHTML(trial.Dosage) || 'N/A'}</p><p><strong>Weed Species:</strong> ${sanitizeHTML(trial.WeedSpecies) || 'N/A'}</p><p><strong>Date:</strong> ${new Date(trial.Date).toLocaleDateString()}</p><p><strong>Result:</strong> ${sanitizeHTML(trial.Result) || 'N/A'}</p>${trial.Temperature ? `<div class="mt-4 pt-4 border-t"><p class="font-semibold text-gray-500 text-sm">Weather on Trial Date</p><div class="grid grid-cols-2 gap-2 mt-1"><p><strong>Temp:</strong> ${trial.Temperature}°C</p><p><strong>Humidity:</strong> ${trial.Humidity}%</p><p><strong>Wind:</strong> ${trial.Windspeed || '0'} km/h</p><p><strong>Rain:</strong> ${trial.Rain || '0'} mm</p></div></div>` : ''}${(() => { let soilStr = ''; if (trial.SoilDataJSON) { try { const soil = JSON.parse(trial.SoilDataJSON); if (Object.keys(soil).length > 0) { soilStr = `<div class="mt-4 pt-4 border-t"><p class="font-semibold text-amber-700 text-sm flex items-center gap-1">Soil Profile (0-30cm)</p><div class="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2"><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">pH</span><strong class="text-amber-900 text-sm">${soil.ph}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Clay %</span><strong class="text-amber-900 text-sm">${soil.clay}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Sand %</span><strong class="text-amber-900 text-sm">${soil.sand}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Org Carbon</span><strong class="text-amber-900 text-sm">${soil.organicCarbon}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Texture</span><strong class="text-amber-900 text-sm">${soil.texture}</strong></div></div></div>`; } } catch(e) {} } return soilStr; })()}<div class="mt-4 pt-4 border-t"><p><strong>Conclusion:</strong> ${sanitizeHTML(trial.Conclusion) || 'N/A'}</p><p><strong>Notes:</strong> ${sanitizeHTML(trial.Notes) || 'N/A'}</p></div></div><div>${photoTable} ${weedTable}</div>${efficacyCharts} ${weedStatusTable}</div>
                                     </div>
 
                                     <!-- STATISTICS TAB -->
@@ -7720,7 +7720,7 @@ IMPORTANT:
                                 <div class="mt-auto p-3 border-t bg-slate-50/50 rounded-b-xl flex items-center justify-between gap-2">
                                     <div class="flex items-center gap-2">
                                         <button class="text-xs bg-white border rounded-md px-2 py-1 hover:bg-slate-100 transition" data-action="open-weed-modal" data-id="${trial.ID}">Identify Weeds</button>
-                                        <button class="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-md px-2 py-1 hover:bg-blue-200 transition font-semibold" data-action="load-photos-from-drive" data-id="${trial.ID}" title="Scan Drive folder and import existing photos">?? Import Photos</button>
+                                        <button class="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-md px-2 py-1 hover:bg-blue-200 transition font-semibold" data-action="load-photos-from-drive" data-id="${trial.ID}" title="Scan Drive folder and import existing photos">Import Photos</button>
                                         <input type="file" id="quick-photo-input-${trial.ID}" class="hidden" data-action="quick-add-photo" data-id="${trial.ID}" accept="image/*" multiple>
                                         <label for="quick-photo-input-${trial.ID}" class="text-xs bg-white border rounded-md px-2 py-1 hover:bg-slate-100 transition cursor-pointer">Add Photo</label>
                                         <button class="text-xs bg-white border rounded-md px-2 py-1 hover:bg-slate-100 transition" data-action="quick-open-camera" data-id="${trial.ID}">Camera</button>
@@ -8124,7 +8124,7 @@ IMPORTANT:
                         <hr class="my-3 border-slate-200">
                         <button onclick="openScientificReport('${projectId}'); return false;" class="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-700 hover:to-cyan-700 text-white px-4 py-3 rounded-lg font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2">
                             <i data-lucide="bar-chart-4" class="h-5 w-5"></i>
-                            <span>?? Scientific Report (New!)</span>
+                            <span>Scientific Report (New!)</span>
                         </button>
                     `;
 
@@ -8436,14 +8436,14 @@ IMPORTANT:
                 },
                 scientificReport: async (projectId = state.activeProjectId) => {
                     try {
-                        alert('?? Scientific Report Started! Project ID: ' + projectId);
+                        alert('Scientific Report started. Project ID: ' + projectId);
                         console.log('=== SCIENTIFIC REPORT DEBUG ===');
                         console.log('1. Project ID:', projectId);
 
                         const project = state.projects.find(p => p.ID === projectId);
                         if (!project) {
                             console.error('Project not found!');
-                            alert('? Project not found: ' + projectId);
+                            alert('Project not found: ' + projectId);
                             return;
                         }
                         console.log('2. Project Found:', project.Name);
@@ -8955,7 +8955,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     const latestObs = efficacyData && efficacyData.length > 0 ? efficacyData[efficacyData.length - 1] : null;
                     const weedCoverBadge = latestObs && latestObs.weedCover !== undefined
                         ? `<div class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-50 border border-green-200 rounded text-[9px]">
-                            <span class="font-bold text-green-700">${latestObs.weedCover}% ??</span>
+                            <span class="font-bold text-green-700">${latestObs.weedCover}% cover</span>
                             <span class="text-green-600">${latestObs.weedCoverMode === 'grid-manual' ? '(grid)' : '(auto)'}</span>
                            </div>`
                         : '';
@@ -8973,13 +8973,13 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                                 </button>
                                 <div id="trial-menu-${t.ID}" class="hidden absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border z-20">
                                     <button onclick="event.stopPropagation(); deleteTrialPrompt('${t.ID}')" class="block w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 rounded-t-lg">
-                                        ??? Delete Trial
+                                        Delete Trial
                                     </button>
                                     <button onclick="event.stopPropagation(); duplicateTrial('${t.ID}')" class="block w-full text-left px-3 py-2 text-xs text-blue-600 hover:bg-blue-50">
-                                        ?? Duplicate
+                                        Duplicate
                                     </button>
                                     <button onclick="event.stopPropagation(); moveToProject('${t.ID}')" class="block w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 rounded-b-lg">
-                                        ?? Move to Project
+                                        Move to Project
                                     </button>
                                 </div>
                             </div>
@@ -10939,7 +10939,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     // CRITICAL FIX: Check if photo with same tempId already exists in queue (prevent duplicate sync items)
                     const alreadyInQueue = state.syncQueue.some(s => s.photo.tempId === uniqueTempId || (s.trialId === trialId && s.photo.date === photoDate && Math.abs(Date.now() - new Date(s.photo.date).getTime()) < 100));
                     if (alreadyInQueue) {
-                        console.warn('[PhotoSave] ?? Duplicate photo attempt blocked - already in sync queue');
+                        console.warn('[PhotoSave] Duplicate photo attempt blocked - already in sync queue');
                         showToast('Photo already queued for upload. Please wait.', 'warning');
                         closeCropper();
                         return;
@@ -10950,7 +10950,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         const photoArray = currentCameraMode === 'weed' ? safeJsonParse(trial.WeedPhotosJSON) : safeJsonParse(trial.PhotoURLs);
                         const alreadyAdded = photoArray.some(p => p.tempId === uniqueTempId || (p.date === photoDate && Math.abs(Date.now() - new Date(p.date).getTime()) < 100));
                         if (alreadyAdded) {
-                            console.warn('[PhotoSave] ?? Duplicate photo blocked - already in trial');
+                            console.warn('[PhotoSave] Duplicate photo blocked - already in trial');
                             showToast('This photo is already being uploaded.', 'warning');
                             closeCropper();
                             return;
@@ -11010,7 +11010,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     console.error("Camera API unavailable. Protocol:", window.location.protocol);
                     if (window.location.protocol === 'file:') {
-                        alert("?? Camera Blocked by Browser Security\n\nYou are opening this file directly (file://). Modern browsers block camera access in this mode.\n\nSolution: Use a local server (like Live Server in VS Code) or HTTPS.");
+                        alert("Camera blocked by browser security.\n\nYou are opening this file directly (file://). Modern browsers block camera access in this mode.\n\nSolution: Use a local server (like Live Server in VS Code) or HTTPS.");
                     } else {
                         showToast("Camera not supported or blocked by browser context.", "error");
                     }
@@ -12852,7 +12852,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         'open-weed-modal': () => handleOpenModal('weedId', id),
                         'load-photos-from-drive': async () => {
                             try {
-                                showToast('?? Scanning Drive folder for photos...', 'info');
+                                showToast('Scanning Drive folder for photos...', 'info');
                                 const trial = state.trials.find(t => t.ID === id);
                                 if (!trial) return showToast('Trial not found', 'error');
                                 
@@ -12905,7 +12905,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                         ID: trial.ID, 
                                         PhotoURLs: trial.PhotoURLs 
                                     }, false);
-                                    showToast(`? Successfully imported ${addedCount} photo(s) from Drive!`, 'success');
+                                    showToast(`Successfully imported ${addedCount} photo(s) from Drive!`, 'success');
                                     applyFilters(); // Refresh display
                                 } else {
                                     showToast('All photos were already in trial', 'info');
@@ -12931,7 +12931,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                             // Fill hidden lat/lon fields with FULL precision for accurate map plotting
                             if (latInput) latInput.value = coords.lat;
                             if (lonInput) lonInput.value = coords.lon;
-                            showToast('?? Location captured with high accuracy!', 'success');
+                            showToast('Location captured with high accuracy!', 'success');
                             
                             // Auto-fetch soil data for this new location
                             fetchSoilData(coords.lat, coords.lon);
@@ -19344,11 +19344,11 @@ Style Guidelines:
 
                 let detailHtml = `<pre class="text-sm text-purple-800 bg-purple-50 p-3 rounded-lg mt-2 whitespace-pre-wrap">${summary}</pre>`;
 
-                detailHtml += `<details class="mt-2"><summary class="cursor-pointer text-sm font-semibold text-purple-700">?? Show detailed trial-by-trial log (${repairLog.length} trials checked)</summary>`;
+                detailHtml += `<details class="mt-2"><summary class="cursor-pointer text-sm font-semibold text-purple-700">Show detailed trial-by-trial log (${repairLog.length} trials checked)</summary>`;
                 detailHtml += `<div class="max-h-64 overflow-y-auto mt-1 text-xs border rounded p-2 bg-white">`;
 
                 if (repairedTrials.length > 0) {
-                    detailHtml += `<div class="font-bold text-green-700 mt-1">?? REPAIRED (${repairedTrials.length}):</div>`;
+                    detailHtml += `<div class="font-bold text-green-700 mt-1">REPAIRED (${repairedTrials.length}):</div>`;
                     repairedTrials.forEach(l => { detailHtml += `<div class="ml-3 text-green-800">- ${sanitizeHTML(l.trial)}</div>`; });
                 }
                 if (skippedTrials.length > 0) {
@@ -19905,7 +19905,7 @@ Style Guidelines:
                     return soilCache[cacheKey];
                 }
 
-                showToast('?? Fetching soil data...', 'info');
+                showToast('Fetching soil data...', 'info');
                 
                 let result = null;
                 
@@ -19960,7 +19960,7 @@ Style Guidelines:
                 // 3. TRY SECONDARY: Kaegro (India Optimized)
                 if (!result) {
                     try {
-                        showToast('?? Falling back to Kaegro (India)...', 'info');
+                        showToast('Falling back to Kaegro (India)...', 'info');
                         const url = `https://corsproxy.io/?https://www.kaegro.com/farms/api/soil?lat=${latNum}&lon=${lonNum}`;
                         const response = await fetchWithRetry(url);
                         if (response.ok) {
@@ -20549,7 +20549,7 @@ Style Guidelines:
                     if (auditIssues && auditIssues.length > 0) {
                         // Issues found - modal is already open, stop report generation
                         console.log('[Regulatory Report] ?? Quality issues detected. Report generation blocked.');
-                        showToast('?? Please review data quality issues before generating report.', 'error');
+                        showToast('Please review data quality issues before generating report.', 'error');
                         return; // Stop execution
                     }
 
@@ -20648,7 +20648,7 @@ Style Guidelines:
                 if (hasIncompleteData && missingTrials.length > 0) {
                     const missingList = missingTrials.map(m => `- ${m}`).join('\n');
                     const proceed = confirm(
-                        `?? INCOMPLETE DATA DETECTED\n\n` +
+                        `INCOMPLETE DATA DETECTED\n\n` +
                         `The following ${missingTrials.length} trial plot(s) are missing data:\n\n` +
                         `${missingList}\n\n` +
                         `This will result in:\n` +
@@ -22994,7 +22994,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 header.style.cssText = 'padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;';
                 header.innerHTML = `
                     <div>
-                        <h3 style="font-weight:700;font-size:16px;color:#1e293b;margin:0;">?? Pick Exact Trial Location</h3>
+                        <h3 style="font-weight:700;font-size:16px;color:#1e293b;margin:0;">Pick Exact Trial Location</h3>
                         <p style="font-size:12px;color:#64748b;margin:4px 0 0 0;">Click/tap on the map to set your trial plot location precisely</p>
                     </div>
                     <div id="map-picker-coords" style="font-family:monospace;font-size:13px;color:#059669;font-weight:600;"></div>
@@ -23010,7 +23010,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 footer.style.cssText = 'padding:12px 20px;display:flex;gap:12px;justify-content:flex-end;border-top:1px solid #e2e8f0;background:#f8fafc;';
                 footer.innerHTML = `
                     <button id="map-picker-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid #cbd5e1;background:white;color:#475569;font-weight:500;cursor:pointer;">Cancel</button>
-                    <button id="map-picker-confirm" style="padding:8px 20px;border-radius:8px;border:none;background:#059669;color:white;font-weight:600;cursor:pointer;">? Confirm Location</button>
+                    <button id="map-picker-confirm" style="padding:8px 20px;border-radius:8px;border:none;background:#059669;color:white;font-weight:600;cursor:pointer;">Confirm Location</button>
                 `;
 
                 container.appendChild(header);
@@ -23071,7 +23071,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     if (locationInput) locationInput.value = `${selectedLat.toFixed(7)}, ${selectedLon.toFixed(7)}`;
                     if (latInput) latInput.value = selectedLat;
                     if (lonInput) lonInput.value = selectedLon;
-                    showToast('?? Location set from map!', 'success');
+                    showToast('Location set from map!', 'success');
                     pickerMap.remove();
                     overlay.remove();
                     
@@ -23098,7 +23098,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     return;
                 }
 
-                showToast('?? Acquiring GPS satellites- please wait', 'info');
+                showToast('Acquiring GPS satellites, please wait', 'info');
 
                 let bestReading = null;
                 let readingCount = 0;
@@ -23129,7 +23129,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 setTimeout(() => {
                     navigator.geolocation.clearWatch(watchId);
                     if (bestReading) {
-                        showToast(`?? GPS locked! Accuracy: -${Math.round(bestReading.accuracy)}m (${readingCount} readings)`, 'success');
+                        showToast(`GPS locked. Accuracy: ${Math.round(bestReading.accuracy)}m (${readingCount} readings)`, 'success');
                         callback(bestReading);
                     } else {
                         showToast('Could not get accurate GPS fix. Try again outdoors.', 'error');
@@ -23158,7 +23158,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     console.error("Camera API unavailable. Protocol:", window.location.protocol);
                     if (window.location.protocol === 'file:') {
-                        alert("?? Camera Blocked by Browser Security\n\nYou are opening this file directly (file://). Modern browsers block camera access in this mode for security.\n\nSolution:\nUse a local server (like 'Live Server' in VS Code) or upload to a secure website (https://).");
+                        alert("Camera blocked by browser security.\n\nYou are opening this file directly (file://). Modern browsers block camera access in this mode for security.\n\nSolution:\nUse a local server (like 'Live Server' in VS Code) or upload to a secure website (https://).");
                     } else {
                         showToast("Camera API not supported or blocked by browser context.", "error");
                     }
@@ -26957,7 +26957,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
     <div id="ai-analysis-modal"
         class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-2xl">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800">?? AI Photo Analysis</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">AI Photo Analysis</h2>
 
             <div id="ai-analysis-status" class="mb-4">
                 <p class="text-gray-700">Ready to analyze all trial photos with FREE AI providers</p>
@@ -26989,7 +26989,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
     <!-- AI SETTINGS CONTAINER (Will be appended to settings page) -->
     <template id="ai-settings-template">
         <div class="bg-white rounded-lg shadow-md p-6 mb-6 mt-6">
-            <h3 class="text-xl font-bold mb-4">?? AI Provider API Keys (FREE)</h3>
+            <h3 class="text-xl font-bold mb-4">AI Provider API Keys (FREE)</h3>
             <p class="text-sm text-gray-600 mb-4">Add API keys for automatic photo analysis. All providers are 100%
                 FREE!</p>
 
@@ -26997,7 +26997,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 <!-- Groq -->
                 <div class="border rounded-lg p-4 bg-gradient-to-r from-purple-50 to-blue-50">
                     <label class="font-semibold flex items-center justify-between">
-                        ? Groq LLaMA 4 Scout (FASTEST - 1-2 seconds!)
+                        Groq LLaMA 4 Scout (FASTEST - 1-2 seconds!)
                         <a href="https://console.groq.com/keys" target="_blank"
                             class="text-blue-600 text-sm underline hover:text-blue-800">
                             Get Free Key ?
@@ -27008,7 +27008,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                         placeholder="gsk_..." />
                     <button onclick="saveAIKey('groq')"
                         class="mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-semibold transition-colors">
-                        ?? Save & Test
+                        Save & Test
                     </button>
                     <span id="groq-status" class="ml-2 text-sm"></span>
                 </div>
@@ -27016,7 +27016,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 <!-- Gemini -->
                 <div class="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-green-50">
                     <label class="font-semibold flex items-center justify-between">
-                        ?? Gemini 2.5 Pro (Most Accurate)
+                        Gemini 2.5 Pro (Most Accurate)
                         <a href="https://aistudio.google.com/apikey" target="_blank"
                             class="text-blue-600 text-sm underline hover:text-blue-800">
                             Get Free Key ?
@@ -27027,7 +27027,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                         placeholder="AIza..." />
                     <button onclick="saveAIKey('gemini')"
                         class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold transition-colors">
-                        ?? Save & Test
+                        Save & Test
                     </button>
                     <span id="gemini-status" class="ml-2 text-sm"></span>
                 </div>
@@ -27035,7 +27035,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 <!-- Pixtral (Mistral) -->
                 <div class="border rounded-lg p-4 bg-gradient-to-r from-yellow-50 to-orange-50">
                     <label class="font-semibold flex items-center justify-between">
-                        ?? Pixtral (Mistral) (High Capacity - 10k/day!)
+                        Pixtral (Mistral) (High Capacity - 10k/day!)
                         <a href="https://console.mistral.ai/" target="_blank"
                             class="text-blue-600 text-sm underline hover:text-blue-800">
                             Get Free Key ?
@@ -27046,7 +27046,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                         placeholder="Key..." />
                     <button onclick="saveAIKey('pixtral')"
                         class="mt-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-semibold transition-colors">
-                        ?? Save & Test
+                        Save & Test
                     </button>
                     <span id="pixtral-status" class="ml-2 text-sm"></span>
                 </div>
@@ -27054,7 +27054,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 <!-- Alibaba Qwen -->
                 <div class="border rounded-lg p-4 bg-gradient-to-r from-red-50 to-pink-50">
                     <label class="font-semibold flex items-center justify-between">
-                        ?? Alibaba Qwen 2.5 (High Speed)
+                        Alibaba Qwen 2.5 (High Speed)
                         <a href="https://bailian.console.aliyun.com/" target="_blank"
                             class="text-blue-600 text-sm underline hover:text-blue-800">
                             Get Free Key ?
@@ -27065,7 +27065,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                         placeholder="sk-..." />
                     <button onclick="saveAIKey('qwen')"
                         class="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-semibold transition-colors">
-                        ?? Save & Test
+                        Save & Test
                     </button>
                     <span id="qwen-status" class="ml-2 text-sm"></span>
                 </div>
@@ -27073,7 +27073,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 <!-- Florence -->
                 <div class="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-gray-200">
                     <label class="font-semibold flex items-center justify-between">
-                        ?? HuggingFace Florence (Backup)
+                        HuggingFace Florence (Backup)
                         <a href="https://huggingface.co/settings/tokens" target="_blank"
                             class="text-blue-600 text-sm underline hover:text-blue-800">
                             Get Free Token ?
@@ -27084,14 +27084,14 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                         placeholder="hf_..." />
                     <button onclick="saveAIKey('florence')"
                         class="mt-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md font-semibold transition-colors">
-                        ?? Save & Test
+                        Save & Test
                     </button>
                     <span id="florence-status" class="ml-2 text-sm"></span>
                 </div>
 
                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4">
                     <p class="text-sm text-yellow-800">
-                        ?? <strong>Tip:</strong> Add at least one API key to enable AI photo analysis. Both are free!
+                        <strong>Tip:</strong> Add at least one API key to enable AI photo analysis. Both are free!
                     </p>
                 </div>
             </div>
@@ -27102,7 +27102,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
     <template id="ai-analyze-button-template">
         <button onclick="openAIAnalysisModal()"
             class="px-6 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:from-purple-600 hover:via-pink-600 hover:to-red-600 text-white rounded-lg font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 flex items-center gap-2 mb-4">
-            <span class="text-2xl">??</span>
+            <span class="text-2xl"><i data-lucide="sparkles" class="h-6 w-6"></i></span>
             <span>Analyze All Photos with AI (FREE)</span>
         </button>
     </template>
@@ -27750,7 +27750,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
             }
 
             if (issues.length === 0) {
-                showToast('? No data quality issues detected!', 'success');
+                showToast('No data quality issues detected!', 'success');
                 return [];
             }
 
@@ -28067,7 +28067,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
             const project = state.projects.find(p => p.ID === projectId);
             if (!project) return;
 
-            showToast('?? Generating updated scientific conclusion...', 'info');
+            showToast('Generating updated scientific conclusion...', 'info');
 
             // 1. Gather Context
             let context = `Write a scientific regulatory conclusion for the herbicide trial "${project.Name}".\n`;
@@ -28156,7 +28156,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     AIAnalysisJSON: project.AIAnalysisJSON
                 });
 
-                showToast("? AI Narrative Updated", "success");
+                showToast("AI Narrative Updated", "success");
                 return conclusion;
             } catch (e) {
                 console.error("Narrative generation failed:", e);
@@ -28290,7 +28290,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 return;
             }
 
-            showToast('?? Bypassing quality checks. Generating report with current data...', 'warning');
+            showToast('Bypassing quality checks. Generating report with current data...', 'warning');
 
             // Set bypass flag
             window.auditBypassOnce = true;
@@ -29380,7 +29380,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     } else {
                         chartImages = {};
                     }
-                    showToast('?? Charts regenerated with fallback - review content carefully.', 'warning');
+                    showToast('Charts regenerated with fallback - review content carefully.', 'warning');
                 }
 
                 const coverChartImg = chartImages.cover;
@@ -30363,7 +30363,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     class="px-4 py-2 text-slate-600 font-semibold hover:bg-slate-200 rounded-lg transition">Close</button>
                 <button onclick="cleanAndProceed()"
                     class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow hover:bg-green-700 transition flex items-center gap-2">
-                    <span>?</span> Clean & Proceed
+                    <span>Clean</span> & Proceed
                 </button>
                 <button onclick="forceGenerate()"
                     class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow hover:bg-red-700 transition">Ignore
@@ -30388,7 +30388,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Google Apps Script URL</label>
                         <input type="url" id="setup-script-url" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white text-sm" placeholder="https://script.google.com/macros/s/.../exec" required>
-                        <p class="text-xs text-slate-400 mt-1">Go to Apps Script ? Deploy ? Manage Deployments ? copy the URL</p>
+                        <p class="text-xs text-slate-400 mt-1">Go to Apps Script -> Deploy -> Manage Deployments -> copy the URL</p>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Google Sheet ID</label>
@@ -30437,6 +30437,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
 </body>
 
 </html>
+
 
 
 
