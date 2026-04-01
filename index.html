@@ -740,7 +740,7 @@
                         </span>
                         <input type="password" id="login-password" required
                             class="block w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all shadow-sm"
-                            placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½">
+                            placeholder="--------">
                         <button type="button" onclick="(function(){const i=document.getElementById('login-password');const icon=document.getElementById('pw-eye-icon');if(i.type==='password'){i.type='text';icon.setAttribute('data-lucide','eye-off');}else{i.type='password';icon.setAttribute('data-lucide','eye');}if(window.lucide)lucide.createIcons();})()"
                             class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition" tabindex="-1">
                             <i id="pw-eye-icon" data-lucide="eye" class="w-5 h-5"></i>
@@ -1259,7 +1259,7 @@
                     || /^(auto-repaired:|auto-added:|auto-tracking:)/i.test(notes);
             };
 
-            // Known perennial weeds ï¿½ 0% cover may indicate top-kill, not full root elimination
+            // Known perennial weeds - 0% cover may indicate top-kill, not full root elimination
             window.PERENNIAL_WEEDS = new Set([
                 'cynodon dactylon', 'cyperus rotundus', 'cyperus esculentus',
                 'digitaria abyssinica', 'imperata cylindrica', 'paspalum conjugatum',
@@ -1822,8 +1822,8 @@
                     obs.weedDetails.forEach(w => {
                         if (w.cover === null || w.species === 'Total') return;
                         const prev = lastSeenBySpecies.get(w.species);
-                        // DAA 0 = baseline (before spray) ï¿½ never zero its cover.
-                        // Early-window spike suppression only applies to DAA 1ï¿½3.
+                        // DAA 0 = baseline (before spray) - never zero its cover.
+                        // Early-window spike suppression only applies to DAA 1-3.
                         const daaVal = parseFloat(obs.daa) || 0;
                         const earlyWindow = daaVal > 0 && daaVal <= 3;
                             const combinedSignals = `${w.status || ''} ${w.notes || ''} ${obs.notes || ''}`;
@@ -2376,7 +2376,7 @@
                                     vegetationPixels: vegetationPixels,
                                     greenPixels: greenPixels,
                                     brownPixels: brownPixels,
-                                    resolution: `${Math.round(width)}ï¿½${Math.round(height)}`
+                                    resolution: `${Math.round(width)}-${Math.round(height)}`
                                 }
                             });
 
@@ -2545,7 +2545,7 @@ IMPORTANT:
                 const wind = parseFloat(trial.Windspeed || trial.windspeed || trial.wind);
                 const rain = parseFloat(trial.Rain || trial.rain);
                 
-                if (temp > 30) risks.push({ type: 'warning', message: 'Heat Stress Risk (>30ï¿½C). May reduce herbicide efficacy and consistency.' });
+                if (temp > 30) risks.push({ type: 'warning', message: 'Heat Stress Risk (>30°C). May reduce herbicide efficacy and consistency.' });
                 if (temp < 5) risks.push({ type: 'info', message: 'Cold Stress. Slow plant metabolism may delay herbicide action.' });
                 if (wind > 15) risks.push({ type: 'danger', message: `High Wind (${wind} km/h). Severe risk of spray drift to neighboring crops.` });
                 if (wind > 10 && wind <= 15) risks.push({ type: 'warning', message: 'Moderate Wind. Use low-drift nozzles.' });
@@ -2595,7 +2595,7 @@ IMPORTANT:
 
             /**
              * Grid-Based Weed Cover Analysis Tool
-             * Journal-safe method: 10ï¿½10 grid (100 cells) for manual weed/crop separation
+             * Journal-safe method: 10x10 grid (100 cells) for manual weed/crop separation
              */
             window.GridWeedCoverTool = {
                 gridSize: 10,
@@ -2913,9 +2913,9 @@ IMPORTANT:
                                 <div class="bg-white p-3 rounded-lg border">
                                     <p class="text-xs font-semibold text-slate-500 mb-2">GRID PRECISION</p>
                                     <select id="grid-size-select" class="w-full border rounded-md shadow-sm p-2 bg-white text-sm">
-                                        <option value="10">10ï¿½10 (1% per cell)</option>
-                                        <option value="20">20ï¿½20 (0.25% per cell)</option>
-                                        <option value="25">25ï¿½25 (0.16% per cell)</option>
+                                        <option value="10">10x10 (1% per cell)</option>
+                                        <option value="20">20x20 (0.25% per cell)</option>
+                                        <option value="25">25x25 (0.16% per cell)</option>
                                     </select>
                                 </div>
                                 <div class="bg-slate-50 p-3 rounded-lg border">
@@ -4148,7 +4148,7 @@ IMPORTANT:
                             const text = data.choices?.[0]?.message?.content;
                             if (text) {
                                 console.log(`[Vision Fallback] ${provider.name} succeeded`);
-                                showToast(`Gemini unavailable ï¿½ used ${provider.name} instead`, 'info');
+                                showToast(`Gemini unavailable - used ${provider.name} instead`, 'info');
                                 return text;
                             }
                         } catch (e) {
@@ -4343,8 +4343,8 @@ IMPORTANT:
 
                 const maskKey = (k) => {
                     const s = String(k || '');
-                    if (s.length <= 10) return 'ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½';
-                    return `${s.slice(0, 4)}ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½${s.slice(-4)}`;
+                    if (s.length <= 10) return '----------';
+                    return `${s.slice(0, 4)}--------${s.slice(-4)}`;
                 };
 
                 const modelInput = document.getElementById('settings-api-model');
@@ -4849,7 +4849,7 @@ IMPORTANT:
                                 <div class="p-3 border rounded-lg flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                     <div>
                                         <div class="font-semibold text-slate-800">${sanitizeHTML(title)}</div>
-                                        <div class="text-xs text-slate-500 mt-1">${sanitizeHTML(itemType)} ï¿½ ${sanitizeHTML(itemId)}</div>
+                                        <div class="text-xs text-slate-500 mt-1">${sanitizeHTML(itemType)} - ${sanitizeHTML(itemId)}</div>
                                         <div class="text-xs text-emerald-700 font-semibold mt-1">Match: ${pct}%</div>
                                     </div>
                                     <div class="flex items-center gap-2">
@@ -4867,7 +4867,7 @@ IMPORTANT:
                                 <div class="p-3 border rounded-lg flex items-center justify-between">
                                     <div>
                                         <div class="font-semibold text-slate-800">${sanitizeHTML(t.FormulationName || 'Trial')}</div>
-                                        <div class="text-xs text-slate-500 mt-1">${sanitizeHTML([t.Date, t.Location, t.WeedSpecies].filter(Boolean).join(' ï¿½ '))}</div>
+                                        <div class="text-xs text-slate-500 mt-1">${sanitizeHTML([t.Date, t.Location, t.WeedSpecies].filter(Boolean).join(' - '))}</div>
                                     </div>
                                     <button data-action="edit" data-type="trial" data-id="${sanitizeHTML(String(t.ID))}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Open</button>
                                 </div>
@@ -4907,7 +4907,7 @@ IMPORTANT:
                             'Not enough data in your Smart Search index to answer this question.',
                             '',
                             'Do this:',
-                            '- Click ï¿½Build / Update Full Indexï¿½',
+                            '- Click "Build / Update Full Index"',
                             '- Then ask again',
                             '',
                             'If it still fails:',
@@ -5026,7 +5026,7 @@ IMPORTANT:
                     ``,
                     `OUTPUT FORMAT:`,
                     `- Direct answer`,
-                    `- Evidence (mention Trial name / Formulation name, dates, location, dosage when available ï¿½ do NOT mention raw IDs)`,
+                    `- Evidence (mention Trial name / Formulation name, dates, location, dosage when available - do NOT mention raw IDs)`,
                     `- Missing data (if any)`
                 ].join('\n');
 
@@ -5353,14 +5353,14 @@ IMPORTANT:
                                             const metrics = getWeedMetrics(tr, weedName);
                                             const best = metrics ? `${formatNum(metrics.bestEfficacy, '%')} @ ${formatNum(metrics.bestDAA, ' DAA')}` : 'N/A';
                                             const regrowth = metrics?.regrowthDAA != null ? `${formatNum(metrics.regrowthDAA, ' DAA')}` : 'Not detected';
-                                            const wx = [tr.Temperature ? `${sanitizeHTML(tr.Temperature)}ï¿½C` : null, tr.Humidity ? `${sanitizeHTML(tr.Humidity)}%` : null, tr.Windspeed ? `${sanitizeHTML(tr.Windspeed)} km/h` : null, tr.Rain ? `${sanitizeHTML(tr.Rain)} mm` : null].filter(Boolean).join(' ï¿½ ') || 'N/A';
+                                            const wx = [tr.Temperature ? `${sanitizeHTML(tr.Temperature)}°C` : null, tr.Humidity ? `${sanitizeHTML(tr.Humidity)}%` : null, tr.Windspeed ? `${sanitizeHTML(tr.Windspeed)} km/h` : null, tr.Rain ? `${sanitizeHTML(tr.Rain)} mm` : null].filter(Boolean).join(' - ') || 'N/A';
                                             return `
                                                 <div class="mt-2 p-3 rounded-lg border bg-slate-50">
                                                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                                                         <div>
-                                                            <div class="font-semibold text-slate-800">${sanitizeHTML(t.dosage || 'N/A')} ï¿½ ${sanitizeHTML(String(t.date || '').slice(0, 10))}</div>
+                                                            <div class="font-semibold text-slate-800">${sanitizeHTML(t.dosage || 'N/A')} - ${sanitizeHTML(String(t.date || '').slice(0, 10))}</div>
                                                             <div class="text-xs text-slate-600 mt-1">Latest control: ${sanitizeHTML(String(t.efficacy))}% (DAA ${sanitizeHTML(String(t.daa || ''))})</div>
-                                                            <div class="text-xs text-slate-600 mt-1">Best control: ${sanitizeHTML(best)} ï¿½ Regrowth after: ${sanitizeHTML(regrowth)}</div>
+                                                            <div class="text-xs text-slate-600 mt-1">Best control: ${sanitizeHTML(best)} - Regrowth after: ${sanitizeHTML(regrowth)}</div>
                                                             <div class="text-xs text-slate-500 mt-1">Weather: ${sanitizeHTML(wx)}</div>
                                                         </div>
                                                         <div class="flex items-center gap-2">
@@ -5376,7 +5376,7 @@ IMPORTANT:
                                             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                                                 <div>
                                                     <div class="font-bold text-slate-800">${sanitizeHTML(g.formulationName)}</div>
-                                                    <div class="text-xs text-slate-600 mt-1">Avg latest control: ${formatNum(g.avgE, '%')} ï¿½ Best latest control: ${formatNum(g.maxE, '%')} ï¿½ Trials: ${sanitizeHTML(String(g.trials.length))} ï¿½ Cost: ${sanitizeHTML(costStr)}</div>
+                                                    <div class="text-xs text-slate-600 mt-1">Avg latest control: ${formatNum(g.avgE, '%')} - Best latest control: ${formatNum(g.maxE, '%')} - Trials: ${sanitizeHTML(String(g.trials.length))} - Cost: ${sanitizeHTML(costStr)}</div>
                                                 </div>
                                             </div>
                                             ${trialsHtml}
@@ -5399,7 +5399,7 @@ IMPORTANT:
                                     weedWeatherEl.innerHTML = `
                                         <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm">
                                             <div class="font-semibold text-slate-700 mb-1">Weather summary (top ${wxRows.length} trials)</div>
-                                            <div class="text-slate-600">Temp avg: ${formatNum(avg(temps), 'ï¿½C')} ï¿½ Hum avg: ${formatNum(avg(hums), '%')} ï¿½ Wind avg: ${formatNum(avg(winds), ' km/h')} ï¿½ Rain avg: ${formatNum(avg(rains), ' mm')}</div>
+                                            <div class="text-slate-600">Temp avg: ${formatNum(avg(temps), '°C')} - Hum avg: ${formatNum(avg(hums), '%')} - Wind avg: ${formatNum(avg(winds), ' km/h')} - Rain avg: ${formatNum(avg(rains), ' mm')}</div>
                                         </div>
                                     `;
                                 } else {
@@ -5437,7 +5437,7 @@ IMPORTANT:
                 const note = preserveModel
                     ? `keeping model ${state.settings.apiModel} (different project may have quota)`
                     : `reset to ${state.settings.apiModel}`;
-                console.info(`Switched Gemini to key ${newIndex + 1}/${keyCount} ï¿½ ${note}`);
+                console.info(`Switched Gemini to key ${newIndex + 1}/${keyCount} - ${note}`);
                 showToast(`Trying key ${newIndex + 1}/${keyCount}...`, 'info');
                 return true;
             }
@@ -5461,7 +5461,7 @@ IMPORTANT:
                     console.warn(`Skipping ${currentModel} key ${state.settings.currentApiKeyIndex + 1} (${Math.ceil(msRemaining / 60000)}m left, ${isLongTermBlock ? 'daily quota' : 'rate limit'})`);
 
                     if (isLongTermBlock) {
-                        // Daily quota: rotate to a DIFFERENT project's key ï¿½ it has independent quota for this model
+                        // Daily quota: rotate to a DIFFERENT project's key - it has independent quota for this model
                         if (hasUnblockedKeyForModel(currentModel) && rotateApiKey(true)) {
                             return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                         }
@@ -5527,9 +5527,9 @@ IMPORTANT:
                             (error.message || '').includes('PerDay');
 
                         if (isDailyQuota) {
-                            // Daily project quota ï¿½ block this key+model for 23h (resets ~midnight Pacific)
+                            // Daily project quota - block this key+model for 23h (resets ~midnight Pacific)
                             // IMPORTANT: each key is from a DIFFERENT Google project ? independent daily quota.
-                            // Rotate to next key and try the SAME model ï¿½ it may work on the next project.
+                            // Rotate to next key and try the SAME model - it may work on the next project.
                             blockedModels[currentBlockKey] = Date.now() + (82800 * 1000); // 23 hours
                             console.warn(`Daily quota hit: ${currentModel} key ${keyIdx} blocked for 23h. Checking other project keys...`);
                             showToast(`Key ${keyIdx} daily limit reached for ${currentModel}. Trying next project key...`, 'warning');
@@ -5547,7 +5547,7 @@ IMPORTANT:
                                 return _callGeminiApiWithRetries(apiCallFunction, retries + 1);
                             }
                         } else {
-                            // Per-minute / transient rate limit ï¿½ block briefly, try next model first
+                            // Per-minute / transient rate limit - block briefly, try next model first
                             blockedModels[currentBlockKey] = Date.now() + (retryDelaySec * 1000);
                             console.warn(`Rate limit: ${currentModel} key ${keyIdx} blocked for ${retryDelaySec}s. Rotating model...`);
 
@@ -5957,7 +5957,7 @@ IMPORTANT:
                                     </h4>
                                     <div class="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label class="block text-xs font-semibold text-indigo-800 mb-1">Temp (ï¿½C)</label>
+                                            <label class="block text-xs font-semibold text-indigo-800 mb-1">Temp (°C)</label>
                                             <input type="number" id="ai-temp" placeholder="Auto" class="w-full form-input px-3 py-1.5 border border-indigo-200 rounded-lg bg-white text-sm">
                                         </div>
                                         <div>
@@ -6281,7 +6281,7 @@ IMPORTANT:
                                     <div>
                                         <h2 class="text-xl font-semibold text-gray-700 mb-4">Efficacy Repair & Weed Linking</h2>
                                         <div class="bg-white p-6 rounded-lg shadow">
-                                            <p class="text-gray-600 mb-4">Fix common issues that block weed ï¿½ formulation insights: string DAA values, missing weedDetails, and missing WeedSpecies field.</p>
+                                            <p class="text-gray-600 mb-4">Fix common issues that block weed - formulation insights: string DAA values, missing weedDetails, and missing WeedSpecies field.</p>
                                             <div class="flex flex-wrap gap-3 items-center">
                                                 <button data-action="scan-efficacy-data" class="bg-slate-700 text-white px-4 py-2 rounded-lg">Scan Trials</button>
                                                 <button data-action="fix-efficacy-data" class="bg-emerald-600 text-white px-4 py-2 rounded-lg">Auto-Fix Weed Linking</button>
@@ -6563,7 +6563,7 @@ IMPORTANT:
                                     <button type="button" data-action="fetch-trial-weather" class="btn-primary text-white px-4 py-2 rounded-lg text-sm w-full">Fetch Weather</button>
                                 </div>
                                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                                    <input type="text" name="temperature" placeholder="Temp (ï¿½C)" class="p-2 border rounded-md text-sm form-input">
+                                    <input type="text" name="temperature" placeholder="Temp (°C)" class="p-2 border rounded-md text-sm form-input">
                                     <input type="text" name="humidity" placeholder="Humidity (%)" class="p-2 border rounded-md text-sm form-input">
                                     <input type="text" name="windspeed" placeholder="Wind (km/h)" class="p-2 border rounded-md text-sm form-input">
                                     <input type="text" name="rain" placeholder="Rain (mm)" class="p-2 border rounded-md text-sm form-input">
@@ -6615,7 +6615,7 @@ IMPORTANT:
                         randomize: `<div id="randomize-modal" class="modal"><div class="modal-content bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl mx-auto mt-10"><h3 class="text-lg font-bold mb-2 text-slate-800">Randomize Plot Layout</h3>
                         <div class="mb-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg"><p class="text-xs font-bold text-emerald-600 uppercase">Target Project</p><p class="text-lg font-bold text-emerald-900">${(() => { const p = state.projects.find(x => x.ID === (data.projectId || '')); return p ? sanitizeHTML(p.Name) : '<span class="text-red-500">No Project Selected. Please navigate to a Project first.</span>'; })()}</p></div>
                         <p class="text-sm text-slate-500 mb-6">Select treatments to distribute across all blocks in this project.</p><form id="randomize-form"><input type="hidden" name="projectId" value="${data.projectId || ''}"><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-2">Select Treatments</label><div id="randomize-formulations-list" class="max-h-60 overflow-y-auto border rounded-md p-2 space-y-1"></div></div></div><div class="space-y-4"><div><label class="block text-sm font-medium text-gray-700 mb-2">Default Plot Info</label><div class="space-y-3"><input type="text" name="investigatorName" placeholder="Investigator" class="w-full p-2 border rounded-md text-sm form-input" list="investigator-list"><input type="text" name="dosage" placeholder="Default Dosage (mL/ha)" class="w-full p-2 border rounded-md text-sm form-input"><input type="text" name="weedSpecies" placeholder="Weed Species" class="w-full p-2 border rounded-md text-sm form-input"><input type="date" name="date" class="w-full p-2 border rounded-md text-sm form-input" value="${new Date().toISOString().split('T')[0]}"></div></div></div></div><div class="mt-8 p-4 bg-emerald-50 border border-emerald-100 rounded-lg"><div class="flex items-start gap-3"><i data-lucide="info" class="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5"></i><div><p class="text-sm font-semibold text-emerald-800">Randomization Strategy</p><p class="text-xs text-emerald-700">Plots will be generated for every block. One treatment must be tagged as "Control" to enable WCE calculations later.</p></div></div></div><div class="mt-8 flex justify-end space-x-3"><button type="button" data-action="close-modal" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg transition hover:bg-slate-300">Cancel</button><button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg">Generate & Randomize</button></div></form></div></div>`,
-                        photoEdit: `<div id="photo-edit-modal" class="modal"><div class="modal-content bg-white p-8 rounded-lg shadow-xl w-full max-w-lg mx-auto mt-20"><h3 class="text-lg font-bold mb-4 text-slate-800">Edit Photo Details</h3><form id="photo-edit-form"><input type="hidden" name="trialId"><input type="hidden" name="photoIndex"><div class="mb-4"><label class="block text-sm font-medium text-gray-700">Label</label><input type="text" name="label" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm form-input"></div><div class="mb-4"><label class="block text-sm font-medium text-gray-700">Photo Date</label><input type="date" name="date" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm form-input"></div><div class="mt-6 p-4 bg-gray-50 rounded-lg"><h4 class="text-md font-medium text-gray-800 mb-2">Weather Conditions</h4><div class="grid grid-cols-2 md:grid-cols-4 gap-4"><input type="text" name="temp" placeholder="Temp (ï¿½C)" class="p-2 border rounded-md text-sm form-input"><input type="text" name="humidity" placeholder="Humidity (%)" class="p-2 border rounded-md text-sm form-input"><input type="text" name="wind" placeholder="Wind (km/h)" class="p-2 border rounded-md text-sm form-input"><input type="text" name="rain" placeholder="Rain (mm)" class="p-2 border rounded-md text-sm form-input"></div></div><div class="mt-6 flex justify-end space-x-3"><button type="button" data-action="close-modal" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg transition hover:bg-slate-300">Cancel</button><button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg">Save Changes</button></div></form></div></div>`,
+                        photoEdit: `<div id="photo-edit-modal" class="modal"><div class="modal-content bg-white p-8 rounded-lg shadow-xl w-full max-w-lg mx-auto mt-20"><h3 class="text-lg font-bold mb-4 text-slate-800">Edit Photo Details</h3><form id="photo-edit-form"><input type="hidden" name="trialId"><input type="hidden" name="photoIndex"><div class="mb-4"><label class="block text-sm font-medium text-gray-700">Label</label><input type="text" name="label" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm form-input"></div><div class="mb-4"><label class="block text-sm font-medium text-gray-700">Photo Date</label><input type="date" name="date" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm form-input"></div><div class="mt-6 p-4 bg-gray-50 rounded-lg"><h4 class="text-md font-medium text-gray-800 mb-2">Weather Conditions</h4><div class="grid grid-cols-2 md:grid-cols-4 gap-4"><input type="text" name="temp" placeholder="Temp (°C)" class="p-2 border rounded-md text-sm form-input"><input type="text" name="humidity" placeholder="Humidity (%)" class="p-2 border rounded-md text-sm form-input"><input type="text" name="wind" placeholder="Wind (km/h)" class="p-2 border rounded-md text-sm form-input"><input type="text" name="rain" placeholder="Rain (mm)" class="p-2 border rounded-md text-sm form-input"></div></div><div class="mt-6 flex justify-end space-x-3"><button type="button" data-action="close-modal" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg transition hover:bg-slate-300">Cancel</button><button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg">Save Changes</button></div></form></div></div>`,
                         weedId: () => {
                             const { trial } = data;
                             if (!trial) return `<div id="weed-modal" class="modal"><div class="modal-content bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl mx-auto mt-10"><p class="text-red-500">Error: Trial data could not be loaded.</p></div></div>`;
@@ -6647,7 +6647,7 @@ IMPORTANT:
                                 : `<div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg mb-6 flex items-center gap-2 text-emerald-800 text-sm shadow-sm"><i data-lucide="shield-check" class="h-5 w-5"></i> <strong>Climate Guard:</strong> Optimal application conditions detected.</div>`;
 
                             const photos = safeJsonParse(trial.PhotoURLs);
-                            const photoTable = photos.length > 0 ? `<div class="mt-4"><h4 class="text-lg font-semibold mb-2 text-slate-700">Photo Log & Weather</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">Photo</th><th class="px-4 py-2 text-left font-medium text-slate-500">Label</th><th class="px-4 py-2 text-left font-medium text-slate-500">Date</th><th class="px-4 py-2 text-left font-medium text-slate-500">Weather</th><th class="px-4 py-2 text-left font-medium text-slate-500">Actions</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${photos.map((p, index) => { const photoUrl = p.fileData || p.url; if (!photoUrl) return ''; const proxiedUrl = photoUrl.startsWith('data:image') ? photoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(photoUrl)}&w=100`; const fullSizeUrl = photoUrl.startsWith('data:image') ? '#' : photoUrl; const weather = p.weather || {}; return `<tr><td class="p-2"><a href="${fullSizeUrl}" target="_blank"><img src="${proxiedUrl}" class="h-16 w-16 object-cover rounded-md border"></a></td><td class="p-2">${sanitizeHTML(p.label) || '-'}</td><td class="p-2">${p.date ? new Date(p.date).toLocaleDateString() : 'N/A'}</td><td class="p-2">${weather.temp ? `${weather.temp}ï¿½C, ${weather.humidity}% H, ${weather.wind} km/h` : 'N/A'}</td><td class="p-2"><button data-action="open-photo-edit-modal" data-trial-id="${trial.ID}" data-photo-index="${index}" class="text-emerald-600 hover:text-emerald-800 font-semibold text-xs">Edit</button></td></tr>` }).join('')}</tbody></table></div></div>` : '<p class="mt-4 text-gray-500">No photos available.</p>';
+                            const photoTable = photos.length > 0 ? `<div class="mt-4"><h4 class="text-lg font-semibold mb-2 text-slate-700">Photo Log & Weather</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">Photo</th><th class="px-4 py-2 text-left font-medium text-slate-500">Label</th><th class="px-4 py-2 text-left font-medium text-slate-500">Date</th><th class="px-4 py-2 text-left font-medium text-slate-500">Weather</th><th class="px-4 py-2 text-left font-medium text-slate-500">Actions</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${photos.map((p, index) => { const photoUrl = p.fileData || p.url; if (!photoUrl) return ''; const proxiedUrl = photoUrl.startsWith('data:image') ? photoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(photoUrl)}&w=100`; const fullSizeUrl = photoUrl.startsWith('data:image') ? '#' : photoUrl; const weather = p.weather || {}; return `<tr><td class="p-2"><a href="${fullSizeUrl}" target="_blank"><img src="${proxiedUrl}" class="h-16 w-16 object-cover rounded-md border"></a></td><td class="p-2">${sanitizeHTML(p.label) || '-'}</td><td class="p-2">${p.date ? new Date(p.date).toLocaleDateString() : 'N/A'}</td><td class="p-2">${weather.temp ? `${weather.temp}°C, ${weather.humidity}% H, ${weather.wind} km/h` : 'N/A'}</td><td class="p-2"><button data-action="open-photo-edit-modal" data-trial-id="${trial.ID}" data-photo-index="${index}" class="text-emerald-600 hover:text-emerald-800 font-semibold text-xs">Edit</button></td></tr>` }).join('')}</tbody></table></div></div>` : '<p class="mt-4 text-gray-500">No photos available.</p>';
                             const weedPhotos = safeJsonParse(trial.WeedPhotosJSON);
                             const weedTable = weedPhotos.length > 0 ? `<div class="mt-6"><h4 class="text-lg font-semibold mb-2 text-slate-700">Weed Identification</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${weedPhotos.map(p => { const bestMatch = p.identifications?.[0]; const weedPhotoUrl = p.fileData || p.url; if (!weedPhotoUrl) return ''; const weedPreviewUrl = weedPhotoUrl.startsWith('data:image') ? weedPhotoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(weedPhotoUrl)}&w=300`; return `<div class="border rounded-lg p-3 bg-slate-50"><img src="${weedPreviewUrl}" class="rounded-md w-full h-48 object-cover mb-2"><p class="font-semibold text-sm">${sanitizeHTML(bestMatch?.name) || 'Unknown'} <em class="text-gray-500 font-normal">${sanitizeHTML(bestMatch?.commonNames?.[0]) || ''}</em></p><p class="text-xs text-gray-500">Confidence: ${bestMatch?.confidence ? (bestMatch.confidence * 100).toFixed(1) + '%' : 'N/A'}</p></div>` }).join('')}</div></div>` : '';
                             const efficacyData = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON));
@@ -6684,11 +6684,11 @@ IMPORTANT:
                                 const safePhotoUrl = obs.photoUrl ? encodeURIComponent(String(obs.photoUrl)) : '';
                                 if (weedDetails.length === 0) {
                                     const speciesFallback = String(trial.WeedSpecies || '').split(',').map(s => s.trim()).filter(Boolean);
-                                    const rows = (speciesFallback.length ? speciesFallback : ['ï¿½']).map((sp, idx) => {
+                                    const rows = (speciesFallback.length ? speciesFallback : ['-']).map((sp, idx) => {
                                         const coverCell = idx === 0 && displayCover !== undefined
                                             ? `<span class="px-2 py-1 bg-slate-100 text-slate-800 rounded font-semibold">Total ${displayCover.toFixed(1)}%</span> <span class="text-xs text-gray-400">(${sanitizeHTML(displayCoverMode) || 'auto'})</span>`
-                                            : '<span class="text-gray-300">ï¿½</span>';
-                                        const statusText = idx === 0 ? String(obs.weedStatus || obs.status || 'ï¿½') : 'ï¿½';
+                                            : '<span class="text-gray-300">-</span>';
+                                        const statusText = idx === 0 ? String(obs.weedStatus || obs.status || '-') : '-';
                                         const baseNotes = idx === 0 ? String(obs.notes || '') : '';
                                         const qaNotes = idx === 0 && obs.validationNotes ? ` [QC] ${obs.validationNotes}` : '';
                                         const notesText = `${baseNotes}${qaNotes}`.trim();
@@ -6706,10 +6706,10 @@ IMPORTANT:
                                         : '';
                                     const coverCell = speciesCover !== null
                                         ? `<span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold">${speciesCover.toFixed(1)}%</span>${totalBadge}`
-                                        : `<span class="text-gray-300">ï¿½</span>${totalBadge}`;
+                                        : `<span class="text-gray-300">-</span>${totalBadge}`;
                                     const gridBtn = idx === 0 && safePhotoUrl ? `<button onclick="openGridAnalysis('${trial.ID}', ${obsIdx}, '${safePhotoUrl}', ${displayCover || 0})" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200" title="Refine with grid">??</button>` : '';
-                                    const speciesText = String(wd?.species || wd?.name || wd?.weed || wd?.weedSpecies || 'ï¿½');
-                                    const statusText = String(wd?.status || wd?.Status || wd?.weedStatus || 'ï¿½');
+                                    const speciesText = String(wd?.species || wd?.name || wd?.weed || wd?.weedSpecies || '-');
+                                    const statusText = String(wd?.status || wd?.Status || wd?.weedStatus || '-');
                                     const baseNotes = String(wd?.notes || wd?.note || '');
                                     const qaNotes = idx === 0 && obs.validationNotes ? ` [QC] ${obs.validationNotes}` : '';
                                     const notesText = `${baseNotes}${qaNotes}`.trim();
@@ -6736,7 +6736,7 @@ IMPORTANT:
                                     const at = stats.anovaResults.anovaTable;
                                     anovaContent = `<div class="mb-6"><h4 class="text-md font-bold text-slate-800 mb-2 flex items-center gap-2">ANOVA Results (WCE) <span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full uppercase">Computed: ${new Date(stats.calculatedAt).toLocaleDateString()}</span></h4><div class="overflow-x-auto border rounded-lg mb-4"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Source</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">DF</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">SS</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">MS</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">F</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">P > F</th><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sig</th></tr></thead><tbody class="divide-y divide-gray-200 bg-white">
                                     ${[at.treatment, at.block, at.error, at.total].filter(Boolean).map(row => `<tr><td class="px-3 py-2 font-medium">${row.source}</td><td class="px-3 py-2 text-right text-gray-500">${row.df}</td><td class="px-3 py-2 text-right text-gray-500">${Number.isFinite(row.ss) ? row.ss.toFixed(2) : ''}</td><td class="px-3 py-2 text-right text-gray-500">${Number.isFinite(row.ms) ? row.ms.toFixed(2) : ''}</td><td class="px-3 py-2 text-right text-gray-500">${Number.isFinite(row.f) ? row.f.toFixed(2) : ''}</td><td class="px-3 py-2 text-right text-gray-500">${Number.isFinite(row.p) ? row.p.toFixed(4) : ''}</td><td class="px-3 py-2 font-bold">${row.sig || ''}</td></tr>`).join('')}
-                                    </tbody></table></div><div class="grid grid-cols-2 gap-4 text-xs text-gray-600 mb-4"><div class="p-2 bg-slate-50 rounded"><strong>CV:</strong> ${Number.isFinite(stats.anovaResults.diagnostics?.cv) ? stats.anovaResults.diagnostics.cv.toFixed(2) : '-'}%</div><div class="p-2 bg-slate-50 rounded"><strong>Rï¿½:</strong> ${Number.isFinite(stats.anovaResults.diagnostics?.r_squared) ? stats.anovaResults.diagnostics.r_squared.toFixed(4) : '-'}</div></div>`;
+                                    </tbody></table></div><div class="grid grid-cols-2 gap-4 text-xs text-gray-600 mb-4"><div class="p-2 bg-slate-50 rounded"><strong>CV:</strong> ${Number.isFinite(stats.anovaResults.diagnostics?.cv) ? stats.anovaResults.diagnostics.cv.toFixed(2) : '-'}%</div><div class="p-2 bg-slate-50 rounded"><strong>R2:</strong> ${Number.isFinite(stats.anovaResults.diagnostics?.r_squared) ? stats.anovaResults.diagnostics.r_squared.toFixed(4) : '-'}</div></div>`;
                                 }
 
                                 let lsdContent = '';
@@ -6770,7 +6770,7 @@ IMPORTANT:
                                     <!-- REPORT TAB -->
                                     <div id="trial-detail-report" class="trial-detail-content">
                                         ${alertsHtml}
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="space-y-2 text-gray-800"><p><strong>Investigator:</strong> ${sanitizeHTML(trial.InvestigatorName) || 'N/A'}</p><p><strong>Location:</strong> ${sanitizeHTML(trial.Location) || 'N/A'}</p><p><strong>Dosage:</strong> ${sanitizeHTML(trial.Dosage) || 'N/A'}</p><p><strong>Weed Species:</strong> ${sanitizeHTML(trial.WeedSpecies) || 'N/A'}</p><p><strong>Date:</strong> ${new Date(trial.Date).toLocaleDateString()}</p><p><strong>Result:</strong> ${sanitizeHTML(trial.Result) || 'N/A'}</p>${trial.Temperature ? `<div class="mt-4 pt-4 border-t"><p class="font-semibold text-gray-500 text-sm">Weather on Trial Date</p><div class="grid grid-cols-2 gap-2 mt-1"><p><strong>Temp:</strong> ${trial.Temperature}ï¿½C</p><p><strong>Humidity:</strong> ${trial.Humidity}%</p><p><strong>Wind:</strong> ${trial.Windspeed || '0'} km/h</p><p><strong>Rain:</strong> ${trial.Rain || '0'} mm</p></div></div>` : ''}${(() => { let soilStr = ''; if (trial.SoilDataJSON) { try { const soil = JSON.parse(trial.SoilDataJSON); if (Object.keys(soil).length > 0) { soilStr = `<div class="mt-4 pt-4 border-t"><p class="font-semibold text-amber-700 text-sm flex items-center gap-1">?? Soil Profile (0-30cm)</p><div class="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2"><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">pH</span><strong class="text-amber-900 text-sm">${soil.ph}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Clay %</span><strong class="text-amber-900 text-sm">${soil.clay}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Sand %</span><strong class="text-amber-900 text-sm">${soil.sand}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Org Carbon</span><strong class="text-amber-900 text-sm">${soil.organicCarbon}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Texture</span><strong class="text-amber-900 text-sm">${soil.texture}</strong></div></div></div>`; } } catch(e) {} } return soilStr; })()}<div class="mt-4 pt-4 border-t"><p><strong>Conclusion:</strong> ${sanitizeHTML(trial.Conclusion) || 'N/A'}</p><p><strong>Notes:</strong> ${sanitizeHTML(trial.Notes) || 'N/A'}</p></div></div><div>${photoTable} ${weedTable}</div>${efficacyCharts} ${weedStatusTable}</div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="space-y-2 text-gray-800"><p><strong>Investigator:</strong> ${sanitizeHTML(trial.InvestigatorName) || 'N/A'}</p><p><strong>Location:</strong> ${sanitizeHTML(trial.Location) || 'N/A'}</p><p><strong>Dosage:</strong> ${sanitizeHTML(trial.Dosage) || 'N/A'}</p><p><strong>Weed Species:</strong> ${sanitizeHTML(trial.WeedSpecies) || 'N/A'}</p><p><strong>Date:</strong> ${new Date(trial.Date).toLocaleDateString()}</p><p><strong>Result:</strong> ${sanitizeHTML(trial.Result) || 'N/A'}</p>${trial.Temperature ? `<div class="mt-4 pt-4 border-t"><p class="font-semibold text-gray-500 text-sm">Weather on Trial Date</p><div class="grid grid-cols-2 gap-2 mt-1"><p><strong>Temp:</strong> ${trial.Temperature}°C</p><p><strong>Humidity:</strong> ${trial.Humidity}%</p><p><strong>Wind:</strong> ${trial.Windspeed || '0'} km/h</p><p><strong>Rain:</strong> ${trial.Rain || '0'} mm</p></div></div>` : ''}${(() => { let soilStr = ''; if (trial.SoilDataJSON) { try { const soil = JSON.parse(trial.SoilDataJSON); if (Object.keys(soil).length > 0) { soilStr = `<div class="mt-4 pt-4 border-t"><p class="font-semibold text-amber-700 text-sm flex items-center gap-1">?? Soil Profile (0-30cm)</p><div class="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2"><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">pH</span><strong class="text-amber-900 text-sm">${soil.ph}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Clay %</span><strong class="text-amber-900 text-sm">${soil.clay}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Sand %</span><strong class="text-amber-900 text-sm">${soil.sand}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Org Carbon</span><strong class="text-amber-900 text-sm">${soil.organicCarbon}</strong></div><div class="bg-amber-50 border border-amber-100 p-2 rounded text-xs"><span class="block text-amber-900/60 font-semibold mb-0.5">Texture</span><strong class="text-amber-900 text-sm">${soil.texture}</strong></div></div></div>`; } } catch(e) {} } return soilStr; })()}<div class="mt-4 pt-4 border-t"><p><strong>Conclusion:</strong> ${sanitizeHTML(trial.Conclusion) || 'N/A'}</p><p><strong>Notes:</strong> ${sanitizeHTML(trial.Notes) || 'N/A'}</p></div></div><div>${photoTable} ${weedTable}</div>${efficacyCharts} ${weedStatusTable}</div>
                                     </div>
 
                                     <!-- STATISTICS TAB -->
@@ -6948,7 +6948,7 @@ IMPORTANT:
                                             </div>
                                             <div>
                                                 <p class="font-bold text-slate-800">${sanitizeHTML(u.Username)}</p>
-                                                <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">${sanitizeHTML(u.Role)} ï¿½ ${userTrials.length} Trials</p>
+                                                <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">${sanitizeHTML(u.Role)} - ${userTrials.length} Trials</p>
                                                 <div class="mt-1 flex items-center gap-2 text-[10px] flex-wrap">
                                                     <span class="px-2 py-0.5 rounded-full font-bold ${isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">${isActive ? 'Active' : 'Disabled'}</span>
                                                     <span class="px-2 py-0.5 rounded-full font-bold ${healthClass}">${healthLabel}</span>
@@ -7022,7 +7022,7 @@ IMPORTANT:
                     }
                     const weatherEl = document.getElementById('avg-weather-conditions');
                     if (weatherEl) {
-                        weatherEl.innerHTML = `<div class="flex items-center gap-3"><div class="bg-blue-100 p-2 rounded-full"><i data-lucide="thermometer" class="h-5 w-5 text-blue-600"></i></div><div><p class="font-bold text-slate-700">${avgTemp.toFixed(1)}ï¿½C</p><p class="text-xs text-slate-500">Avg. Temp</p></div></div><div class="flex items-center gap-3"><div class="bg-sky-100 p-2 rounded-full"><i data-lucide="droplets" class="h-5 w-5 text-sky-600"></i></div><div><p class="font-bold text-slate-700">${avgHumidity.toFixed(1)}%</p><p class="text-xs text-slate-500">Avg. Humidity</p></div></div><div class="flex items-center gap-3"><div class="bg-slate-100 p-2 rounded-full"><i data-lucide="wind" class="h-5 w-5 text-slate-600"></i></div><div><p class="font-bold text-slate-700">${avgWind.toFixed(1)} km/h</p><p class="text-xs text-slate-500">Avg. Wind</p></div></div><div class="flex items-center gap-3"><div class="bg-indigo-100 p-2 rounded-full"><i data-lucide="cloud-rain" class="h-5 w-5 text-indigo-600"></i></div><div><p class="font-bold text-slate-700">${avgRain.toFixed(1)} mm</p><p class="text-xs text-slate-500">Avg. Rain</p></div></div>`;
+                        weatherEl.innerHTML = `<div class="flex items-center gap-3"><div class="bg-blue-100 p-2 rounded-full"><i data-lucide="thermometer" class="h-5 w-5 text-blue-600"></i></div><div><p class="font-bold text-slate-700">${avgTemp.toFixed(1)}°C</p><p class="text-xs text-slate-500">Avg. Temp</p></div></div><div class="flex items-center gap-3"><div class="bg-sky-100 p-2 rounded-full"><i data-lucide="droplets" class="h-5 w-5 text-sky-600"></i></div><div><p class="font-bold text-slate-700">${avgHumidity.toFixed(1)}%</p><p class="text-xs text-slate-500">Avg. Humidity</p></div></div><div class="flex items-center gap-3"><div class="bg-slate-100 p-2 rounded-full"><i data-lucide="wind" class="h-5 w-5 text-slate-600"></i></div><div><p class="font-bold text-slate-700">${avgWind.toFixed(1)} km/h</p><p class="text-xs text-slate-500">Avg. Wind</p></div></div><div class="flex items-center gap-3"><div class="bg-indigo-100 p-2 rounded-full"><i data-lucide="cloud-rain" class="h-5 w-5 text-indigo-600"></i></div><div><p class="font-bold text-slate-700">${avgRain.toFixed(1)} mm</p><p class="text-xs text-slate-500">Avg. Rain</p></div></div>`;
                         lucide.createIcons();
                     }
 
@@ -7047,7 +7047,7 @@ IMPORTANT:
                                 const out = [];
                                 if (wind != null && wind >= 15) out.push({ level: 'warn', text: `High wind ${wind.toFixed(1)} km/h`, icon: 'wind' });
                                 if (rain != null && rain >= 10) out.push({ level: 'warn', text: `Heavy rain ${rain.toFixed(1)} mm`, icon: 'cloud-rain' });
-                                if (temp != null && temp >= 35) out.push({ level: 'warn', text: `High temp ${temp.toFixed(1)}ï¿½C`, icon: 'thermometer' });
+                                if (temp != null && temp >= 35) out.push({ level: 'warn', text: `High temp ${temp.toFixed(1)}°C`, icon: 'thermometer' });
                                 if (!dt || out.length === 0) return [];
                                 return out.map(a => ({
                                     ...a,
@@ -7068,7 +7068,7 @@ IMPORTANT:
                                     <i data-lucide="${a.icon}" class="h-4 w-4 text-amber-600 mt-0.5"></i>
                                     <div class="min-w-0">
                                         <div class="font-bold truncate">${a.text}</div>
-                                        <div class="text-amber-800/80 truncate">${name} ï¿½ ${dateStr}</div>
+                                        <div class="text-amber-800/80 truncate">${name} - ${dateStr}</div>
                                     </div>
                                 </div>`;
                             }).join('')
@@ -7384,8 +7384,8 @@ IMPORTANT:
                                         <tr class="hover:bg-slate-50 text-xs text-slate-600">
                                             <td class="pl-8 py-2 text-slate-500">? ${sanitizeHTML(t.date || 'N/A')}</td>
                                             <td class="py-2 text-center">${t.efficacy !== null && isFinite(t.efficacy) ? `<span class="text-emerald-700 font-semibold">${t.efficacy.toFixed(1)}</span>` : '<span class="text-slate-400">N/A</span>'}</td>
-                                            <td class="py-2 text-center">${t.daa !== null && isFinite(t.daa) ? `${t.daa} DAA` : 'ï¿½'}</td>
-                                            <td class="py-2 text-slate-500">${sanitizeHTML(t.location || 'ï¿½')}</td>
+                                            <td class="py-2 text-center">${t.daa !== null && isFinite(t.daa) ? `${t.daa} DAA` : '-'}</td>
+                                            <td class="py-2 text-slate-500">${sanitizeHTML(t.location || '-')}</td>
                                             <td class="py-2"><button data-action="view-trial" data-id="${sanitizeHTML(t.trialId)}" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-0.5 rounded text-[10px] font-bold">Open</button></td>
                                         </tr>
                                     `).join('');
@@ -7754,7 +7754,7 @@ IMPORTANT:
                                     <p class="font-semibold text-sm text-gray-800">${sanitizeHTML(weed.name)} 
                                         <em class="text-gray-500 font-normal text-xs">${sanitizeHTML(weed?.commonNames?.[0]) || ''}</em>
                                     </p>
-                                    <p class="text-xs text-gray-500">Confidence: ${((weed.confidence || 0) * 100).toFixed(1)}%${weed.growthStage ? ` ï¿½ ${sanitizeHTML(weed.growthStage)}` : ''}</p>
+                                    <p class="text-xs text-gray-500">Confidence: ${((weed.confidence || 0) * 100).toFixed(1)}%${weed.growthStage ? ` - ${sanitizeHTML(weed.growthStage)}` : ''}</p>
                                 </div>
                             `).join('');
                         } else {
@@ -7808,7 +7808,7 @@ IMPORTANT:
                                                     <div class="flex items-center gap-3 text-sm text-slate-500 mt-1">
                                                         <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusColor}">${project.Status || 'Active'}</span>
                                                         <span>${groups[pid].length} Plots</span>
-                                                        <span>ï¿½</span>
+                                                        <span>-</span>
                                                         <span>Created: ${new Date(project.CreatedAt || Date.now()).toLocaleDateString()}</span>
                                                     </div>
                                                 </div>
@@ -7982,7 +7982,7 @@ IMPORTANT:
                         circle.bindPopup(`
                             <div style="min-width:180px;font-family:Outfit,sans-serif;">
                                 <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${sanitizeHTML(trial.FormulationName || 'Unknown')}</div>
-                                <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${new Date(trial.Date).toLocaleDateString()} ï¿½ ${sanitizeHTML(trial.Location || '')}</div>
+                                <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${new Date(trial.Date).toLocaleDateString()} - ${sanitizeHTML(trial.Location || '')}</div>
                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;">
                                     <span style="color:#64748b;">Result:</span><span style="font-weight:600;">${trial.Result || 'N/A'}</span>
                                     <span style="color:#64748b;">Dosage:</span><span>${sanitizeHTML(trial.Dosage || 'N/A')}</span>
@@ -8252,10 +8252,10 @@ IMPORTANT:
                                     </div>
                                     ${missing.length > 0 ? `
                                         <div class="mt-4 text-xs bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                            <div class="font-bold text-amber-900 mb-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="h-4 w-4"></i> Missing block ï¿½ treatment cells</div>
+                                            <div class="font-bold text-amber-900 mb-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="h-4 w-4"></i> Missing block - treatment cells</div>
                                             <div class="space-y-1">
                                                 ${missing.slice(0, 8).map(m => `<div class="flex justify-between gap-2"><span class="truncate">${sanitizeHTML(blocks.find(b => b.ID === m.blockId)?.Name || m.blockId)}</span><span class="font-semibold">${sanitizeHTML(treatmentMap.get(m.treatmentKey) || m.treatmentKey)}</span></div>`).join('')}
-                                                ${missing.length > 8 ? `<div class="text-amber-800/80 mt-2">+${missing.length - 8} moreï¿½</div>` : ''}
+                                                ${missing.length > 8 ? `<div class="text-amber-800/80 mt-2">+${missing.length - 8} more-</div>` : ''}
                                             </div>
                                         </div>
                                     ` : `
@@ -8382,7 +8382,7 @@ IMPORTANT:
                                             </td>
                                             <td class="p-4 text-center">
                                                 <div class="font-medium">${Number.isFinite(ts.mean) ? ts.mean.toFixed(2) : '-'}</div>
-                                                <div class="text-[10px] text-slate-400">ï¿½ ${Number.isFinite(ts.sd) ? ts.sd.toFixed(2) : '-'} (SD)</div>
+                                                <div class="text-[10px] text-slate-400">- ${Number.isFinite(ts.sd) ? ts.sd.toFixed(2) : '-'} (SD)</div>
                                             </td>
                                             <td class="p-4 text-center">
                                                 <span class="px-2 py-0.5 rounded text-[10px] font-bold ${(ts.cv || 0) < 15 ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50'}">
@@ -8480,7 +8480,7 @@ IMPORTANT:
                             <button onclick="openProjectDashboard('${projectId}')" class="p-2 rounded-full hover:bg-slate-100"><i data-lucide="arrow-left" class="h-6 w-6 text-slate-600"></i></button>
                             <div>
                                  <h1 class="text-3xl font-bold text-slate-800">Scientific Trial Report</h1>
-                                 <p class="text-slate-500">${sanitizeHTML(project.Name)} ï¿½ Metric: ${primaryMetric === 'yield' ? 'Yield (t/ha)' : 'Weed Control (%)'}</p>
+                                 <p class="text-slate-500">${sanitizeHTML(project.Name)} - Metric: ${primaryMetric === 'yield' ? 'Yield (t/ha)' : 'Weed Control (%)'}</p>
                             </div>
                             <div class="flex-grow"></div>
                              <button data-action="generate-narrative" class="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg hover:bg-indigo-700 transition">
@@ -8524,7 +8524,7 @@ IMPORTANT:
                                                 <div class="flex gap-4">
                                                     <div class="text-center bg-orange-50 p-2 rounded-lg border border-orange-100">
                                                         <i data-lucide="thermometer" class="h-4 w-4 mx-auto text-orange-500 mb-1"></i>
-                                                        <span class="font-bold text-orange-700">${avgT}ï¿½C</span>
+                                                        <span class="font-bold text-orange-700">${avgT}°C</span>
                                                     </div>
                                                     <div class="text-center bg-blue-50 p-2 rounded-lg border border-blue-100">
                                                         <i data-lucide="droplets" class="h-4 w-4 mx-auto text-blue-500 mb-1"></i>
@@ -8628,12 +8628,12 @@ IMPORTANT:
                                     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                                         <div class="min-w-0">
                                             <h3 class="text-xl font-bold text-slate-800">Treatment Means & Significance</h3>
-                                            <p id="posthoc-guidance" class="mt-1 text-xs text-slate-400">${(results.postHoc?.method === 'tukey') ? "Tukey HSD controls family-wise error (more conservative). Recommended when many treatments or for confirmatory reporting." : "Fisherï¿½s LSD is more powerful but less conservative. Recommended when ANOVA is significant and you have few planned comparisons."}</p>
+                                            <p id="posthoc-guidance" class="mt-1 text-xs text-slate-400">${(results.postHoc?.method === 'tukey') ? "Tukey HSD controls family-wise error (more conservative). Recommended when many treatments or for confirmatory reporting." : "Fisher's LSD is more powerful but less conservative. Recommended when ANOVA is significant and you have few planned comparisons."}</p>
                                         </div>
                                         <div class="flex flex-col items-start sm:items-end gap-1">
                                             <label for="posthoc-method" class="text-[10px] font-bold text-slate-500 uppercase">Post-hoc test</label>
                                             <select id="posthoc-method" class="form-input px-3 py-2 border rounded-lg text-sm bg-white">
-                                                <option value="lsd" ${(results.postHoc?.method !== 'tukey') ? 'selected' : ''}>Fisherï¿½s LSD</option>
+                                                <option value="lsd" ${(results.postHoc?.method !== 'tukey') ? 'selected' : ''}>Fisher's LSD</option>
                                                 <option value="tukey" ${(results.postHoc?.method === 'tukey') ? 'selected' : ''}>Tukey HSD</option>
                                             </select>
                                         </div>
@@ -8658,7 +8658,7 @@ IMPORTANT:
                                             </tbody>
                                         </table>
                                     </div>
-                                    <p id="posthoc-footnote" class="mt-4 text-xs text-slate-400">Means sharing the same letter are not significantly different (${(results.postHoc?.method === 'tukey') ? 'Tukey HSD' : 'Fisherï¿½s LSD'}, alpha=${(results.postHoc?.alpha ?? 0.05)}).</p>
+                                    <p id="posthoc-footnote" class="mt-4 text-xs text-slate-400">Means sharing the same letter are not significantly different (${(results.postHoc?.method === 'tukey') ? 'Tukey HSD' : "Fisher's LSD"}, alpha=${(results.postHoc?.alpha ?? 0.05)}).</p>
                                 </div>
 
                                 <!-- ANOVA Table -->
@@ -8752,11 +8752,11 @@ IMPORTANT:
                             if (guidance) {
                                 guidance.textContent = method === 'tukey'
                                     ? "Tukey HSD controls family-wise error (more conservative). Recommended when many treatments or for confirmatory reporting."
-                                    : "Fisherï¿½s LSD is more powerful but less conservative. Recommended when ANOVA is significant and you have few planned comparisons.";
+                                    : "Fisher's LSD is more powerful but less conservative. Recommended when ANOVA is significant and you have few planned comparisons.";
                             }
                             if (footnote) {
                                 const a = (typeof res.postHoc.alpha === 'number' && isFinite(res.postHoc.alpha)) ? res.postHoc.alpha : 0.05;
-                                footnote.textContent = `Means sharing the same letter are not significantly different (${method === 'tukey' ? 'Tukey HSD' : 'Fisherï¿½s LSD'}, alpha=${a}).`;
+                                footnote.textContent = `Means sharing the same letter are not significantly different (${method === 'tukey' ? 'Tukey HSD' : "Fisher's LSD"}, alpha=${a}).`;
                             }
                             if (tbody) {
                                 tbody.innerHTML = (res.grouping || []).map(g => `
@@ -8808,7 +8808,7 @@ Metric: ${primaryMetric}
 Treatments & Means:
 ${(currentResults.grouping || []).map(g => `- ${g.name}: ${Number.isFinite(g.mean) ? g.mean.toFixed(2) : 'N/A'} (Group ${g.grouping})`).join('\n')}
 
-Post-hoc: ${(currentResults.postHoc && currentResults.postHoc.method === 'tukey') ? 'Tukey HSD' : 'Fisherï¿½s LSD'} (alpha=${(currentResults.postHoc?.alpha ?? 0.05)})
+Post-hoc: ${(currentResults.postHoc && currentResults.postHoc.method === 'tukey') ? 'Tukey HSD' : "Fisher's LSD"} (alpha=${(currentResults.postHoc?.alpha ?? 0.05)})
 ANOVA P-Value: ${Number.isFinite(currentResults.anova?.pVal) ? currentResults.anova.pVal.toFixed(5) : 'N/A'}
 CV: ${(Number.isFinite(currentResults.anova?.msError) && currentResults.means && Object.values(currentResults.means).length) ? (Math.sqrt(currentResults.anova.msError) / jStat.mean(Object.values(currentResults.means)) * 100).toFixed(2) : 'N/A'}%
 
@@ -9082,7 +9082,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                                     <tr><td class="px-4 py-2 font-semibold text-gray-600 sticky left-0 bg-gray-50 border-r">Weather</td>
                                         ${trialsToCompare.map(t => {
                             if (!t.Temperature) return `<td class="px-4 py-2 border-r">-</td>`;
-                            return `<td class="px-4 py-2 border-r text-xs">Temp: ${t.Temperature}ï¿½C<br>Hum: ${t.Humidity}%<br>Rain: ${t.Rain}mm</td>`;
+                            return `<td class="px-4 py-2 border-r text-xs">Temp: ${t.Temperature}°C<br>Hum: ${t.Humidity}%<br>Rain: ${t.Rain}mm</td>`;
                         }).join('')}
                                     </tr>
                                     <tr><td class="px-4 py-2 font-semibold text-gray-600 sticky left-0 bg-gray-50 border-r">Result</td>
@@ -13573,7 +13573,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                 if (endOfBlock !== -1) {
                                     formatted = formatted.substring(0, endOfBlock) + '<br>' + btnHtml + formatted.substring(endOfBlock);
                                 } else {
-                                    // Last trial in the list ï¿½ append button at the end
+                                    // Last trial in the list - append button at the end
                                     formatted += '<br>' + btnHtml;
                                 }
                                 usedIds.add(t.ID);
@@ -13809,7 +13809,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
             /**
              * Calculate Weed Control Efficiency for all species in a trial
-             * Formula: WCE (%) = ((Initial Cover - Final Cover) / Initial Cover) ï¿½ 100
+             * Formula: WCE (%) = ((Initial Cover - Final Cover) / Initial Cover) - 100
              * @param {Array} efficacyData - Array of {daa, weedDetails[{species, cover}]}
              * @returns {Array} - [{species, wce, initialCover, finalCover, daysObserved, controlRating}]
              */
@@ -13831,7 +13831,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 }
 
                 // Get all unique weed species across all observations
-                // EXCLUDE "Total" / "total" ï¿½ it is a meta-observation, not an individual species
+                // EXCLUDE "Total" / "total" - it is a meta-observation, not an individual species
                 const allSpecies = new Set();
                 sorted.forEach(obs => {
                     (obs.weedDetails || []).forEach(w => {
@@ -13882,7 +13882,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 return 'Minimal / inconsistent response';
             }
 
-            function deriveWeedStatusFromTrend(initialCover, currentCover, fallbackStatus = 'ï¿½', obsDaa = null) {
+            function deriveWeedStatusFromTrend(initialCover, currentCover, fallbackStatus = '-', obsDaa = null) {
                 const fb = String(fallbackStatus || '');
                 const d = parseFloat(obsDaa);
 
@@ -13898,7 +13898,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 }
 
                 if (!isFinite(currentCover)) {
-                    return String(fallbackStatus || 'ï¿½');
+                    return String(fallbackStatus || '-');
                 }
                 if (!isFinite(initialCover) || initialCover <= 0) {
                     if (currentCover <= 0) return 'Not detected';
@@ -14002,7 +14002,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 orderedTimeline.forEach(obs => {
                     const d = parseFloat(obs?.daa);
                     (Array.isArray(obs?.weedDetails) ? obs.weedDetails : []).forEach(wd => {
-                        const species = String(wd?.species || wd?.name || wd?.weed || wd?.weedSpecies || 'ï¿½');
+                        const species = String(wd?.species || wd?.name || wd?.weed || wd?.weedSpecies || '-');
                         const key = species.trim().toLowerCase();
                         if (!key || key === 'total') return;
                         if (window.isMixedWeedPlaceholder && window.isMixedWeedPlaceholder(key)) return;
@@ -14010,10 +14010,10 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                         const baselineCover = baselineMap.get(key);
                         const currentCover = parseFloat(wd?.cover);
-                        const manualStatus = String(wd?.status || wd?.Status || wd?.weedStatus || 'ï¿½');
+                        const manualStatus = String(wd?.status || wd?.Status || wd?.weedStatus || '-');
                         let notes = normalizeScientificTerminology(String(wd?.notes || wd?.note || ''));
                         let status = deriveWeedStatusFromTrend(baselineCover, currentCover, `${manualStatus} ${notes}`, obs.daa);
-                        if (manualStatus && manualStatus !== 'ï¿½' && !(window.isAutoGeneratedWeedEntry && window.isAutoGeneratedWeedEntry(wd))) {
+                        if (manualStatus && manualStatus !== '-' && !(window.isAutoGeneratedWeedEntry && window.isAutoGeneratedWeedEntry(wd))) {
                             status = manualStatus;
                         }
                         const prevCover = prevCoverBySpecies.has(key) ? prevCoverBySpecies.get(key) : null;
@@ -14656,7 +14656,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
             // NOTE: prepareTrialChartData is defined ONCE at the bottom of the file (near line ~18009).
             // That is the AUTHORITATIVE version handling all data formats (legacy weedCover, cover, modern weedDetails).
-            // Do NOT re-declare it here ï¿½ JS would silently override it.
+            // Do NOT re-declare it here - JS would silently override it.
 
             // New helper to decouple drawing charts from any AI/Async logic
             function renderTrialChartsToCanvases(trial, coverCanvasId, phytoCanvasId) {
@@ -14679,7 +14679,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 // Non-selective workflow: secondary canvas is intentionally unused.
             }
 
-            // Main render function for trial details ï¿½ delegates to the authoritative prepareTrialChartData
+            // Main render function for trial details - delegates to the authoritative prepareTrialChartData
             function renderSingleTrialCharts(trial) {
                 if (!trial) return;
                 if (state.charts.singleCoverChart) state.charts.singleCoverChart.destroy();
@@ -14786,7 +14786,7 @@ The result paragraph must summarize DA-A performance trend and mention environme
 The conclusion must state efficacy using WCE and species-specific susceptibility.
 IMPORTANT: Use multi-stage interpretation: 1-3 DAA = initial knockdown, 5-7 DAA = early regrowth/residual check.
 If data spans 3 or fewer days, mark conclusions as preliminary for residual control, but you may report early knockdown signals.
-Do NOT treat "Total" as an individual species ï¿½ it is a meta-observation. Base conclusions on per-species data only.
+Do NOT treat "Total" as an individual species - it is a meta-observation. Base conclusions on per-species data only.
 If early reduction is followed by rebound, explicitly describe this as "Fast Burn + Regrowth" (transient effect) rather than failure or full control.`;
 
                     let summaryText;
@@ -14886,7 +14886,7 @@ Task: Write a technical assessment with three distinct sections: Methodology, Re
 
 SCIENTIFIC INTEGRITY RULES (MANDATORY):
 1. "Total" weed cover is a meta-observation that sums all species. NEVER report "Total" as if it were an individual species.
-2. If per-species WCE shows 0% for most species but aggregate cover dropped, explain this as a data discrepancy ï¿½ do NOT claim high overall efficacy.
+2. If per-species WCE shows 0% for most species but aggregate cover dropped, explain this as a data discrepancy - do NOT claim high overall efficacy.
 3. If trial duration is <= 3 days, ALL findings MUST be prefixed as "preliminary" or "early observation". Do NOT claim definitive control.
 4. If a species shows 0% WCE or cover INCREASED, explicitly state it shows no response or potential resistance.
 5. Never claim "100% control" or "excellent efficacy" for a trial with < 7 days of data.
@@ -15036,7 +15036,7 @@ Style Guidelines:
                     doc.setFont(undefined, 'bold');
                     doc.text("Weather Conditions:", 16, y);
                     doc.setFont(undefined, 'normal');
-                    const weatherLine = `Temp: ${trial.Temperature}ï¿½C   Humidity: ${trial.Humidity}%   Wind: ${trial.Windspeed || '0'} km/h   Rain: ${trial.Rain || '0'} mm`;
+                    const weatherLine = `Temp: ${trial.Temperature}°C   Humidity: ${trial.Humidity}%   Wind: ${trial.Windspeed || '0'} km/h   Rain: ${trial.Rain || '0'} mm`;
                     const weatherLines = doc.splitTextToSize(weatherLine, pageWidth - 34);
                     doc.text(weatherLines, 16, y + 6);
                     y += Math.max(20, weatherLines.length * 5 + 8);
@@ -15294,7 +15294,7 @@ Style Guidelines:
                     doc.setFontSize(10);
                 }
 
-                // --- NEW: SPECIES ï¿½ DAA HEATMAP ---
+                // --- NEW: SPECIES - DAA HEATMAP ---
                 if (speciesHeatmapImg && String(speciesHeatmapImg).startsWith('data:image/')) {
                     if (y + 100 > pageHeight - 20) { doc.addPage(); y = 20; }
                     doc.setFont(undefined, 'bold');
@@ -15305,7 +15305,7 @@ Style Guidelines:
                     y += 84;
                     doc.setFont(undefined, 'italic');
                     doc.setFontSize(8);
-                    doc.text(buildPublicationCaption(6, 'Species ï¿½ DAA observed cover heatmap', 'Green = low cover, Red = high cover. Heatmap indicates progressive response following a single herbicide application, with localized regrowth in later stages.'), 14, y, { maxWidth: pageWidth - 28 });
+                    doc.text(buildPublicationCaption(6, 'Species - DAA observed cover heatmap', 'Green = low cover, Red = high cover. Heatmap indicates progressive response following a single herbicide application, with localized regrowth in later stages.'), 14, y, { maxWidth: pageWidth - 28 });
                     y += 8;
                     doc.setFont(undefined, 'normal');
                     doc.setFontSize(10);
@@ -15646,7 +15646,7 @@ Style Guidelines:
                     doc.setFont(undefined, 'bold');
                     doc.text("Weather Conditions:", 16, y);
                     doc.setFont(undefined, 'normal');
-                    const weatherLine = `Temp: ${trial.Temperature}ï¿½C   Humidity: ${trial.Humidity}%   Wind: ${trial.Windspeed || '0'} km/h   Rain: ${trial.Rain || '0'} mm`;
+                    const weatherLine = `Temp: ${trial.Temperature}°C   Humidity: ${trial.Humidity}%   Wind: ${trial.Windspeed || '0'} km/h   Rain: ${trial.Rain || '0'} mm`;
                     const weatherLines = doc.splitTextToSize(weatherLine, pageWidth - 34);
                     doc.text(weatherLines, 16, y + 6);
                     y += Math.max(20, weatherLines.length * 5 + 8);
@@ -15892,7 +15892,7 @@ Style Guidelines:
                     } catch (e) { }
                 }
 
-                // --- NEW: Species ï¿½ DAA Heatmap ---
+                // --- NEW: Species - DAA Heatmap ---
                 if (options.chartImages?.speciesHeatmap && String(options.chartImages.speciesHeatmap).startsWith('data:image/')) {
                     if (y + 100 > pageHeight - 20) { doc.addPage(); y = 20; }
                     doc.setFont(undefined, 'bold');
@@ -15904,7 +15904,7 @@ Style Guidelines:
                         y += 84;
                         doc.setFont(undefined, 'normal');
                         doc.setFontSize(8);
-                        doc.text(buildPublicationCaption(6, 'Species ï¿½ DAA observed cover heatmap', 'Green = low cover, Red = high cover. Heatmap indicates progressive response following a single herbicide application, with localized regrowth in later stages.'), 14, y, { maxWidth: pageWidth - 28 });
+                        doc.text(buildPublicationCaption(6, 'Species - DAA observed cover heatmap', 'Green = low cover, Red = high cover. Heatmap indicates progressive response following a single herbicide application, with localized regrowth in later stages.'), 14, y, { maxWidth: pageWidth - 28 });
                         y += 10;
                     } catch (e) { }
                 }
@@ -16316,7 +16316,7 @@ Style Guidelines:
                     .map(p => {
                         const d = parseFloat(p?.daa || 0);
                         // Always derive control from aggregate total cover against baseline cover.
-                        // Never use stored per-observation controlPct ï¿½ it may reflect species-level
+                        // Never use stored per-observation controlPct - it may reflect species-level
                         // control (e.g. Cynodon 0% = 100%) rather than aggregate weed cover control.
                         const treatedCover = p?.cover;
                         const c = (isFinite(treatedCover) && isFinite(firstCover) && firstCover > 0)
@@ -16649,7 +16649,7 @@ Style Guidelines:
                         cleaned = cleaned
                             .replace(/^\s*>\s*/, '')
                             .replace(/^\s*#{1,6}\s*/, '')
-                            .replace(/^\s*[-+*ï¿½]\s+/, '')
+                            .replace(/^\s*[-+*-]\s+/, '')
                             .replace(/^\s*\d+[.)]\s+/, '')
                             .replace(/^\s*[-:|]{3,}\s*$/, '')
                             .replace(/[ \t]{2,}/g, ' ')
@@ -16707,8 +16707,8 @@ Style Guidelines:
             function applyReportStyleGuard(text) {
                 return normalizeReportText(text || '')
                     .replace(/\s*[*_#`]+\s*/g, ' ')
-                    .replace(/[ï¿½ï¿½]/g, '"')
-                    .replace(/[ï¿½ï¿½]/g, "'")
+                    .replace(/[--]/g, '"')
+                    .replace(/[--]/g, "'")
                     .replace(/[ \t]{2,}/g, ' ')
                     .trim();
             }
@@ -16859,7 +16859,7 @@ Style Guidelines:
                 const score = Math.round((tempScore * 0.45) + (humScore * 0.35) + (rainScore * 0.20));
 
                 const className = score >= 80 ? 'High suitability' : (score >= 60 ? 'Moderate suitability' : 'Low suitability');
-                const note = `Environmental suitability index was ${score}/100 (${className.toLowerCase()}) based on mean temperature ${Number.isFinite(temp) ? temp.toFixed(1) + 'ï¿½C' : 'N/A'}, humidity ${Number.isFinite(hum) ? hum.toFixed(1) + '%' : 'N/A'}, and rain ${Number.isFinite(rain) ? rain.toFixed(1) + ' mm' : 'N/A'}.`;
+                const note = `Environmental suitability index was ${score}/100 (${className.toLowerCase()}) based on mean temperature ${Number.isFinite(temp) ? temp.toFixed(1) + '°C' : 'N/A'}, humidity ${Number.isFinite(hum) ? hum.toFixed(1) + '%' : 'N/A'}, and rain ${Number.isFinite(rain) ? rain.toFixed(1) + ' mm' : 'N/A'}.`;
 
                 return { score, className, note: applyReportStyleGuard(note), avgTemp: temp, avgHumidity: hum, avgRain: rain };
             }
@@ -18241,9 +18241,9 @@ Style Guidelines:
                     slideChartsFallback.addText(
                         'Warning: Charts Not Available\n\n' +
                         'Analytical charts could not be generated. This may occur if:\n\n' +
-                        'ï¿½ Insufficient efficacy data collected\n' +
-                        'ï¿½ Missing weed species observations\n' +
-                        'ï¿½ Incomplete trial setup or measurements\n\n' +
+                        '- Insufficient efficacy data collected\n' +
+                        '- Missing weed species observations\n' +
+                        '- Incomplete trial setup or measurements\n\n' +
                         'Review the Executive Brief and detailed results above for comprehensive analysis.\n\n' +
                         'Action: Collect additional field observations or verify data entry completeness.',
                         { x: 1.5, y: 1.5, w: 11, h: 5, fontSize: 14, color: '334155', valign: 'top' }
@@ -18260,7 +18260,7 @@ Style Guidelines:
                     }
                     if (heatmapImg && String(heatmapImg).startsWith('data:image/')) {
                         slideNewCharts.addImage({ data: heatmapImg, x: 6.8, y: 0.8, w: 6.3, h: 3.0 });
-                        slideNewCharts.addText('Species ï¿½ DAA Cover Heatmap', { x: 6.8, y: 3.9, w: 6.3, fontSize: 9, italic: true, color: '6b7280' });
+                        slideNewCharts.addText('Species - DAA Cover Heatmap', { x: 6.8, y: 3.9, w: 6.3, fontSize: 9, italic: true, color: '6b7280' });
                     }
                 }
 
@@ -18637,7 +18637,7 @@ Style Guidelines:
             async function repairSpeciesTracking(forceMode = false) {
                 const progressEl = document.getElementById('efficacy-fix-progress');
                 const modeLabel = forceMode ? 'FORCE re-repairing' : 'Repairing';
-                if (progressEl) progressEl.innerHTML = `<span class="text-purple-700 font-semibold">? ${modeLabel} species tracking ï¿½ you can keep using the app...</span>`;
+                if (progressEl) progressEl.innerHTML = `<span class="text-purple-700 font-semibold">? ${modeLabel} species tracking - you can keep using the app...</span>`;
 
                 const trials = (state.trials || []).slice(); // snapshot
                 // Keep Google Sheet row order (top to bottom)
@@ -18729,7 +18729,7 @@ Style Guidelines:
                             });
 
                             // SKIP observations that have no real per-species data
-                            // (only "Total" aggregate or empty ï¿½ these are grid/aggregate-only entries)
+                            // (only "Total" aggregate or empty - these are grid/aggregate-only entries)
                             const isAutoEntry = (wd) => {
                                 if (wd.autoInjected === true) return true;
                                 const notes = String(wd.notes || '').toLowerCase();
@@ -18904,7 +18904,7 @@ Style Guidelines:
                                 }
 
                                 // 1. Ensure every species has numeric cover
-                                if (wd.cover === null || wd.cover === undefined || wd.cover === '' || wd.cover === 'ï¿½') {
+                                if (wd.cover === null || wd.cover === undefined || wd.cover === '' || wd.cover === '-') {
                                     wd.cover = 0;
                                     trialModified = true;
                                 }
@@ -19001,7 +19001,7 @@ Style Guidelines:
                                 }
 
                                 // Status/notes consistency: dead-note cannot remain Regrowth without growth evidence.
-                                // Exception: if cover > 20%, observed biomass is ground truth ï¿½ stale dead notes are overridden.
+                                // Exception: if cover > 20%, observed biomass is ground truth - stale dead notes are overridden.
                                 const currentStatus = String(wd.status || '').toLowerCase();
                                 if (currentStatus === 'regrowth' && deadRx.test(notesText) && !growthRx.test(notesText) && !(cover > 20)) {
                                     wd.status = bio.isPerennial ? 'Top-kill' : 'Controlled';
@@ -19024,7 +19024,7 @@ Style Guidelines:
                                 });
                                 const speciesSum = realSpecies.reduce((sum, wd) => sum + (parseFloat(wd.cover) || 0), 0);
                                 if (speciesSum > 0 && speciesSum > reconciledTotal * 1.1) {
-                                    // Species covers collectively exceed reconciled total ï¿½ scale proportionally
+                                    // Species covers collectively exceed reconciled total - scale proportionally
                                     const scaleFactor = reconciledTotal / speciesSum;
                                     realSpecies.forEach(wd => {
                                         const oldCover = parseFloat(wd.cover) || 0;
@@ -19331,11 +19331,11 @@ Style Guidelines:
                 await loadDataFromBackend();
 
                 const summary = `? Species tracking repair complete!\n` +
-                    `ï¿½ Scanned ALL ${trials.length} trials (Google Sheet top ? bottom)\n` +
-                    `ï¿½ ${repairedCount} trials repaired (${savedCount} saved immediately, ${totalSpeciesAdded} species entries added)\n` +
-                    `ï¿½ ${skippedCount} trials skipped (already complete or no data)\n` +
-                    (saveErrors > 0 ? `ï¿½ ${saveErrors} save errors\n` : '') +
-                    (errorCount > 0 ? `ï¿½ ${errorCount} processing errors\n` : '');
+                    `- Scanned ALL ${trials.length} trials (Google Sheet top ? bottom)\n` +
+                    `- ${repairedCount} trials repaired (${savedCount} saved immediately, ${totalSpeciesAdded} species entries added)\n` +
+                    `- ${skippedCount} trials skipped (already complete or no data)\n` +
+                    (saveErrors > 0 ? `- ${saveErrors} save errors\n` : '') +
+                    (errorCount > 0 ? `- ${errorCount} processing errors\n` : '');
 
                 // Build detailed log HTML (collapsible)
                 const repairedTrials = repairLog.filter(l => l.action === 'REPAIRED');
@@ -19349,15 +19349,15 @@ Style Guidelines:
 
                 if (repairedTrials.length > 0) {
                     detailHtml += `<div class="font-bold text-green-700 mt-1">?? REPAIRED (${repairedTrials.length}):</div>`;
-                    repairedTrials.forEach(l => { detailHtml += `<div class="ml-3 text-green-800">ï¿½ ${sanitizeHTML(l.trial)}</div>`; });
+                    repairedTrials.forEach(l => { detailHtml += `<div class="ml-3 text-green-800">- ${sanitizeHTML(l.trial)}</div>`; });
                 }
                 if (skippedTrials.length > 0) {
                     detailHtml += `<div class="font-bold text-slate-500 mt-2">? SKIPPED (${skippedTrials.length}):</div>`;
-                    skippedTrials.forEach(l => { detailHtml += `<div class="ml-3 text-slate-500">ï¿½ ${sanitizeHTML(l.trial)} ï¿½ ${sanitizeHTML(l.reason)}</div>`; });
+                    skippedTrials.forEach(l => { detailHtml += `<div class="ml-3 text-slate-500">- ${sanitizeHTML(l.trial)} - ${sanitizeHTML(l.reason)}</div>`; });
                 }
                 if (errorTrials.length > 0) {
                     detailHtml += `<div class="font-bold text-red-600 mt-2">? ERRORS (${errorTrials.length}):</div>`;
-                    errorTrials.forEach(l => { detailHtml += `<div class="ml-3 text-red-600">ï¿½ ${sanitizeHTML(l.trial)} ï¿½ ${sanitizeHTML(l.reason)}</div>`; });
+                    errorTrials.forEach(l => { detailHtml += `<div class="ml-3 text-red-600">- ${sanitizeHTML(l.trial)} - ${sanitizeHTML(l.reason)}</div>`; });
                 }
                 detailHtml += `</div></details>`;
 
@@ -19838,7 +19838,7 @@ Style Guidelines:
                         },
                         { label: 'Result', getValue: t => `<span class="px-2 py-0.5 rounded text-xs font-bold ${t.Result === 'Excellent' ? 'bg-green-100 text-green-800' : t.Result === 'Poor' ? 'bg-red-100 text-red-800' : 'bg-gray-100'}">${t.Result || '-'}</span>` },
                         { label: 'Weed Species', getValue: t => t.WeedSpecies || '-' },
-                        { label: 'Weather', getValue: t => `${t.Temperature || '-'}ï¿½C, ${t.Rain || '-'}mm` },
+                        { label: 'Weather', getValue: t => `${t.Temperature || '-'}°C, ${t.Rain || '-'}mm` },
                         {
                             label: 'AI Cover Analysis', getValue: t => {
                                 const s = safeJsonParse(t.AISummariesJSON, {});
@@ -19984,10 +19984,10 @@ Style Guidelines:
                 if (result) {
                     // Normalize and populate
                     const soilData = { 
-                        ph: result.ph ? parseFloat(result.ph).toFixed(1) : 'ï¿½', 
-                        clay: result.clay ? parseFloat(result.clay).toFixed(1) : 'ï¿½', 
-                        sand: result.sand ? parseFloat(result.sand).toFixed(1) : 'ï¿½', 
-                        organicCarbon: result.oc ? parseFloat(result.oc).toFixed(1) : 'ï¿½',
+                        ph: result.ph ? parseFloat(result.ph).toFixed(1) : '-', 
+                        clay: result.clay ? parseFloat(result.clay).toFixed(1) : '-', 
+                        sand: result.sand ? parseFloat(result.sand).toFixed(1) : '-', 
+                        organicCarbon: result.oc ? parseFloat(result.oc).toFixed(1) : '-',
                         texture: result.texture || calculateTextureClass(result.clay, result.sand),
                         provider: result.provider,
                         timestamp: new Date().toISOString()
@@ -20027,7 +20027,7 @@ Style Guidelines:
                 
                 ids.forEach((id, i) => {
                     const el = document.getElementById(id);
-                    if (el) el.textContent = soilData[keys[i]] || 'ï¿½';
+                    if (el) el.textContent = soilData[keys[i]] || '-';
                 });
 
                 const hiddenField = form.querySelector('[name="soilDataJSON"]');
@@ -20646,15 +20646,15 @@ Style Guidelines:
                 }
 
                 if (hasIncompleteData && missingTrials.length > 0) {
-                    const missingList = missingTrials.map(m => `ï¿½ ${m}`).join('\n');
+                    const missingList = missingTrials.map(m => `- ${m}`).join('\n');
                     const proceed = confirm(
                         `?? INCOMPLETE DATA DETECTED\n\n` +
                         `The following ${missingTrials.length} trial plot(s) are missing data:\n\n` +
                         `${missingList}\n\n` +
                         `This will result in:\n` +
-                        `ï¿½ No statistical analysis (F-ratio, LSD, P-values)\n` +
-                        `ï¿½ Missing treatment performance charts\n` +
-                        `ï¿½ Incomplete weed efficacy data\n\n` +
+                        `- No statistical analysis (F-ratio, LSD, P-values)\n` +
+                        `- Missing treatment performance charts\n` +
+                        `- Incomplete weed efficacy data\n\n` +
                         `Do you want to generate a LIMITED report anyway?\n\n` +
                         `Click OK to proceed with partial data.\n` +
                         `Click Cancel to go back and complete the missing trials.`
@@ -21175,7 +21175,7 @@ Style Guidelines:
                                 rep: block?.ReplicationNum || '?',
                                 date: p.date ? formatReportDateLong(p.date) : '',
                                 label: p.label || '',
-                                weather: p.weather ? `${p.weather.temp}ï¿½C, ${p.weather.humidity}% RH` : '',
+                                weather: p.weather ? `${p.weather.temp}°C, ${p.weather.humidity}% RH` : '',
                                 daa: p.date ? Math.round((new Date(p.date) - new Date(t.Date)) / (1000 * 60 * 60 * 24)) : ''
                             });
                         }
@@ -21430,7 +21430,7 @@ Style Guidelines:
                             : (trials.length ? formatReportDateLong(trials[0].Date) : 'the application date');
                         const weatherTrials = trials.filter(t => t.Temperature);
                         const avgTemp = weatherTrials.length
-                            ? (weatherTrials.reduce((s, t) => s + (parseFloat(t.Temperature) || 0), 0) / weatherTrials.length).toFixed(1) + 'ï¿½C'
+                            ? (weatherTrials.reduce((s, t) => s + (parseFloat(t.Temperature) || 0), 0) / weatherTrials.length).toFixed(1) + '°C'
                             : null;
                         const avgHum = weatherTrials.length
                             ? (weatherTrials.reduce((s, t) => s + (parseFloat(t.Humidity) || 0), 0) / weatherTrials.length).toFixed(0) + '% RH'
@@ -21439,7 +21439,7 @@ Style Guidelines:
                         const equipmentClause = protocol.Equipment
                             ? `, applied using ${protocol.Equipment}${protocol.SprayVolume ? ' at ' + protocol.SprayVolume : ''}`
                             : '';
-                        const methodologyParagraph = `This study was conducted as a Randomized Complete Block Design (RCBD) with ${blocks.length} replication(s) at ${protocol.Location || 'the experimental site'} on ${projectDate}${weatherClause}. A total of ${[...new Set(trials.map(t => t.FormulationName))].length} treatment(s) were evaluated ï¿½ ${allTreatmentNames} ï¿½ targeting ${protocol.Crop || 'the target crop'}${equipmentClause}. The primary response variable was ${project.Metric || 'weed control efficiency (WCE)'}. ${applyReportStyleGuard(controlDaysSummary)}`;
+                        const methodologyParagraph = `This study was conducted as a Randomized Complete Block Design (RCBD) with ${blocks.length} replication(s) at ${protocol.Location || 'the experimental site'} on ${projectDate}${weatherClause}. A total of ${[...new Set(trials.map(t => t.FormulationName))].length} treatment(s) were evaluated - ${allTreatmentNames} - targeting ${protocol.Crop || 'the target crop'}${equipmentClause}. The primary response variable was ${project.Metric || 'weed control efficiency (WCE)'}. ${applyReportStyleGuard(controlDaysSummary)}`;
                         checkPageBreak(30);
                         doc.setFont("helvetica", "bold");
                         doc.setFontSize(10);
@@ -21555,7 +21555,7 @@ Style Guidelines:
                             return [
                                 trt.Name,
                                 Number.isFinite(ts?.mean) ? ts.mean.toFixed(2) : '-',
-                                Number.isFinite(ts?.sd) ? `ï¿½ ${ts.sd.toFixed(2)}` : '-',
+                                Number.isFinite(ts?.sd) ? `- ${ts.sd.toFixed(2)}` : '-',
                                 Number.isFinite(ts?.cv) ? ts.cv.toFixed(1) : '-',
                                 Number.isFinite(ts?.wce) ? ts.wce.toFixed(1) : '-',
                                 ts.rank || 'N/A'
@@ -21776,7 +21776,7 @@ Style Guidelines:
                         checkPageBreak(100);
                         doc.setFont("helvetica", "bold");
                         doc.setFontSize(11);
-                        doc.text('Treatment Comparison ï¿½ Final WCE with 95% CI', margin, y);
+                        doc.text('Treatment Comparison - Final WCE with 95% CI', margin, y);
                         y += 8;
                         doc.addImage(chartImages.treatmentComparison, 'PNG', margin, y, pageWidth - 2 * margin, 78);
                         y += 82;
@@ -21965,13 +21965,13 @@ Style Guidelines:
                     const avgTemp = (weatherData.reduce((a, b) => a + b.temp, 0) / weatherData.length).toFixed(1);
                     const avgHumidity = (weatherData.reduce((a, b) => a + b.humidity, 0) / weatherData.length).toFixed(1);
 
-                    doc.text(`Average Temperature: ${avgTemp}ï¿½C | Average Humidity: ${avgHumidity}%`, margin, y);
+                    doc.text(`Average Temperature: ${avgTemp}°C | Average Humidity: ${avgHumidity}%`, margin, y);
                     y += 12;
 
                     const weatherTable = weatherData.slice(0, 15).map(w => [
                         w.daa,
                         w.date,
-                        `${w.temp}ï¿½C`,
+                        `${w.temp}°C`,
                         `${w.humidity}%`
                     ]);
 
@@ -22312,7 +22312,7 @@ Style Guidelines:
 
                         // Get per-species cover across observations
                         // RULES:
-                        // 1. Only use REAL measurements ï¿½ skip auto-injected tracking entries
+                        // 1. Only use REAL measurements - skip auto-injected tracking entries
                         // 2. If same DAA has multiple observations (grid + AI), prefer the one with real species data
                         //    NOTE: Aggregate total is retained separately (aggregateTotalByDaa) for cross-validation
                         // 3. Aggregate-only observations (only "Total") use weedCover as fallback
@@ -22361,10 +22361,10 @@ Style Guidelines:
                                 });
                                 if (hasRealSpecies) {
                                     // This observation has real species data but our weed isn't in it
-                                    // ï¿½ the weed was genuinely not observed. Skip to avoid false data.
+                                    // - the weed was genuinely not observed. Skip to avoid false data.
                                     return;
                                 }
-                                // Aggregate-only observation ï¿½ fall back to total weedCover
+                                // Aggregate-only observation - fall back to total weedCover
                                 cover = parseFloat(o.weedCover ?? o.totalCover ?? null);
                                 status = '';
                                 isRealMeasurement = false;
@@ -22405,7 +22405,7 @@ Style Guidelines:
                         const noWeedEverAppeared = noPreExistingWeed && maxCover === 0;
 
                         // For post-emergence trials: control must be measured AFTER the weed peaks,
-                        // not from DAA-0 (where weed was absent ï¿½ minCover=0 gives false 100%).
+                        // not from DAA-0 (where weed was absent - minCover=0 gives false 100%).
                         let postPeakMinCover = maxCover;
                         let postPeakMinIdx = validObs.length - 1;
                         if (noPreExistingWeed && maxCover > 0) {
@@ -22420,7 +22420,7 @@ Style Guidelines:
 
                         let bestControl, finalControl;
                         if (noWeedEverAppeared) {
-                            // Weed was absent at baseline and never appeared ï¿½ perfect preventative control
+                            // Weed was absent at baseline and never appeared - perfect preventative control
                             bestControl = 100;
                             finalControl = 100;
                         } else if (noPreExistingWeed && maxCover > 0) {
@@ -22441,12 +22441,12 @@ Style Guidelines:
 
                         // -- Regrowth detection --
                         // Scientific rules:
-                        // 1. NO regrowth if weed was ultimately eliminated (lastCover = 2%) ï¿½ any mid-trial
+                        // 1. NO regrowth if weed was ultimately eliminated (lastCover = 2%) - any mid-trial
                         //    fluctuation is transient suppression, not true regrowth.
-                        // 2. Regrowth can only be detected at DAA = 14 ï¿½ herbicides need time to act;
+                        // 2. Regrowth can only be detected at DAA = 14 - herbicides need time to act;
                         //    any cover at DAA <14 is the original weed being killed, not re-emerging.
-                        // 3. The suppression minimum must have been reached at DAA = 7 ï¿½ a minimum
-                        //    at DAA 0ï¿½6 just means the weed hadn't peaked yet, not that it was controlled.
+                        // 3. The suppression minimum must have been reached at DAA = 7 - a minimum
+                        //    at DAA 0-6 just means the weed hadn't peaked yet, not that it was controlled.
                         // 4. Rise must be = max(10%, 15% of effectiveBaseline) AND cover > 5%.
                         let regrowthDaa = null;
                         if (!noWeedEverAppeared && !eliminated && effectiveBaseline > 0 && bestControl > 20) {
@@ -22579,7 +22579,7 @@ Style Guidelines:
                     // -- 4. Build context --
                     let context = `You are an expert agronomist and trial analyst for "Weedicide", a high-tech herbicide research platform.
 You have FULL access to the user's trial database. Answer ALL questions using ONLY the data provided below.
-NEVER say you lack access ï¿½ the complete pre-computed analysis and database is included here.
+NEVER say you lack access - the complete pre-computed analysis and database is included here.
 Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects || []).length}`;
 
                     // Inject pre-ranked weed analysis first (highest priority context)
@@ -22611,18 +22611,18 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     }
 
                     const prompt = `${context}\n\nUser Question: ${query}\n\nINSTRUCTIONS:
-- If a PRE-RANKED ANALYSIS section exists above, USE IT as your primary source ï¿½ it contains JavaScript-computed, accurate rankings sorted by actual weed control %.
+- If a PRE-RANKED ANALYSIS section exists above, USE IT as your primary source - it contains JavaScript-computed, accurate rankings sorted by actual weed control %.
 - For "best performing" / "top performing" / "which trial performed well" questions: present ALL trials from the PRE-RANKED section.
 - For EACH trial, always show: name, date, location, Peak Control % (with grade), Final Control % (with grade), regrowth status, reliability, Duration (DAA), and observation count.
-- USE THE GRADED EFFICACY SYSTEM ï¿½ NEVER report binary "Controlled / Not Controlled". Always use:
-  ï¿½ Eliminated / Top-kill (100% control, 0% remaining)
-  ï¿½ Excellent control (90-99% control)
-  ï¿½ Strong control (70-89% control)
-  ï¿½ Moderate control (40-69% control)
-  ï¿½ Weak control (20-39% control)
-  ï¿½ Unaffected (<20% control)
+- USE THE GRADED EFFICACY SYSTEM - NEVER report binary "Controlled / Not Controlled". Always use:
+  - Eliminated / Top-kill (100% control, 0% remaining)
+  - Excellent control (90-99% control)
+  - Strong control (70-89% control)
+  - Moderate control (40-69% control)
+  - Weak control (20-39% control)
+  - Unaffected (<20% control)
 - ALWAYS distinguish Peak Control (best achieved) from Final Control (latest observation). If Final < Peak, note "regrowth observed".
-- For EACH species, present like: "Cynodon dactylon: Peak 75% (Strong control) ? Final 40% (Moderate control) ï¿½ regrowth detected"
+- For EACH species, present like: "Cynodon dactylon: Peak 75% (Strong control) ? Final 40% (Moderate control) - regrowth detected"
 - CRITICAL SCIENTIFIC RULES FOR HERBICIDE TRIALS:
   1. RELIABILITY IS KING: "INSUFFICIENT DATA" (< 3 obs / < 14 DAA) CANNOT be confidently ranked. Flag it clearly.
   2. "PRELIMINARY" trials (2+ obs, 7-13 DAA) = "early results, may change".
@@ -22631,7 +22631,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
   5. Rankings are pre-sorted by reliability tier, then peak control %. Present in this order.
   6. If NO RELIABLE trials exist, say so explicitly.
 - Perennial weeds (Cynodon, Cyperus, etc.): 0% cover = "Top-kill" (above-ground only), not full elimination. Note root persistence risk.
-- Most organic/biostimulant herbicides achieve partial control (40-70%). This is NORMAL and valuable ï¿½ do NOT dismiss moderate control as failure.
+- Most organic/biostimulant herbicides achieve partial control (40-70%). This is NORMAL and valuable - do NOT dismiss moderate control as failure.
 - Format dates: "25 Mar 2026". Never show raw timestamps.
 - Do NOT exclude trials because baseline was 0%.`;
 
@@ -23025,10 +23025,10 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
 
                 // Add satellite + plane layers with toggle
                 const satellite = L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                    maxZoom: 21, subdomains: ['mt0','mt1','mt2','mt3'], attribution: 'ï¿½ Google'
+                    maxZoom: 21, subdomains: ['mt0','mt1','mt2','mt3'], attribution: '- Google'
                 });
                 const plane = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                    maxZoom: 21, subdomains: ['mt0','mt1','mt2','mt3'], attribution: 'ï¿½ Google'
+                    maxZoom: 21, subdomains: ['mt0','mt1','mt2','mt3'], attribution: '- Google'
                 });
                 satellite.addTo(pickerMap);
                 L.control.layers({ "Satellite": satellite, "Plane Map": plane }).addTo(pickerMap);
@@ -23098,7 +23098,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     return;
                 }
 
-                showToast('?? Acquiring GPS satellitesï¿½ please wait', 'info');
+                showToast('?? Acquiring GPS satellites- please wait', 'info');
 
                 let bestReading = null;
                 let readingCount = 0;
@@ -23129,7 +23129,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 setTimeout(() => {
                     navigator.geolocation.clearWatch(watchId);
                     if (bestReading) {
-                        showToast(`?? GPS locked! Accuracy: ï¿½${Math.round(bestReading.accuracy)}m (${readingCount} readings)`, 'success');
+                        showToast(`?? GPS locked! Accuracy: -${Math.round(bestReading.accuracy)}m (${readingCount} readings)`, 'success');
                         callback(bestReading);
                     } else {
                         showToast('Could not get accurate GPS fix. Try again outdoors.', 'error');
@@ -23324,7 +23324,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 const subtitle = document.getElementById('scan-match-subtitle');
 
                 title.textContent = trial.FormulationName;
-                subtitle.textContent = `${trial.InvestigatorName || 'Unknown Info'} ï¿½ ${trial.Location || 'No Loc'}`;
+                subtitle.textContent = `${trial.InvestigatorName || 'Unknown Info'} - ${trial.Location || 'No Loc'}`;
 
                 // Unbind previous listeners (simple clone hack to clear)
                 const btnCamera = document.getElementById('scan-action-camera');
@@ -23803,7 +23803,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                                     : 'border-amber-200 bg-amber-50 text-amber-700';
                             const meta = item.action
                                 ? 'Queued data update'
-                                : `${item.type === 'weed_upload' ? 'Weed photo' : 'Trial photo'}${item.photo?.date ? ` ï¿½ ${item.photo.date}` : ''}`;
+                                : `${item.type === 'weed_upload' ? 'Weed photo' : 'Trial photo'}${item.photo?.date ? ` - ${item.photo.date}` : ''}`;
                             const errorText = item.lastError ? `<div style="font-size:11px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sanitizeHTML(item.lastError)}</div>` : '';
                             const retryButton = item.status === 'failed'
                                 ? `<button data-action="retry-sync" data-id="${item.id}" style="padding:2px 8px;font-size:11px;border-radius:6px;background:#fff;border:1px solid currentColor;opacity:.7;cursor:pointer;">Retry</button>`
@@ -24536,7 +24536,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                             if (locInput) locInput.value = `${pos.lat.toFixed(6)}, ${pos.lon.toFixed(6)}`;
                             if (latInput) latInput.value = pos.lat;
                             if (lonInput) lonInput.value = pos.lon;
-                            showToast(`Location captured (ï¿½${Math.round(pos.accuracy)}m)`, 'success');
+                            showToast(`Location captured (-${Math.round(pos.accuracy)}m)`, 'success');
                         }).catch(err => {
                             showToast('Geolocation failed: ' + err.message, 'error');
                         });
@@ -27453,7 +27453,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
 
         // MODULE 1: BIOLOGICAL CONSTRAINT LOGIC (Data Entry Firewall)
         const biologicalValidator = {
-            deviationThreshold: 15, // ï¿½15% from median
+            deviationThreshold: 15, // ±15% from median
 
             validateValue: function (newValue, existingValues) {
                 if (!existingValues || existingValues.length < 2) {
@@ -27499,7 +27499,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 while ((value < min || value > max) && attempts < maxAttempts) {
                     attempts++;
                     // Generate new value within range using random variation
-                    const variation = (Math.random() - 0.5) * 2 * tolerance; // Random within ï¿½tolerance
+                    const variation = (Math.random() - 0.5) * 2 * tolerance; // Random within ±tolerance
                     value = median + variation;
 
                     // Ensure within absolute bounds (0-100 for phyto, 0+ for others)
@@ -28585,7 +28585,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                         options: {
                             responsive: false, animation: false, maintainAspectRatio: false,
                             plugins: {
-                                title: { display: true, text: 'Treatment Comparison ï¿½ Final WCE (%)', font: { size: 28, weight: 'bold' } },
+                                title: { display: true, text: 'Treatment Comparison - Final WCE (%)', font: { size: 28, weight: 'bold' } },
                                 legend: { display: false }
                             },
                             scales: {
@@ -28629,7 +28629,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
         }
 
         /**
-         * Generate Species ï¿½ DAA Heatmap
+         * Generate Species - DAA Heatmap
          * Color-coded grid: rows=species, columns=DAA, cell color=observed cover %
          * Green (low cover) ? Red (high cover)
          */
@@ -28687,7 +28687,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 ctx.fillStyle = '#1f2937';
                 ctx.font = 'bold 24px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText('Species ï¿½ DAA Cover Heatmap', canvas.width / 2, 35);
+                ctx.fillText('Species - DAA Cover Heatmap', canvas.width / 2, 35);
 
                 // Color scale: 0% = #10b981 (low observed cover) ? 50% = #f59e0b ? 100% = #ef4444 (high observed cover)
                 function heatColor(val) {
@@ -28743,7 +28743,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                             ctx.fillStyle = '#9ca3af';
                             ctx.font = '12px Arial';
                             ctx.textAlign = 'center';
-                            ctx.fillText('ï¿½', x + cellW / 2, y + cellH / 2 + 4);
+                            ctx.fillText('-', x + cellW / 2, y + cellH / 2 + 4);
                         }
                         // Cell border
                         ctx.strokeStyle = '#e5e7eb';
@@ -28809,7 +28809,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 const xMin = Math.min(...xs);
                 const xMax = Math.max(...xs);
 
-                // Least squares quadratic fit: y = a + bx + cxï¿½
+                // Least squares quadratic fit: y = a + bx + cx^2
                 let sx = 0, sx2 = 0, sx3 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0;
                 for (let i = 0; i < n; i++) {
                     const xi = xs[i], yi = ys[i];
@@ -28933,7 +28933,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
         /**
          * Generate Weather-Efficacy Correlation Chart
          * Scatter: X = Temperature (or Humidity), Y = WCE
-         * With linear regression line and Rï¿½ annotation
+         * With linear regression line and R2 annotation
          */
         async function generateWeatherCorrelationChart(trials) {
             if (!trials || trials.length < 3) return null;
@@ -28956,7 +28956,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
 
                 // Use whichever has more data, prefer temperature
                 const points = tempPoints.length >= 3 ? tempPoints : (humidityPoints.length >= 3 ? humidityPoints : null);
-                const xLabel = tempPoints.length >= 3 ? 'Temperature (ï¿½C)' : 'Humidity (%)';
+                const xLabel = tempPoints.length >= 3 ? 'Temperature (°C)' : 'Humidity (%)';
                 if (!points || points.length < 3) return null;
 
                 // Linear regression
@@ -28969,7 +28969,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 const slope = (sxy - n * meanX * meanY) / (sx2 - n * meanX * meanX || 1);
                 const intercept = meanY - slope * meanX;
 
-                // Rï¿½ calculation
+                // R2 calculation
                 const ssTot = sy2 - n * meanY * meanY;
                 const ssRes = points.reduce((s, p) => s + (p.y - (intercept + slope * p.x)) ** 2, 0);
                 const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
@@ -29001,7 +29001,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                                     borderWidth: 2
                                 },
                                 {
-                                    label: `Trend (Rï¿½=${r2.toFixed(3)})`,
+                                    label: `Trend (R2=${r2.toFixed(3)})`,
                                     data: trendLine,
                                     type: 'line',
                                     borderColor: '#ef4444',
@@ -29031,7 +29031,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                                 ctx.fillStyle = '#1f2937';
                                 ctx.font = 'bold 18px Arial';
                                 ctx.textAlign = 'right';
-                                ctx.fillText(`Rï¿½ = ${r2.toFixed(4)}  |  slope = ${slope.toFixed(2)}`, chart.width - 30, 70);
+                                ctx.fillText(`R2 = ${r2.toFixed(4)}  |  slope = ${slope.toFixed(2)}`, chart.width - 30, 70);
                                 const interpretation = r2 > 0.7 ? 'Strong correlation' : r2 > 0.4 ? 'Moderate correlation' : 'Weak correlation';
                                 ctx.font = '16px Arial';
                                 ctx.fillStyle = '#6b7280';
@@ -29076,14 +29076,14 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 const data = efficacy.sort((a, b) => a.daa - b.daa);
 
                 // Collect all unique weed species for per-species lines
-                // Exclude "Total" meta-observation ï¿½ it is not an individual species and creates misleading chart lines
+                // Exclude "Total" meta-observation - it is not an individual species and creates misleading chart lines
                 const allSpecies = [...new Set(data.flatMap(d => (d.weedDetails || []).map(w => (w.species || 'Unknown').trim())))]
                     .filter(sp => sp.toLowerCase() !== 'total');
                 const colors = ['#4A90E2', '#D0021B', '#F5A623', '#7ED321', '#50E3C2', '#9013FE', '#10b981', '#ec4899', '#f97316', '#64748b'];
 
                 const mean = (arr) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : null;
 
-                // Cover Data ï¿½ one dataset per species (aggregated by DAA)
+                // Cover Data - one dataset per species (aggregated by DAA)
                 const coverDatasets = allSpecies.map((species, idx) => {
                     const byDaa = new Map();
                     data.forEach(d => {
@@ -29733,7 +29733,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                                     base64: base64,
                                     label: p.label || 'Photo',
                                     date: p.date ? new Date(p.date).toLocaleDateString() : '',
-                                    weather: p.weather ? `${p.weather.temp}ï¿½C` : ''
+                                    weather: p.weather ? `${p.weather.temp}°C` : ''
                                 });
                             }
                         } catch (e) { console.log('Photo skip', e); }
@@ -29827,7 +29827,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 <h3>Weather Conditions</h3>
                 <table class="meta-table" style="background-color: #f8fafc;">
                     <tr>
-                        <td><strong>Temp:</strong> ${trial.Temperature}ï¿½C</td>
+                        <td><strong>Temp:</strong> ${trial.Temperature}°C</td>
                         <td><strong>Humidity:</strong> ${trial.Humidity}%</td>
                         <td><strong>Wind:</strong> ${trial.Windspeed || '0'} km/h</td>
                         <td><strong>Rain:</strong> ${trial.Rain || '0'} mm</td>
@@ -29878,7 +29878,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 ${envChartImg ? `<div class="img-container"><img src="${envChartImg}" width="560" /></div>` : ''}
 
                 ${treatmentCompImg ? `<h2>Treatment Comparison</h2><div class="img-container"><img src="${treatmentCompImg}" width="600" /></div><p><em>${sanitizeHTML(buildPublicationCaption(5, 'Mean WCE with 95% CI error bars', `Treatment: ${trial.FormulationName || 'Unknown'}.`))}</em></p>` : ''}
-                ${heatmapImg ? `<h2>Species Control Heatmap</h2><div class="img-container"><img src="${heatmapImg}" width="620" /></div><p><em>${sanitizeHTML(buildPublicationCaption(6, 'Species ï¿½ DAA observed cover heatmap', 'Green = low cover, Red = high cover. Heatmap indicates progressive response following a single herbicide application, with localized regrowth in later stages.'))}</em></p>` : ''}
+                ${heatmapImg ? `<h2>Species Control Heatmap</h2><div class="img-container"><img src="${heatmapImg}" width="620" /></div><p><em>${sanitizeHTML(buildPublicationCaption(6, 'Species - DAA observed cover heatmap', 'Green = low cover, Red = high cover. Heatmap indicates progressive response following a single herbicide application, with localized regrowth in later stages.'))}</em></p>` : ''}
 
                 <h2>Statistical Significance Block</h2>
                 <p>${sanitizeHTML(buildStatisticalSignificanceBlock(safeJsonParse(trial.StatisticsJSON, {})?.anovaResults?.anovaTable || null).text)}</p>
@@ -30008,7 +30008,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                                         base64: base64,
                                         label: `Rep ${state.blocks.find(b => b.ID === t.BlockID)?.ReplicationNum || '?'} - ${p.label || 'Photo'}`,
                                         date: p.date ? formatReportDateLong(p.date) : '',
-                                        weather: p.weather ? `${p.weather.temp}ï¿½C` : ''
+                                        weather: p.weather ? `${p.weather.temp}°C` : ''
                                     });
                                     count++;
                                 }
@@ -30026,7 +30026,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                 const docAvgTemp = docTemps.length ? (docTemps.reduce((s, t) => s + parseFloat(t.Temperature), 0) / docTemps.length).toFixed(1) : null;
                 const docWeatherClause = docAvgTemp ? ` under recorded average conditions of ${docAvgTemp}\u00b0C` : '';
                 const docEquipClause = docProtocol.Equipment ? ` using ${docProtocol.Equipment}${docProtocol.SprayVolume ? ' at ' + docProtocol.SprayVolume : ''}` : '';
-                const docMethodologyParagraph = applyReportStyleGuard(`This study was conducted as a Randomized Complete Block Design (RCBD) with ${docBlocks.length} replication(s) at ${docProtocol.Location || 'the experimental site'} on ${docProjectDate}${docWeatherClause}. A total of ${treatments.length} treatment(s) were evaluated ï¿½ ${docAllTreatNames} ï¿½ targeting ${docProtocol.Crop || 'the target crop'}${docEquipClause}. The primary response variable was ${project.Metric || 'weed control efficiency (WCE)'}. ${controlDaysSummary}`);
+                const docMethodologyParagraph = applyReportStyleGuard(`This study was conducted as a Randomized Complete Block Design (RCBD) with ${docBlocks.length} replication(s) at ${docProtocol.Location || 'the experimental site'} on ${docProjectDate}${docWeatherClause}. A total of ${treatments.length} treatment(s) were evaluated - ${docAllTreatNames} - targeting ${docProtocol.Crop || 'the target crop'}${docEquipClause}. The primary response variable was ${project.Metric || 'weed control efficiency (WCE)'}. ${controlDaysSummary}`);
                 const docSortedStats = (finalRes && finalRes.treatmentStats ? [...finalRes.treatmentStats] : []).sort((a, b) => (b.wce || 0) - (a.wce || 0));
                 const docBest = docSortedStats[0];
                 const docBestName = docBest ? (state.formulations.find(f => f.ID === docBest.treatmentId)?.Name || docBest.treatmentId || 'the leading treatment') : 'the leading treatment';
@@ -30437,5 +30437,6 @@ Specific agronomic recommendation based on treatment performance trends and weed
 </body>
 
 </html>
+
 
 
