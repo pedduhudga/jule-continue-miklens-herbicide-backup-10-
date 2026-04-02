@@ -1,3 +1,4 @@
+
  <!DOCTYPE html>
 <html lang="en">
 
@@ -197,44 +198,17 @@
             background-color: #10b981;
         }
 
-        /* green-500 */
         .toast.error {
             background-color: #ef4444;
-        }
-
-        /* red-500 */
-        .toast.info {
-            background-color: #3b82f6;
+            z-index: 9999;
         }
 
         .toast.warning {
             background-color: #f59e0b;
         }
 
-        .issue-banner {
-            position: fixed;
-            left: 12px;
-            right: 12px;
-            bottom: 86px;
-            z-index: 10001;
-            border-radius: 10px;
-            padding: 10px 12px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-        }
-
-        .issue-banner.error { background: rgba(220, 38, 38, 0.96); }
-        .issue-banner.warning { background: rgba(217, 119, 6, 0.96); }
-
-        /* blue-500 */
-
-        /* Loading Overlay */
-        #loading-overlay {
-            z-index: 9999;
+        .toast.info {
+            background-color: #3b82f6;
         }
 
         .spinner {
@@ -1096,7 +1070,7 @@
                 if (!_isSyncProcessing && navigator.onLine && state.syncQueue && state.syncQueue.length > 0) {
                     const pending = state.syncQueue.filter(s => s.status === 'pending' || s.status === 'failed').length;
                     if (pending > 0) {
-                        console.log(`[HighTechSync] ?? Auto-trigger: ${pending} pending items waiting to sync...`);
+                        console.log(`[HighTechSync] [INFO] Auto-trigger: ${pending} pending items waiting to sync...`);
                         processSyncQueue();
                     }
                 }
@@ -1114,6 +1088,83 @@
                     return str ? JSON.parse(str) : fallback;
                 } catch (e) {
                     return fallback;
+                }
+            };
+
+            /**
+             * Normalize any supported date input into a stable YYYY-MM-DD key.
+             * Handles ISO, locale strings like M/D/YYYY, and Date objects without timezone drift.
+             */
+            window.toDateKey = function (value) {
+                if (!value) return '';
+
+                if (value instanceof Date && !isNaN(value.getTime())) {
+                    const y = value.getFullYear();
+                    const m = String(value.getMonth() + 1).padStart(2, '0');
+                    const d = String(value.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${d}`;
+                }
+
+                const raw = String(value).trim();
+                if (!raw) return '';
+
+                // Keep plain date strings as-is. Datetime strings are parsed below
+                // to avoid timezone drift when users expect local calendar dates.
+                const isoDateOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (isoDateOnly) return `${isoDateOnly[1]}-${isoDateOnly[2]}-${isoDateOnly[3]}`;
+
+                const slashLike = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+                if (slashLike) {
+                    let a = parseInt(slashLike[1], 10);
+                    let b = parseInt(slashLike[2], 10);
+                    let y = parseInt(slashLike[3], 10);
+                    if (y < 100) y += 2000;
+
+                    let month = a;
+                    let day = b;
+                    if (a > 12 && b <= 12) {
+                        month = b;
+                        day = a;
+                    }
+
+                    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                        return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    }
+                }
+
+                const parsed = new Date(raw);
+                if (!isNaN(parsed.getTime())) {
+                    const y = parsed.getFullYear();
+                    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+                    const d = String(parsed.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${d}`;
+                }
+
+                return '';
+            };
+
+            /**
+             * Calculate DAA (Days After Application) using normalized calendar dates only.
+             */
+            window.calculateDAA = function (photoDate, trialDate) {
+                try {
+                    const pKey = window.toDateKey(photoDate);
+                    const tKey = window.toDateKey(trialDate);
+                    if (!pKey || !tKey) {
+                        console.warn('[DAA] Invalid date provided:', { photoDate, trialDate });
+                        return 0;
+                    }
+
+                    const [py, pm, pd] = pKey.split('-').map(Number);
+                    const [ty, tm, td] = tKey.split('-').map(Number);
+                    const pUTC = Date.UTC(py, pm - 1, pd);
+                    const tUTC = Date.UTC(ty, tm - 1, td);
+
+                    const daa = Math.floor((pUTC - tUTC) / (1000 * 60 * 60 * 24));
+                    return Math.max(0, daa);
+                } catch (e) {
+                    console.error('[DAA] Calculation failed:', e);
+                    return 0;
                 }
             };
 
@@ -3385,13 +3436,13 @@ IMPORTANT:
              * Performs data integrity checks and resumes interrupted tasks
              */
             window.initializeApp = function () {
-                console.log('?? Initializing Herbicide Trial Management App...');
+                console.log('[Init] Initializing Herbicide Trial Management App...');
 
                 // Run data integrity checks
                 const issues = validateDataIntegrity();
 
                 if (issues.length > 0) {
-                    console.warn(`?? Found ${issues.length} data integrity issues:`);
+                    console.warn(`[WARN] Found ${issues.length} data integrity issues:`);
 
                     const critical = issues.filter(i => i.severity === 'critical');
                     const high = issues.filter(i => i.severity === 'high');
@@ -3410,9 +3461,9 @@ IMPORTANT:
 
                     // Log all issues to console for debugging
                     issues.forEach(issue => {
-                        const prefix = issue.severity === 'critical' ? '??' :
-                            issue.severity === 'high' ? '??' :
-                                issue.severity === 'medium' ? '??' : '??';
+                        const prefix = issue.severity === 'critical' ? '[CRITICAL]' :
+                            issue.severity === 'high' ? '[HIGH]' :
+                                issue.severity === 'medium' ? '[MEDIUM]' : '[LOW]';
                         console.log(`${prefix} [${issue.type}] ${issue.message}`);
                     });
                 } else {
@@ -3650,7 +3701,7 @@ IMPORTANT:
                             const { backups, currentIndex } = JSON.parse(saved);
                             this.backups = backups || [];
                             this.currentIndex = currentIndex || -1;
-                            console.log(`?? Loaded ${this.backups.length} backups from storage`);
+                            console.log(`[Backup] Loaded ${this.backups.length} backups from storage`);
                         }
                     } catch (e) {
                         console.warn('Failed to load backups:', e);
@@ -3688,7 +3739,7 @@ IMPORTANT:
                     this.backups = [];
                     this.currentIndex = -1;
                     localStorage.removeItem('dataBackups');
-                    console.log('??? All backups cleared');
+                    console.log('[Backup] All backups cleared');
                 }
             };
 
@@ -3973,7 +4024,7 @@ IMPORTANT:
             const DEFAULT_SCRIPT_URL = '';
             const DEFAULT_SHEET_ID = '';
             const DEFAULT_FOLDER_ID = '';
-            const CURRENCY_SYMBOL = '?';
+            const CURRENCY_SYMBOL = 'Rs. ';
 
             // --- GEMINI AI SETUP ---
             const GEMINI_MODEL_PRIORITY = [
@@ -6647,7 +6698,8 @@ IMPORTANT:
                                 : `<div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg mb-6 flex items-center gap-2 text-emerald-800 text-sm shadow-sm"><i data-lucide="shield-check" class="h-5 w-5"></i> <strong>Climate Guard:</strong> Optimal application conditions detected.</div>`;
 
                             const photos = safeJsonParse(trial.PhotoURLs);
-                            const photoTable = photos.length > 0 ? `<div class="mt-4"><h4 class="text-lg font-semibold mb-2 text-slate-700">Photo Log & Weather</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">Photo</th><th class="px-4 py-2 text-left font-medium text-slate-500">Label</th><th class="px-4 py-2 text-left font-medium text-slate-500">Date</th><th class="px-4 py-2 text-left font-medium text-slate-500">Weather</th><th class="px-4 py-2 text-left font-medium text-slate-500">Actions</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${photos.map((p, index) => { const photoUrl = p.fileData || p.url; if (!photoUrl) return ''; const proxiedUrl = photoUrl.startsWith('data:image') ? photoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(photoUrl)}&w=100`; const fullSizeUrl = photoUrl.startsWith('data:image') ? '#' : photoUrl; const weather = p.weather || {}; return `<tr><td class="p-2"><a href="${fullSizeUrl}" target="_blank"><img src="${proxiedUrl}" class="h-16 w-16 object-cover rounded-md border"></a></td><td class="p-2">${sanitizeHTML(p.label) || '-'}</td><td class="p-2">${p.date ? new Date(p.date).toLocaleDateString() : 'N/A'}</td><td class="p-2">${weather.temp ? `${weather.temp}°C, ${weather.humidity}% H, ${weather.wind} km/h` : 'N/A'}</td><td class="p-2"><button data-action="open-photo-edit-modal" data-trial-id="${trial.ID}" data-photo-index="${index}" class="text-emerald-600 hover:text-emerald-800 font-semibold text-xs">Edit</button></td></tr>` }).join('')}</tbody></table></div></div>` : '<p class="mt-4 text-gray-500">No photos available.</p>';
+                            const firstPhotoIndex = getFirstGeneralPhotoIndex(trial);
+                            const photoTable = photos.length > 0 ? `<div class="mt-4"><h4 class="text-lg font-semibold mb-2 text-slate-700">Photo Log & Weather</h4><div class="overflow-x-auto rounded-lg border"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-4 py-2 text-left font-medium text-slate-500">Photo</th><th class="px-4 py-2 text-left font-medium text-slate-500">Label</th><th class="px-4 py-2 text-left font-medium text-slate-500">Date</th><th class="px-4 py-2 text-left font-medium text-slate-500">Weather</th><th class="px-4 py-2 text-left font-medium text-slate-500">Weed Status</th><th class="px-4 py-2 text-left font-medium text-slate-500">Actions</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${photos.map((p, index) => { const photoUrl = p.fileData || p.url; if (!photoUrl) return ''; const proxiedUrl = photoUrl.startsWith('data:image') ? photoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(photoUrl)}&w=100`; const fullSizeUrl = photoUrl.startsWith('data:image') ? '#' : photoUrl; const weather = p.weather || {}; const weedNames = Array.isArray(p.identifications) ? p.identifications.map(item => item?.name).filter(Boolean) : []; const weedSummary = weedNames.length > 0 ? `<div class="mt-1 text-xs text-emerald-700"><strong>Weeds:</strong> ${sanitizeHTML(weedNames.join(', '))}</div>` : index === firstPhotoIndex ? '<div class="mt-1 text-xs text-amber-700">Not checked yet</div>' : ''; const firstBadge = index === firstPhotoIndex ? '<div class="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200 mb-1">First Photo</div>' : ''; const weedActionLabel = weedNames.length > 0 ? 'Re-check Weeds' : 'Check Weeds'; const weedStatusBadge = weedNames.length > 0 ? '<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800"><i data-lucide="check-circle" class="h-3 w-3"></i> Identified</span>' : index === firstPhotoIndex ? '<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800"><i data-lucide="alert-circle" class="h-3 w-3"></i> Pending</span>' : '<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-slate-100 text-slate-600">-</span>'; return `<tr><td class="p-2"><a href="${fullSizeUrl}" target="_blank"><img src="${proxiedUrl}" class="h-16 w-16 object-cover rounded-md border"></a></td><td class="p-2">${firstBadge}<div>${sanitizeHTML(p.label) || '-'}</div>${weedSummary}</td><td class="p-2">${p.date ? new Date(p.date).toLocaleDateString() : 'N/A'}</td><td class="p-2">${weather.temp ? `${weather.temp}°C, ${weather.humidity}% H, ${weather.wind} km/h` : 'N/A'}</td><td class="p-2">${weedStatusBadge}</td><td class="p-2"><div class="flex flex-col items-start gap-1"><button data-action="open-photo-edit-modal" data-trial-id="${trial.ID}" data-photo-index="${index}" class="text-emerald-600 hover:text-emerald-800 font-semibold text-xs">Edit</button><button data-action="analyze-general-photo-weeds" data-trial-id="${trial.ID}" data-photo-index="${index}" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs">${weedActionLabel}</button></div></td></tr>` }).join('')}</tbody></table></div></div>` : '<p class="mt-4 text-gray-500">No photos available.</p>';
                             const weedPhotos = safeJsonParse(trial.WeedPhotosJSON);
                             const weedTable = weedPhotos.length > 0 ? `<div class="mt-6"><h4 class="text-lg font-semibold mb-2 text-slate-700">Weed Identification</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${weedPhotos.map(p => { const bestMatch = p.identifications?.[0]; const weedPhotoUrl = p.fileData || p.url; if (!weedPhotoUrl) return ''; const weedPreviewUrl = weedPhotoUrl.startsWith('data:image') ? weedPhotoUrl : `https://images.weserv.nl/?url=${encodeURIComponent(weedPhotoUrl)}&w=300`; return `<div class="border rounded-lg p-3 bg-slate-50"><img src="${weedPreviewUrl}" class="rounded-md w-full h-48 object-cover mb-2"><p class="font-semibold text-sm">${sanitizeHTML(bestMatch?.name) || 'Unknown'} <em class="text-gray-500 font-normal">${sanitizeHTML(bestMatch?.commonNames?.[0]) || ''}</em></p><p class="text-xs text-gray-500">Confidence: ${bestMatch?.confidence ? (bestMatch.confidence * 100).toFixed(1) + '%' : 'N/A'}</p></div>` }).join('')}</div></div>` : '';
                             const efficacyData = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON));
@@ -7578,7 +7630,7 @@ IMPORTANT:
                     document.getElementById('btn-export-analytics').onclick = async () => {
                         showToast('Generating Statistical Report PDF...', 'info');
                         const { jsPDF } = window.jspdf;
-                        const doc = new jsPDF('p', 'mm', 'a4');
+                        const doc = createPdfDoc('p', 'mm', 'a4');
                         
                         doc.setFontSize(22);
                         doc.setTextColor(15, 118, 110);
@@ -11826,18 +11878,158 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 }).filter(Boolean);
             }
 
+            function buildSortedGeneralPhotoIndex(trial) {
+                    return safeJsonParse(trial?.PhotoURLs, []).map((photo, index) => {
+                        const dateValue = photo?.date ? new Date(photo.date).getTime() : NaN;
+                        return {
+                            index,
+                            sortDate: Number.isFinite(dateValue) ? dateValue : Number.MAX_SAFE_INTEGER,
+                            photo
+                        };
+                    }).sort((a, b) => a.sortDate - b.sortDate || a.index - b.index);
+                }
+
+                function resolveGeneralPhotoIndex(trial, photoLocator = {}) {
+                    const photos = safeJsonParse(trial?.PhotoURLs, []);
+                    if (!photos.length) return -1;
+
+                    if (Number.isInteger(photoLocator.index) && photoLocator.index >= 0 && photoLocator.index < photos.length) {
+                        return photoLocator.index;
+                    }
+
+                    if (photoLocator.tempId) {
+                        const tempMatch = photos.findIndex(p => p?.tempId === photoLocator.tempId);
+                        if (tempMatch > -1) return tempMatch;
+                    }
+
+                    if (photoLocator.url) {
+                        const urlMatch = photos.findIndex(p => p?.url === photoLocator.url);
+                        if (urlMatch > -1) return urlMatch;
+                    }
+
+                    return -1;
+                }
+
+                function getFirstGeneralPhotoIndex(trial) {
+                    const sorted = buildSortedGeneralPhotoIndex(trial);
+                    return sorted.length ? sorted[0].index : -1;
+                }
+
+                function mergeTrialWeedSpecies(existingSpecies, identifications) {
+                    const merged = [];
+                    const seen = new Set();
+                    const pushUnique = (name) => {
+                        const cleaned = String(name || '').trim();
+                        if (!cleaned) return;
+                        const canonical = window.canonicalizeWeedSpecies ? window.canonicalizeWeedSpecies(cleaned) : cleaned;
+                        const key = canonical.toLowerCase();
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        merged.push(canonical);
+                    };
+
+                    String(existingSpecies || '').split(',').map(name => name.trim()).filter(Boolean).forEach(pushUnique);
+                    (identifications || []).forEach(item => pushUnique(item?.name));
+                    return merged.join(', ');
+                }
+
+                function shouldAutoIdentifyGeneralPhotoWeeds(trial, photoLocator = {}) {
+                    const photos = safeJsonParse(trial?.PhotoURLs, []);
+                    if (!photos.length) return false;
+
+                    const photoIndex = resolveGeneralPhotoIndex(trial, photoLocator);
+                    if (photoIndex === -1) return false;
+
+                    const firstPhotoIndex = getFirstGeneralPhotoIndex(trial);
+                    const hasStoredIdentification = photos.some(p => Array.isArray(p?.identifications) && p.identifications.length > 0);
+                    const trialWeedsMissing = !String(trial?.WeedSpecies || '').trim();
+
+                    return photoIndex === firstPhotoIndex || !hasStoredIdentification || trialWeedsMissing;
+                }
+
+                async function persistGeneralPhotoWeedIdentifications(trialId, photoLocator, identifications) {
+                    const trial = state.trials.find(t => t.ID === trialId);
+                    if (!trial) throw new Error('Trial not found.');
+
+                    const photos = safeJsonParse(trial.PhotoURLs, []);
+                    const photoIndex = resolveGeneralPhotoIndex(trial, photoLocator);
+                    if (photoIndex === -1 || !photos[photoIndex]) throw new Error('Photo not found in trial.');
+
+                    const cleanIdentifications = Array.isArray(identifications)
+                        ? identifications.filter(item => String(item?.name || '').trim())
+                        : [];
+
+                    photos[photoIndex] = {
+                        ...photos[photoIndex],
+                        identifications: cleanIdentifications,
+                        weedIdentificationCheckedAt: new Date().toISOString()
+                    };
+
+                    trial.PhotoURLs = JSON.stringify(photos);
+                    trial.WeedSpecies = mergeTrialWeedSpecies(trial.WeedSpecies, cleanIdentifications);
+
+                    await apiCall('updateTrialRecord', {
+                        ID: trial.ID,
+                        PhotoURLs: trial.PhotoURLs,
+                        WeedSpecies: trial.WeedSpecies
+                    }, false);
+
+                    refreshRelevantUI(trial.ID, 'general_upload');
+                    return cleanIdentifications;
+                }
+
+                async function analyzeGeneralPhotoWeeds(trialId, photoLocator, options = {}) {
+                    const trial = state.trials.find(t => t.ID === trialId);
+                    if (!trial) throw new Error('Trial not found.');
+
+                    const photos = safeJsonParse(trial.PhotoURLs, []);
+                    const photoIndex = resolveGeneralPhotoIndex(trial, photoLocator);
+                    if (photoIndex === -1 || !photos[photoIndex]) throw new Error('Photo not found.');
+
+                    const photo = photos[photoIndex];
+                    const shouldToast = options.showToast !== false;
+
+                    let fileData = options.sourceFileData || photo.fileData;
+                    let mimeType = options.sourceMimeType || photo.mimeType || 'image/jpeg';
+
+                    if (!fileData) {
+                        if (!photo.url) throw new Error('Photo is not uploaded yet.');
+                        const base64Photo = await fetchPhotoAsBase64(photo.url);
+                        if (!base64Photo?.fileData) throw new Error('Could not load photo for weed identification.');
+                        fileData = base64Photo.fileData;
+                        mimeType = base64Photo.mimeType || mimeType;
+                    }
+
+                    if (shouldToast) {
+                        showToast(`Checking weeds for photo ${photoIndex + 1}...`, 'info');
+                    }
+
+                    const identifications = await identifyWeedsFromPhoto(fileData, mimeType);
+                    await persistGeneralPhotoWeedIdentifications(trialId, { index: photoIndex }, identifications);
+
+                    if (shouldToast) {
+                        if (identifications.length > 0) {
+                            showToast(`Weed names updated for photo ${photoIndex + 1}.`, 'success');
+                        } else {
+                            showToast(`No weeds identified in photo ${photoIndex + 1}.`, 'warning');
+                        }
+                    }
+
+                    return identifications;
+                }
+
             function handlePhotoEditSubmit(form) {
                 const trialId = form.querySelector('[name="trialId"]').value;
                 const photoIndex = parseInt(form.querySelector('[name="photoIndex"]').value);
                 const trial = state.trials.find(t => t.ID === trialId);
                 if (!trial) return;
-
                 const photos = safeJsonParse(trial.PhotoURLs);
                 const photo = photos[photoIndex];
                 if (photo) {
                     // Extract values with trimming to ensure cleanliness
                     const newLabel = (form.querySelector('[name="label"]').value || '').trim();
                     const newDate = form.querySelector('[name="date"]').value;
+                    const oldDate = photo.date; // Store the old date to detect changes
                     const wTemp = (form.querySelector('[name="temp"]').value || '').trim();
                     const wHum = (form.querySelector('[name="humidity"]').value || '').trim();
                     const wWind = (form.querySelector('[name="wind"]').value || '').trim();
@@ -11857,6 +12049,78 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                     trial.PhotoURLs = JSON.stringify(photos);
 
+                    // **NEW: If photo date changed, recalculate DAA in Efficacy data**
+                    if (oldDate !== newDate && newDate) {
+                        try {
+                            const efficacyData = safeJsonParse(trial.EfficacyDataJSON, []);
+                            const newDaa = window.calculateDAA(newDate, trial.Date);
+                            
+                            // Find and update efficacy observations that match this photo's old date
+                            const oldPhotoDateStr = oldDate ? window.toDateKey(oldDate) : null;
+                            const newPhotoDateStr = newDate ? window.toDateKey(newDate) : null;
+                            
+                            let updated = false;
+                            efficacyData.forEach(obs => {
+                                // Match by date and optional photoUrl if available
+                                          const obsDateKey = window.toDateKey(obs.date);
+                                          if (obsDateKey === oldPhotoDateStr || (photo.url && obs.photoUrl === photo.url)) {
+                                    obs.date = newPhotoDateStr;
+                                    obs.daa = newDaa; // Already non-negative from calculateDAA
+                                    updated = true;
+                                    console.log(`[Photo Date Update] Recalculated DAA for observation: ${newPhotoDateStr} -> DAA ${obs.daa}`);
+                                }
+                            });
+                            
+                            if (updated) {
+                                trial.EfficacyDataJSON = JSON.stringify(efficacyData);
+                            }
+                        } catch (e) {
+                            console.warn('[Photo Date Update] Could not update efficacy DAA:', e);
+                                            // Always recalculate DAA for efficacy observations linked to this photo.
+                                            // Matches by: old date, new date (re-edit), or photoUrl.
+                                            // Normalizes obs.date to handle ISO/locale/timestamp mismatches.
+                                            if (newDate) {
+                                                try {
+                                                    const efficacyData = safeJsonParse(trial.EfficacyDataJSON, []);
+                                                    const oldPhotoDateStr = oldDate ? window.toDateKey(oldDate) : null;
+                                                    const newPhotoDateStr = window.toDateKey(newDate);
+                                                    const newDaa = window.calculateDAA(newDate, trial.Date);
+
+                                                    let updated = false;
+                                                    efficacyData.forEach(obs => {
+                                                        const obsDateKey = window.toDateKey(obs.date);
+                                                        if (obsDateKey === oldPhotoDateStr
+                                                            || obsDateKey === newPhotoDateStr
+                                                            || (photo.url && obs.photoUrl === photo.url)) {
+                                                            obs.date = newPhotoDateStr;
+                                                            obs.daa = newDaa;
+                                                            updated = true;
+                                                            console.log(`[Photo Date Update] obs matched: ${obsDateKey} -> ${newPhotoDateStr}, DAA ${newDaa}`);
+                                                        }
+                                                    });
+
+                                                    // Safety pass: keep daa consistent with each observation date.
+                                                    efficacyData.forEach(obs => {
+                                                        const obsDateKey = window.toDateKey(obs.date);
+                                                        if (obsDateKey) {
+                                                            obs.date = obsDateKey;
+                                                            obs.daa = window.calculateDAA(obsDateKey, trial.Date);
+                                                        }
+                                                    });
+
+                                                    if (updated) {
+                                                        trial.EfficacyDataJSON = JSON.stringify(efficacyData);
+                                                        console.log(`[Photo Date Update] Saved ${efficacyData.filter(o => window.toDateKey(o.date) === newPhotoDateStr).length} obs with DAA=${newDaa}`);
+                                                    } else {
+                                                        console.warn('[Photo Date Update] No matching efficacy obs found. oldDate:', oldPhotoDateStr, 'existingDates:', efficacyData.map(o => o.date));
+                                                    }
+                                                } catch (e) {
+                                                    console.warn('[Photo Date Update] Could not update efficacy DAA:', e);
+                                                }
+                                            }
+                        }
+                    }
+
                     // Optimistic UI Update: Close and refresh immediately
                     showToast('Photo details updated.', 'success');
                     closeModal();
@@ -11864,7 +12128,11 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                     // Background Sync
                     // We do NOT wait for this to finish before closing UI
-                    apiCall('updateTrialRecord', { ID: trialId, PhotoURLs: trial.PhotoURLs }, false)
+                    apiCall('updateTrialRecord', { 
+                        ID: trialId, 
+                        PhotoURLs: trial.PhotoURLs,
+                        EfficacyDataJSON: trial.EfficacyDataJSON // Also sync updated DAA values
+                    }, false)
                         .catch(err => {
                             console.error('Background sync failed:', err);
                             showToast('Warning: Changes saved locally but sync failed. Please check connection.', 'warning');
@@ -13357,6 +13625,46 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                             }
                         },
                         'stop-sync-item': () => stopSyncItem(id),
+                        'analyze-general-photo-weeds': async () => {
+                            try {
+                                const photoIdx = parseInt(photoIndex, 10);
+                                // Find the button element reliably using DOM query
+                                let btn = document.querySelector(`button[data-action="analyze-general-photo-weeds"][data-trial-id="${trialId}"][data-photo-index="${photoIdx}"]`);
+                                if (!btn) btn = target; // Fallback to target if not found
+                                if (!btn) throw new Error('Cannot find button element for this photo');
+                                
+                                const btnText = btn.textContent.trim();
+                                btn.disabled = true;
+                                btn.style.opacity = '0.6';
+                                btn.textContent = 'Analyzing...';
+                                btn.style.cursor = 'not-allowed';
+                                
+                                const result = await analyzeGeneralPhotoWeeds(trialId, { index: photoIdx });
+                                
+                                if (result && result.length > 0) {
+                                    btn.textContent = 'Re-check Weeds';
+                                    showToast(`Identified ${result.length} weed species in photo.`, 'success');
+                                } else {
+                                    btn.textContent = btnText;
+                                    showToast('No weeds detected in this photo.', 'info');
+                                }
+                                
+                                // Refresh the trial detail to show updated status
+                                openTrialDetail(trialId);
+                            } catch (err) {
+                                const photoIdx = parseInt(photoIndex, 10);
+                                let btn = document.querySelector(`button[data-action="analyze-general-photo-weeds"][data-trial-id="${trialId}"][data-photo-index="${photoIdx}"]`);
+                                if (!btn) btn = target;
+                                if (btn) {
+                                    btn.disabled = false;
+                                    btn.style.opacity = '1';
+                                    btn.style.cursor = 'pointer';
+                                    btn.style.color = '#dc2626';
+                                    btn.textContent = 'Try Again';
+                                }
+                                showToast(err.message || 'Failed to identify weeds for this photo.', 'error');
+                            }
+                        },
                         'open-project-modal': () => handleOpenModal('project'),
                         'delete-selected': () => handleBulkDelete(),
                     };
@@ -14906,7 +15214,7 @@ Style Guidelines:
 
                 // --- NOW GENERATE THE FULL REPORT PDF AND ADD NARRATIVE ---
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                const doc = createPdfDoc();
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
                 let y = 15;
@@ -15181,7 +15489,7 @@ Style Guidelines:
                     if (coverChartImg) {
                         try {
                             if (String(coverChartImg || '').startsWith('data:image/')) {
-                                doc.addImage(coverChartImg, 'PNG', 14, y, 180, 90);
+                                addImageToPdfSafe(doc, coverChartImg, 14, y, 180, 90);
                             }
                             y += 95;
                         } catch (e) {
@@ -15255,7 +15563,7 @@ Style Guidelines:
                     if (wceConfidenceImg) {
                         if (y + 78 > pageHeight - 20) { doc.addPage(); y = 20; }
                         if (String(wceConfidenceImg).startsWith('data:image/')) {
-                            doc.addImage(wceConfidenceImg, 'PNG', 14, y, 180, 70);
+                            addImageToPdfSafe(doc, wceConfidenceImg, 14, y, 180, 70);
                             y += 74;
                         }
                     }
@@ -15263,7 +15571,7 @@ Style Guidelines:
                     if (speciesDistributionImg) {
                         if (y + 68 > pageHeight - 20) { doc.addPage(); y = 20; }
                         if (String(speciesDistributionImg).startsWith('data:image/')) {
-                            doc.addImage(speciesDistributionImg, 'PNG', 14, y, 120, 58);
+                            addImageToPdfSafe(doc, speciesDistributionImg, 14, y, 120, 58);
                             y += 62;
                         }
                     }
@@ -15271,7 +15579,7 @@ Style Guidelines:
                     if (environmentSuitabilityImg) {
                         if (y + 68 > pageHeight - 20) { doc.addPage(); y = 20; }
                         if (String(environmentSuitabilityImg).startsWith('data:image/')) {
-                            doc.addImage(environmentSuitabilityImg, 'PNG', 14, y, 160, 58);
+                            addImageToPdfSafe(doc, environmentSuitabilityImg, 14, y, 160, 58);
                             y += 62;
                         }
                     }
@@ -15284,7 +15592,7 @@ Style Guidelines:
                     doc.setFontSize(12);
                     doc.text('Treatment Comparison', 14, y);
                     y += 8;
-                    doc.addImage(treatmentComparisonImg, 'PNG', 14, y, 180, 72);
+                    addImageToPdfSafe(doc, treatmentComparisonImg, 14, y, 180, 72);
                     y += 76;
                     doc.setFont(undefined, 'italic');
                     doc.setFontSize(8);
@@ -15301,7 +15609,7 @@ Style Guidelines:
                     doc.setFontSize(12);
                     doc.text('Species Control Heatmap', 14, y);
                     y += 8;
-                    doc.addImage(speciesHeatmapImg, 'PNG', 14, y, 180, 80);
+                    addImageToPdfSafe(doc, speciesHeatmapImg, 14, y, 180, 80);
                     y += 84;
                     doc.setFont(undefined, 'italic');
                     doc.setFontSize(8);
@@ -15597,7 +15905,7 @@ Style Guidelines:
                 });
 
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                const doc = createPdfDoc();
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
 
@@ -15790,7 +16098,7 @@ Style Guidelines:
 
                         if (options.chartImages?.cover) {
                             try {
-                                doc.addImage(options.chartImages.cover, 'PNG', 14, y, 180, 90);
+                                addImageToPdfSafe(doc, options.chartImages.cover, 14, y, 180, 90);
                                 doc.setFontSize(8);
                                 doc.setFont(undefined, 'italic');
                                 doc.text(buildPublicationCaption(1, 'Weed control trajectory by DAA', `Treatment: ${trial.FormulationName || 'Unknown'}.`), 14, y + 94);
@@ -15857,7 +16165,7 @@ Style Guidelines:
                     if (options.chartImages?.wceConfidence) {
                         if (y + 78 > pageHeight - 20) { doc.addPage(); y = 20; }
                         try {
-                            doc.addImage(options.chartImages.wceConfidence, 'PNG', 14, y, 180, 70);
+                            addImageToPdfSafe(doc, options.chartImages.wceConfidence, 14, y, 180, 70);
                             y += 74;
                         } catch (e) { }
                     }
@@ -15865,7 +16173,7 @@ Style Guidelines:
                     if (options.chartImages?.speciesDistribution) {
                         if (y + 70 > pageHeight - 20) { doc.addPage(); y = 20; }
                         try {
-                            doc.addImage(options.chartImages.speciesDistribution, 'PNG', 14, y, 120, 60);
+                            addImageToPdfSafe(doc, options.chartImages.speciesDistribution, 14, y, 120, 60);
                             y += 64;
                         } catch (e) { }
                     }
@@ -15873,7 +16181,7 @@ Style Guidelines:
                     if (options.chartImages?.environmentSuitability) {
                         if (y + 70 > pageHeight - 20) { doc.addPage(); y = 20; }
                         try {
-                            doc.addImage(options.chartImages.environmentSuitability, 'PNG', 14, y, 160, 60);
+                            addImageToPdfSafe(doc, options.chartImages.environmentSuitability, 14, y, 160, 60);
                             y += 64;
                         } catch (e) { }
                     }
@@ -15887,7 +16195,7 @@ Style Guidelines:
                     doc.text('Treatment Comparison', 14, y);
                     y += 8;
                     try {
-                        doc.addImage(options.chartImages.treatmentComparison, 'PNG', 14, y, 180, 72);
+                        addImageToPdfSafe(doc, options.chartImages.treatmentComparison, 14, y, 180, 72);
                         y += 76;
                     } catch (e) { }
                 }
@@ -15900,7 +16208,7 @@ Style Guidelines:
                     doc.text('Species Control Heatmap', 14, y);
                     y += 8;
                     try {
-                        doc.addImage(options.chartImages.speciesHeatmap, 'PNG', 14, y, 180, 80);
+                        addImageToPdfSafe(doc, options.chartImages.speciesHeatmap, 14, y, 180, 80);
                         y += 84;
                         doc.setFont(undefined, 'normal');
                         doc.setFontSize(8);
@@ -17194,6 +17502,24 @@ Style Guidelines:
                 return null;
             }
 
+            function createPdfDoc(orientationOrOptions = 'p', unit = 'mm', format = 'a4') {
+                const { jsPDF } = window.jspdf;
+                if (typeof orientationOrOptions === 'object' && orientationOrOptions !== null) {
+                    return new jsPDF({
+                        compress: true,
+                        putOnlyUsedFonts: true,
+                        ...orientationOrOptions
+                    });
+                }
+                return new jsPDF({
+                    orientation: orientationOrOptions || 'p',
+                    unit: unit || 'mm',
+                    format: format || 'a4',
+                    compress: true,
+                    putOnlyUsedFonts: true
+                });
+            }
+
             function addImageToPdfSafe(doc, imageData, x, y, w, h) {
                 if (!doc || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return false;
                 const normalized = normalizeDataUrlForPdf(imageData);
@@ -17659,7 +17985,7 @@ Style Guidelines:
                 }
 
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('l', 'mm', 'a4'); // Landscape A4
+                const doc = createPdfDoc('l', 'mm', 'a4'); // Landscape A4
                 const pageWidth = doc.internal.pageSize.getWidth();
 
                 // Header
@@ -17817,7 +18143,7 @@ Style Guidelines:
                     if (trials.length === 0) return showToast('Select at least one trial to compare.', 'error');
                     showToast('Generating Multi-Trial Scientific Report\u2026', 'info');
                     const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
+                    const doc = createPdfDoc();
                     const pageWidth = doc.internal.pageSize.getWidth();
                     const pageHeight = doc.internal.pageSize.getHeight();
                     const margin = 14;
@@ -18078,7 +18404,7 @@ Style Guidelines:
                     let compChartImg = null;
                     try { compChartImg = await generateTreatmentComparisonChart(trials); } catch (e) { /* skip */ }
                     if (compChartImg && String(compChartImg).startsWith('data:image/')) {
-                        y = checkPage(90, y); doc.addImage(compChartImg, 'PNG', margin, y, maxWidth, 78); y += 82;
+                        y = checkPage(90, y); addImageToPdfSafe(doc, compChartImg, margin, y, maxWidth, 78); y += 82;
                         doc.setFont(undefined, 'italic'); doc.setFontSize(8);
                         doc.text('Figure 1: Mean WCE comparison across all evaluated formulations with 95% confidence intervals.', margin, y, { maxWidth });
                         doc.setFont(undefined, 'normal'); doc.setFontSize(10); y += 8;
@@ -18087,7 +18413,7 @@ Style Guidelines:
                         const canvas = document.getElementById('compare-chart');
                         if (canvas && canvas.width > 0) {
                             const uiImg = canvas.toDataURL('image/png');
-                            y = checkPage(90, y); doc.addImage(uiImg, 'PNG', margin, y, maxWidth, 78); y += 82;
+                            y = checkPage(90, y); addImageToPdfSafe(doc, uiImg, margin, y, maxWidth, 78); y += 82;
                             doc.setFont(undefined, 'italic'); doc.setFontSize(8);
                             doc.text('Figure 2: Field assessment comparison chart (weed cover / control trend by species).', margin, y, { maxWidth });
                             doc.setFont(undefined, 'normal'); doc.setFontSize(10); y += 8;
@@ -19995,7 +20321,7 @@ Style Guidelines:
 
                     soilCache[cacheKey] = soilData;
                     populateSoilUI(soilData);
-                    showToast(`?? Soil data loaded via ${result.provider}`, 'success');
+                    showToast(`Soil data loaded via ${result.provider}`, 'success');
                     return soilData;
                 }
 
@@ -20463,8 +20789,19 @@ Style Guidelines:
             async function fetchPhotoAsBase64(url) {
                 try {
                     console.log(`[Photo Fetch] Starting fetch for: ${url}`);
+                    
+                    // Convert Google Drive /view URLs to download-friendly format
+                    let fetchUrl = url;
+                    const driveViewMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9-_]+)/);
+                    if (driveViewMatch) {
+                        const fileId = driveViewMatch[1];
+                        // Use the uc endpoint which is more reliable for direct fetches
+                        fetchUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
+                        console.log(`[Photo Fetch] Converted Drive URL to: ${fetchUrl}`);
+                    }
+                    
                     // Use the proxy to avoid CORS issues
-                    const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=jpg`;
+                    const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(fetchUrl)}&output=jpg`;
                     const fetchStart = Date.now();
                     const response = await fetch(proxiedUrl);
 
@@ -20538,7 +20875,7 @@ Style Guidelines:
                 // === DATA QUALITY AUDIT (NEW) ===
                 // Check for bypass flag (set by Clean & Proceed or Force Generate)
                 if (window.auditBypassOnce) {
-                    console.log('[Regulatory Report] ?? Audit bypassed (user action)');
+                    console.log('[Regulatory Report] [INFO] Audit bypassed (user action)');
                     window.auditBypassOnce = false; // Reset flag
                     // Skip audit, continue with report generation
                 } else {
@@ -20548,7 +20885,7 @@ Style Guidelines:
 
                     if (auditIssues && auditIssues.length > 0) {
                         // Issues found - modal is already open, stop report generation
-                        console.log('[Regulatory Report] ?? Quality issues detected. Report generation blocked.');
+                        console.log('[Regulatory Report] [WARN] Quality issues detected. Report generation blocked.');
                         showToast('Please review data quality issues before generating report.', 'error');
                         return; // Stop execution
                     }
@@ -20685,7 +21022,7 @@ Style Guidelines:
                     console.log(`[Report Diagnosis] Preview: ${project.Conclusion.substring(0, 50)}...`);
                     aiExecutiveSummary = project.Conclusion;
                 } else if (project.Narrative && project.Narrative.length > 20) {
-                    console.log(`[Report Diagnosis] ?? 'Conclusion' missing/short. Found stored 'Narrative' (${project.Narrative.length} chars). Using it.`);
+                    console.log(`[Report Diagnosis] [INFO] 'Conclusion' missing/short. Found stored 'Narrative' (${project.Narrative.length} chars). Using it.`);
                     aiExecutiveSummary = project.Narrative;
                 } else {
                     console.log(`[Report Diagnosis] ? No valid stored Conclusion or Narrative found. Triggering regeneration...`);
@@ -20787,7 +21124,7 @@ Style Guidelines:
                     });
 
                     await new Promise(resolve => setTimeout(resolve, 500));
-                    chartImages.wceTimeline = wceCanvas.toDataURL('image/png');
+                    chartImages.wceTimeline = wceCanvas.toDataURL('image/jpeg', 0.92);
 
                     // Final DAT Performance Chart
                     const finalDat = daas[daas.length - 1];
@@ -20832,7 +21169,7 @@ Style Guidelines:
                         });
 
                         await new Promise(resolve => setTimeout(resolve, 500));
-                        chartImages.finalPerformance = perfCanvas.toDataURL('image/png');
+                        chartImages.finalPerformance = perfCanvas.toDataURL('image/jpeg', 0.92);
 
                         const confCanvas = document.createElement('canvas');
                         confCanvas.width = 1400;
@@ -20885,7 +21222,7 @@ Style Guidelines:
                             }
                         });
                         await new Promise(resolve => setTimeout(resolve, 450));
-                        chartImages.confidenceBands = confCanvas.toDataURL('image/png');
+                        chartImages.confidenceBands = confCanvas.toDataURL('image/jpeg', 0.92);
 
                         const doseCanvas = document.createElement('canvas');
                         doseCanvas.width = 1400;
@@ -20929,7 +21266,7 @@ Style Guidelines:
                                 }
                             });
                             await new Promise(resolve => setTimeout(resolve, 450));
-                            chartImages.doseResponse = doseCanvas.toDataURL('image/png');
+                            chartImages.doseResponse = doseCanvas.toDataURL('image/jpeg', 0.92);
                         }
                     } else {
                         console.warn('[Regulatory Report] Skipping performance chart - incomplete data or error in results');
@@ -20993,7 +21330,7 @@ Style Guidelines:
                             }
                         });
                         await new Promise(resolve => setTimeout(resolve, 500));
-                        chartImages.speciesCover = speciesCanvas.toDataURL('image/png');
+                        chartImages.speciesCover = speciesCanvas.toDataURL('image/jpeg', 0.92);
                     }
 
                     // 5. RADAR CHART (Weed Spectrum)
@@ -21060,7 +21397,7 @@ Style Guidelines:
                                 }
                             });
                             await new Promise(resolve => setTimeout(resolve, 500));
-                            chartImages.radarSpectrum = radarCanvas.toDataURL('image/png');
+                            chartImages.radarSpectrum = radarCanvas.toDataURL('image/jpeg', 0.92);
                         }
                     }
 
@@ -21094,7 +21431,7 @@ Style Guidelines:
                             }
                         });
                         await new Promise(resolve => setTimeout(resolve, 500));
-                        chartImages.yieldChart = yieldCanvas.toDataURL('image/png');
+                        chartImages.yieldChart = yieldCanvas.toDataURL('image/jpeg', 0.92);
                     }
 
                     // --- NEW: Generate Treatment Comparison Bar Chart ---
@@ -21185,7 +21522,7 @@ Style Guidelines:
                 // --- 6. INITIALIZE PDF ---
                 showToast('Building PDF document...', 'info');
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                const doc = createPdfDoc();
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
                 const margin = 14;
@@ -21662,7 +21999,7 @@ Style Guidelines:
                     y += 10;
 
                     if (chartImages.wceTimeline) {
-                        doc.addImage(chartImages.wceTimeline, 'PNG', margin, y, pageWidth - 2 * margin, 80);
+                        addImageToPdfSafe(doc, chartImages.wceTimeline, margin, y, pageWidth - 2 * margin, 80);
                         y += 90;
                     } else {
                         // FALLBACK: WCE Timeline unavailable
@@ -21683,7 +22020,7 @@ Style Guidelines:
                     checkPageBreak(90);
 
                     if (chartImages.finalPerformance) {
-                        doc.addImage(chartImages.finalPerformance, 'PNG', margin, y, pageWidth - 2 * margin, 80);
+                        addImageToPdfSafe(doc, chartImages.finalPerformance, margin, y, pageWidth - 2 * margin, 80);
                         doc.setFontSize(8);
                         doc.setFont("helvetica", "italic");
                         doc.text(buildPublicationCaption(1, 'Final treatment performance comparison', `Project: ${project.Name || 'NA'}.`), margin, y + 84);
@@ -21732,7 +22069,7 @@ Style Guidelines:
 
                     if (chartImages.confidenceBands) {
                         checkPageBreak(86);
-                        doc.addImage(chartImages.confidenceBands, 'PNG', margin, y, pageWidth - 2 * margin, 78);
+                        addImageToPdfSafe(doc, chartImages.confidenceBands, margin, y, pageWidth - 2 * margin, 78);
                         y += 84;
                     }
                 }
@@ -21754,20 +22091,20 @@ Style Guidelines:
 
                     if (chartImages.speciesCover) {
                         checkPageBreak(90);
-                        doc.addImage(chartImages.speciesCover, 'PNG', margin, y, 170, 85);
+                        addImageToPdfSafe(doc, chartImages.speciesCover, margin, y, 170, 85);
                         y += 95;
                     }
 
                     if (chartImages.radarSpectrum) {
                         checkPageBreak(120); // Radar needs space
                         // Center radar
-                        doc.addImage(chartImages.radarSpectrum, 'PNG', margin + 20, y, 130, 130);
+                        addImageToPdfSafe(doc, chartImages.radarSpectrum, margin + 20, y, 130, 130);
                         y += 140;
                     }
 
                     if (chartImages.yieldChart) {
                         checkPageBreak(90);
-                        doc.addImage(chartImages.yieldChart, 'PNG', margin, y, 170, 85);
+                        addImageToPdfSafe(doc, chartImages.yieldChart, margin, y, 170, 85);
                         y += 95;
                     }
 
@@ -21778,7 +22115,7 @@ Style Guidelines:
                         doc.setFontSize(11);
                         doc.text('Treatment Comparison - Final WCE with 95% CI', margin, y);
                         y += 8;
-                        doc.addImage(chartImages.treatmentComparison, 'PNG', margin, y, pageWidth - 2 * margin, 78);
+                        addImageToPdfSafe(doc, chartImages.treatmentComparison, margin, y, pageWidth - 2 * margin, 78);
                         y += 82;
                         doc.setFont("helvetica", "italic");
                         doc.setFontSize(8);
@@ -21795,7 +22132,7 @@ Style Guidelines:
                         doc.setFontSize(11);
                         doc.text('Dose-Response Relationship', margin, y);
                         y += 8;
-                        doc.addImage(chartImages.doseResponseCurve, 'PNG', margin, y, pageWidth - 2 * margin, 78);
+                        addImageToPdfSafe(doc, chartImages.doseResponseCurve, margin, y, pageWidth - 2 * margin, 78);
                         y += 82;
                         doc.setFont("helvetica", "italic");
                         doc.setFontSize(8);
@@ -21812,7 +22149,7 @@ Style Guidelines:
                         doc.setFontSize(11);
                         doc.text('Weather-Efficacy Correlation Analysis', margin, y);
                         y += 8;
-                        doc.addImage(chartImages.weatherCorrelation, 'PNG', margin, y, pageWidth - 2 * margin, 78);
+                        addImageToPdfSafe(doc, chartImages.weatherCorrelation, margin, y, pageWidth - 2 * margin, 78);
                         y += 82;
                         doc.setFont("helvetica", "italic");
                         doc.setFontSize(8);
@@ -21903,7 +22240,7 @@ Style Guidelines:
 
                     if (chartImages.doseResponse) {
                         checkPageBreak(86);
-                        doc.addImage(chartImages.doseResponse, 'PNG', margin, y, pageWidth - 2 * margin, 78);
+                        addImageToPdfSafe(doc, chartImages.doseResponse, margin, y, pageWidth - 2 * margin, 78);
                         y += 84;
                     }
                 }
@@ -23390,30 +23727,25 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
             async function getLogoDimensions(logoDataUrl) { return new Promise(resolve => { if (!logoDataUrl) { resolve(null); return; } const img = new Image(); img.onload = () => { const aspectRatio = img.width / img.height; const logoHeight = 1.2; const logoWidth = logoHeight * aspectRatio; resolve({ width: logoWidth, height: logoHeight }); }; img.onerror = () => resolve(null); img.src = logoDataUrl; }); }
             async function generateQrCodeDataUrl(dataString) { return new Promise((resolve, reject) => { try { const tempDiv = document.createElement('div'); new QRCode(tempDiv, { text: dataString, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M }); setTimeout(() => { const canvas = tempDiv.querySelector('canvas'); if (canvas) resolve(canvas.toDataURL('image/png')); else reject(new Error('QR Code generation failed.')); }, 100); } catch (error) { resolve(null); } }); }
 
-            async function generateCardsForPrint() {
-                if (state.selectedTrials.length === 0) return showToast('No trials selected.', 'error');
-
-                // Map cardSize to dimensions (cm)
-                let cardWidth = 9, cardHeight = 6;
+            function getTrialCardSizeSettings() {
+                let cardWidth = 9;
+                let cardHeight = 6;
                 const sizeSetting = state.settings.cardSize || 'ID';
-                if (sizeSetting === 'A6') { cardWidth = 10; cardHeight = 14; } // Portrait 
-                if (sizeSetting === 'A4') { cardWidth = 19; cardHeight = 13; } // Landscape half
-                const companyLogo = state.settings.logoBase64;
+                if (sizeSetting === 'A6') {
+                    cardWidth = 10;
+                    cardHeight = 14;
+                }
+                if (sizeSetting === 'A4') {
+                    cardWidth = 19;
+                    cardHeight = 13;
+                }
+                return { cardWidth, cardHeight };
+            }
 
-                showToast('Generating print layout...', 'info');
-
-                const printWindow = window.open('', '_blank');
-                if (!printWindow) return showToast("Pop-up blocker prevented opening print window.", 'error');
-
-                let htmlContent = `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <title>Print Trial Cards</title>
-                <style>
+            function buildTrialCardsCss(cardWidth, cardHeight) {
+                return `
                     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-                    body { margin: 0.5cm; font-family: sans-serif; }
+                    body { margin: 0.5cm; font-family: sans-serif; background: #ffffff; }
                     .page {
                         display: grid;
                         grid-template-columns: repeat(auto-fill, minmax(${cardWidth}cm, 1fr));
@@ -23433,46 +23765,77 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                         page-break-inside: avoid;
                         overflow: hidden;
                         position: relative;
+                        background: #ffffff;
                     }
                     .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
                     .card-header h3 { font-size: 12pt; margin: 0; font-weight: bold; color: #2c5282; max-width: 65%; }
                     .logo { max-width: 2.5cm; max-height: 1.2cm; object-fit: contain; }
+                    .card-body { padding-right: 2.9cm; }
                     .card-body p { font-size: 9pt; margin: 0.1cm 0; }
-                    .card-footer { text-align: right; }
+                    .card-footer {
+                        position: absolute;
+                        right: 0.4cm;
+                        bottom: 0.4cm;
+                        text-align: right;
+                    }
                     .qr-code { width: 2.5cm; height: 2.5cm; }
-                     .qr-code { width: 2.5cm; height: 2.5cm; }
-                 </style>
-            </head>
-            <body><div class="page">`;
+                `;
+            }
 
-                const selected = state.selectedTrials.map(id => state.trials.find(t => t.ID === id)).filter(Boolean);
-
-                for (const trial of selected) {
-                    // Generate QR
+            async function buildTrialCardsMarkup(selectedTrials, companyLogo) {
+                const cards = [];
+                for (const trial of selectedTrials) {
                     const params = new URLSearchParams({ trialId: trial.ID, spreadsheetId: state.settings.sheetId });
                     const qrDataString = `${state.settings.scriptUrl}?${params.toString()}`;
                     const qrCodeUrl = await generateQrCodeDataUrl(qrDataString);
 
-                    htmlContent += `
-                <div class="card">
-                    <div>
-                        <div class="card-header">
-                            <h3>${sanitizeHTML(trial.FormulationName)}</h3>
-                            ${companyLogo ? `<img src="${companyLogo}" class="logo" alt="Logo">` : ''}
+                    cards.push(`
+                        <div class="card">
+                            <div>
+                                <div class="card-header">
+                                    <h3>${sanitizeHTML(trial.FormulationName)}</h3>
+                                    ${companyLogo ? `<img src="${companyLogo}" class="logo" alt="Logo">` : ''}
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Investigator:</strong> ${sanitizeHTML(trial.InvestigatorName)}</p>
+                                    <p><strong>Date:</strong> ${new Date(trial.Date).toLocaleDateString()}</p>
+                                    <p><strong>Dosage:</strong> ${sanitizeHTML(trial.Dosage)}</p>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                ${qrCodeUrl ? `<img src="${qrCodeUrl}" class="qr-code" alt="QR Code">` : ''}
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <p><strong>Investigator:</strong> ${sanitizeHTML(trial.InvestigatorName)}</p>
-                            <p><strong>Date:</strong> ${new Date(trial.Date).toLocaleDateString()}</p>
-                            <p><strong>Dosage:</strong> ${sanitizeHTML(trial.Dosage)}</p>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        ${qrCodeUrl ? `<img src="${qrCodeUrl}" class="qr-code">` : ''}
-                    </div>
-                </div>`;
+                    `);
                 }
 
-                htmlContent += `</div></body></html>`;
+                return `<div class="page">${cards.join('')}</div>`;
+            }
+
+            async function generateCardsForPrint() {
+                if (state.selectedTrials.length === 0) return showToast('No trials selected.', 'error');
+
+                const { cardWidth, cardHeight } = getTrialCardSizeSettings();
+                const companyLogo = state.settings.logoBase64;
+
+                showToast('Generating print layout...', 'info');
+
+                const printWindow = window.open('', '_blank');
+                if (!printWindow) return showToast("Pop-up blocker prevented opening print window.", 'error');
+
+                const selected = state.selectedTrials.map(id => state.trials.find(t => t.ID === id)).filter(Boolean);
+                const cardsMarkup = await buildTrialCardsMarkup(selected, companyLogo);
+                const cardsCss = buildTrialCardsCss(cardWidth, cardHeight);
+
+                const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>Print Trial Cards</title>
+                <style>${cardsCss}</style>
+            </head>
+            <body>${cardsMarkup}</body></html>`;
                 printWindow.document.write(htmlContent);
                 printWindow.document.close();
                 setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 500);
@@ -23480,31 +23843,76 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
 
             async function generateCardsPdf() {
                 if (state.selectedTrials.length === 0) return showToast('No trials selected.', 'error');
+
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                let y = 10;
+                const { cardWidth, cardHeight } = getTrialCardSizeSettings();
+                const companyLogo = state.settings.logoBase64;
+                const selected = state.selectedTrials.map(id => state.trials.find(t => t.ID === id)).filter(Boolean);
+                const cardsMarkup = await buildTrialCardsMarkup(selected, companyLogo);
+                const cardsCss = buildTrialCardsCss(cardWidth, cardHeight);
 
-                state.selectedTrials.forEach((id, index) => {
-                    const trial = state.trials.find(t => t.ID === id);
-                    if (!trial) return;
-                    if (index > 0 && index % 2 === 0) { doc.addPage(); y = 10; }
+                showToast('Generating PDF cards...', 'info');
 
-                    doc.setFontSize(16);
-                    doc.text(trial.FormulationName || 'Trial', 10, y);
-                    y += 10;
-                    doc.setFontSize(12);
-                    doc.text(`Investigator: ${trial.InvestigatorName || '-'}`, 10, y);
-                    y += 7;
-                    doc.text(`Date: ${new Date(trial.Date).toLocaleDateString()}`, 10, y);
-                    y += 7;
-                    doc.text(`Result: ${trial.Result || '-'}`, 10, y);
-                    y += 15;
+                const tempContainer = document.createElement('div');
+                tempContainer.style.position = 'fixed';
+                tempContainer.style.left = '-99999px';
+                tempContainer.style.top = '0';
+                tempContainer.style.width = '21cm';
+                tempContainer.style.background = '#fff';
+                tempContainer.innerHTML = `<style>${cardsCss}</style>${cardsMarkup}`;
+                document.body.appendChild(tempContainer);
 
-                    // Add more details or photos here...
-                    y += 20;
-                });
+                try {
+                    const imgPromises = Array.from(tempContainer.querySelectorAll('img')).map(img => {
+                        if (img.complete) return Promise.resolve();
+                        return new Promise(resolve => {
+                            img.onload = () => resolve();
+                            img.onerror = () => resolve();
+                        });
+                    });
+                    await Promise.all(imgPromises);
 
-                doc.save('trial-cards.pdf');
+                    const cards = Array.from(tempContainer.querySelectorAll('.card'));
+                    if (!cards.length) throw new Error('No card nodes found for PDF export');
+
+                    const doc = createPdfDoc({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                    const pageW = 210;
+                    const pageH = 297;
+                    const margin = 5;
+                    const gap = 5;
+                    const cardWmm = cardWidth * 10;
+                    const cardHmm = cardHeight * 10;
+
+                    const cols = Math.max(1, Math.floor((pageW - (2 * margin) + gap) / (cardWmm + gap)));
+                    const rows = Math.max(1, Math.floor((pageH - (2 * margin) + gap) / (cardHmm + gap)));
+                    const perPage = Math.max(1, cols * rows);
+
+                    for (let i = 0; i < cards.length; i++) {
+                        if (i > 0 && i % perPage === 0) doc.addPage();
+
+                        const slot = i % perPage;
+                        const col = slot % cols;
+                        const row = Math.floor(slot / cols);
+                        const x = margin + (col * (cardWmm + gap));
+                        const y = margin + (row * (cardHmm + gap));
+
+                        const canvas = await html2canvas(cards[i], {
+                            scale: 2,
+                            useCORS: true,
+                            backgroundColor: '#ffffff'
+                        });
+                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                        doc.addImage(imgData, 'JPEG', x, y, cardWmm, cardHmm, undefined, 'FAST');
+                    }
+
+                    doc.save('trial-cards.pdf');
+                    showToast('PDF cards downloaded.', 'success');
+                } catch (err) {
+                    console.error('[PDF Cards] Failed to render:', err);
+                    showToast('Failed to generate PDF cards.', 'error');
+                } finally {
+                    tempContainer.remove();
+                }
             }
 
             function generateTrialCards() {
@@ -23850,7 +24258,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
             // CRITICAL FIX: Detect stuck flag every 90 seconds and force recovery
             setInterval(() => {
                 if (_isSyncProcessing && Date.now() - _lastSyncAttempt > SYNC_STUCK_TIMEOUT) {
-                    console.error('[HighTechSync] ?? STUCK FLAG DETECTED! Forcing reset after 60s timeout.');
+                    console.error('[HighTechSync] [ERROR] STUCK FLAG DETECTED! Forcing reset after 60s timeout.');
                     _isSyncProcessing = false;
                     setTimeout(() => {
                         if (navigator.onLine && state.syncQueue.length > 0) {
@@ -23874,7 +24282,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 _lastSyncAttempt = now;
 
                 const queueStartTime = Date.now();
-                console.log(`%c[HighTechSync] ?? Starting Sync Process | Queue: ${state.syncQueue.length} items`, "color: #0d9488; font-weight: bold; font-size: 1.1em;");
+                console.log(`%c[HighTechSync] [INFO] Starting Sync Process | Queue: ${state.syncQueue.length} items`, "color: #0d9488; font-weight: bold; font-size: 1.1em;");
                 renderSyncStatus();
 
                 let itemsToProcess = state.syncQueue.filter(item =>
@@ -23896,13 +24304,13 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     }
 
                     if (!navigator.onLine) {
-                        console.warn("[HighTechSync] ?? Offline detected. Pausing sync.");
+                        console.warn("[HighTechSync] [WARN] Offline detected. Pausing sync.");
                         break;
                     }
                     
                     // SAFETY: Check if we've been processing for too long (processing one item shouldn't exceed 1 minute)
                     if (Date.now() - _lastSyncAttempt > SYNC_STUCK_TIMEOUT) {
-                        console.warn('[HighTechSync] ?? Processing timeout detected. Breaking to prevent hang.');
+                        console.warn('[HighTechSync] [WARN] Processing timeout detected. Breaking to prevent hang.');
                         break;
                     }
 
@@ -23925,7 +24333,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                             saveSyncQueue();
                             renderSyncStatus();
                             
-                            console.log(`[HighTechSync] ?? Syncing Action: ${item.action}`);
+                            console.log(`[HighTechSync] [INFO] Syncing Action: ${item.action}`);
                             const result = await apiCall(item.action, item.payload, false);
 
                             if (item.cancelRequested) {
@@ -24034,7 +24442,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                             ]);
                         } catch (timeoutErr) {
                             if (String(timeoutErr.message).includes('timeout')) {
-                                console.error('[HighTechSync] ?? Upload timeout detected:', timeoutErr.message);
+                                console.error('[HighTechSync] [ERROR] Upload timeout detected:', timeoutErr.message);
                                 item.status = 'pending';
                                 item.attempts = (item.attempts || 0) + 1;
                                 item.lastError = timeoutErr.message;
@@ -24115,32 +24523,34 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                                         }
                                     } else {
                                         // 1. Proactive Weed ID (If missing species or first photo)
-                                        const currentWeeds = (trial.WeedSpecies || '').trim();
-                                        const currentPhotos = safeJsonParse(trial.PhotoURLs);
+                                        const shouldRunFirstPhotoCheck = shouldAutoIdentifyGeneralPhotoWeeds(trial, {
+                                            tempId: item.photo.tempId,
+                                            url: publicUrl
+                                        });
 
-                                        // Run if NO weeds are listed yet, OR if this is the first photo
-                                        if (!currentWeeds || currentPhotos.length <= 1) {
-                                            console.log('[AI Background] Triggering proactive Weed ID on first photo...');
-                                            const ids = await identifyWeedsFromPhoto(item.photo.fileData, item.photo.mimeType);
+                                        if (shouldRunFirstPhotoCheck) {
+                                            console.log('[AI Background] Triggering proactive Weed ID for general photo...');
+                                            const ids = await analyzeGeneralPhotoWeeds(item.trialId, {
+                                                tempId: item.photo.tempId,
+                                                url: publicUrl
+                                            }, {
+                                                showToast: false,
+                                                sourceFileData: item.photo.fileData,
+                                                sourceMimeType: item.photo.mimeType
+                                            });
                                             if (ids && ids.length > 0) {
-                                                const newNames = ids.map(i => i.name).filter(n => n);
-                                                const uniqueNames = [...new Set([...(currentWeeds ? currentWeeds.split(', ') : []), ...newNames])];
-                                                trial.WeedSpecies = uniqueNames.join(', ');
-                                                await apiCall('updateTrialRecord', { ID: trial.ID, WeedSpecies: trial.WeedSpecies }, false);
-                                                console.log('[AI Background] Proactive Weed ID updated species list:', trial.WeedSpecies);
-                                                // Identify common weeds for better UX
                                                 const common = ids.flatMap(i => i.commonNames || []).join(', ');
                                                 if (common) showToast(`Identified potential weeds: ${common}`, 'info');
                                             }
                                         }
 
                                         // 2. Weed Cover Analysis (ALWAYS RUN & SAVE)
-                                        console.log('%c[AI Background] ?? Running weed cover detection...', 'color: #10b981; font-weight: bold;');
+                                        console.log('%c[AI Background] [INFO] Running weed cover detection...', 'color: #10b981; font-weight: bold;');
                                         let coverResult = null;
                                         try {
                                             const greenOnly = true;
                                             coverResult = await analyzeWeedCover(item.photo.fileData, greenOnly);
-                                            console.log(`%c[Weed Cover] ?? ${coverResult.cover}% coverage detected (${coverResult.mode})`,
+                                            console.log(`%c[Weed Cover] [INFO] ${coverResult.cover}% coverage detected (${coverResult.mode})`,
                                                 "color: #10b981; font-weight: bold; font-size: 1.2em;");
                                             console.log('[Weed Cover] Breakdown:', coverResult.breakdown);
                                             console.log('[Weed Cover] Details:', coverResult.details);
@@ -24149,12 +24559,11 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                                             const trial = state.trials.find(x => x.ID === item.trialId);
                                             if (trial && coverResult.cover > 0) {
                                                 let eData = safeJsonParse(trial.EfficacyDataJSON);
-                                                const obsDate = new Date(item.photo.date);
-                                                const tDate = new Date(trial.Date);
-                                                const daa = Math.round((obsDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24));
+                                                const daa = window.calculateDAA(item.photo.date, trial.Date);
+                                                const photoDateStr = window.toDateKey(item.photo.date);
 
                                                 // Check if observation for this date already exists
-                                                const existingIdx = eData.findIndex(obs => obs.date === obsDate.toISOString().split('T')[0]);
+                                                const existingIdx = eData.findIndex(obs => window.toDateKey(obs.date) === photoDateStr);
                                                 if (existingIdx >= 0) {
                                                     // Update existing observation
                                                     eData[existingIdx].weedCover = coverResult.cover;
@@ -24165,8 +24574,8 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                                                 } else {
                                                     // Create new observation with weed cover
                                                     eData.push({
-                                                        date: obsDate.toISOString().split('T')[0],
-                                                        daa: daa >= 0 ? daa : 0,
+                                                        date: photoDateStr,
+                                                        daa: daa,
                                                         notes: 'Weed cover detected from photo',
                                                         photoUrl: publicUrl,
                                                         weedCover: coverResult.cover,
@@ -24191,21 +24600,21 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                                             console.log('[AI Background] Running full efficacy analysis...');
                                                 const t = state.trials.find(x => x.ID === item.trialId);
                                             let eData = safeJsonParse(t.EfficacyDataJSON);
-                                            const obsDate = new Date(item.photo.date);
-                                            const tDate = new Date(t.Date);
-                                            const daa = Math.round((obsDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24));
+                                            const daa = window.calculateDAA(item.photo.date, t.Date);
                                                 const workingTrial = {
                                                     ...t,
                                                     EfficacyDataJSON: JSON.stringify(eData || [])
                                                 };
-                                                const eff = await analyzePhotoForEfficacy(item.photo.fileData, item.photo.mimeType, { trial: workingTrial, daa: daa >= 0 ? daa : 0 });
+                                                const eff = await analyzePhotoForEfficacy(item.photo.fileData, item.photo.mimeType, { trial: workingTrial, daa: daa });
                                             if (eff) {
 
                                                 // Include weed cover in saved data
+                                                const photoDate = new Date(item.photo.date);
+                                                const photoDateStr = window.toDateKey(item.photo.date);
                                                 const newObs = {
-                                                    date: obsDate.toISOString().split('T')[0],
-                                                    daa: daa >= 0 ? daa : 0,
-                                                    notes: `AI analysis from photo taken on ${obsDate.toLocaleDateString()}`,
+                                                    date: photoDateStr,
+                                                    daa: daa,
+                                                    notes: `AI analysis from photo taken on ${photoDate.toLocaleDateString()}`,
                                                     photoUrl: publicUrl,
                                                     weedDetails: eff.weedDetails
                                                 };
@@ -24290,7 +24699,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 if (successCount > 0) {
                     showToast(`? Sync complete! ${successCount} item(s) uploaded. ${pendingCount} pending.`, 'success');
                 } else if (failedCount > 0) {
-                    showToast(`?? Sync finished with ${failedCount} error(s). Retrying in 30s...`, 'warning');
+                    showToast(`Sync finished with ${failedCount} error(s). Retrying in 30s...`, 'warning');
                     // Auto-retry failed items after 30 seconds
                     setTimeout(() => {
                         if (navigator.onLine) processSyncQueue();
@@ -24298,7 +24707,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 } else if (blockedCount > 0) {
                     showToast(`Sync paused: ${blockedCount} item(s) need Drive permission fix in Apps Script settings.`, 'warning');
                 } else if (pendingCount > 0) {
-                    console.log(`[HighTechSync] ?? ${pendingCount} items still pending. Setting up auto-retry...`);
+                    console.log(`[HighTechSync] [INFO] ${pendingCount} items still pending. Setting up auto-retry...`);
                     setTimeout(() => {
                         if (navigator.onLine && !_isSyncProcessing) processSyncQueue();
                     }, 5000);
@@ -24608,7 +25017,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
             // --- RESTORED PROTOCOL FUNCTIONS ---
             // Global bridge function for Scientific Report (accessible from onclick)
             window.openScientificReport = function (projectId) {
-                console.log('?? Bridge function called with projectId:', projectId);
+                console.log('[DAA] Bridge function called with projectId:', projectId);
                 if (typeof render !== 'undefined' && render.scientificReport) {
                     render.scientificReport(projectId);
                 } else {
@@ -24624,7 +25033,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     showToast('No project selected', 'error');
                 }
 
-                console.log('?? Recalculating DAA for project:', projectId);
+                console.log('[DAA] Recalculating DAA for project:', projectId);
                 showToast('Recalculating DAA...', 'info');
 
                 const trials = state.trials.filter(t => t.ProjectID === projectId);
@@ -24639,7 +25048,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     if (efficacyData.length === 0) continue;
 
                     let trialUpdated = false;
-                    console.log(`  ?? Trial: ${trial.FormulationName}, ${efficacyData.length} observations, ${photos.length} photos`);
+                    console.log(`  [DAA] Trial: ${trial.FormulationName}, ${efficacyData.length} observations, ${photos.length} photos`);
 
                     // For each observation, try to find matching photo and recalculate DAA
                     efficacyData.forEach((obs, idx) => {
@@ -24656,12 +25065,12 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                             obs.daa = newDAA >= 0 ? newDAA : 0;
 
                             if (oldDAA !== obs.daa) {
-                                console.log(`    ?? Obs ${idx}: DAA ${oldDAA} ? ${obs.daa} (Photo: ${matchingPhoto.date})`);
+                                console.log(`    [DAA] Obs ${idx}: DAA ${oldDAA} -> ${obs.daa} (Photo: ${matchingPhoto.date})`);
                                 totalUpdated++;
                                 trialUpdated = true;
                             }
                         } else {
-                            console.warn(`    ?? Obs ${idx}: No matching photo with date, keeping DAA ${oldDAA}`);
+                            console.warn(`    [DAA] Obs ${idx}: No matching photo with date, keeping DAA ${oldDAA}`);
                         }
                     });
 
@@ -26319,7 +26728,7 @@ Respond in structured JSON format:
                                         await delay(retryMs);
                                     } else {
                                         // Max attempts reached for this key, move to next key/provider
-                                        console.log(`?? Max attempts reached for this key, trying next...`);
+                                        console.log(`[AI] Max attempts reached for this key, trying next...`);
                                         break;
                                     }
                                 }
@@ -26509,9 +26918,9 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     if (url.includes('drive.google.com')) {
                         // Use backend proxy to bypass CORS
                         try {
-                            console.log('?? Fetching image via backend:', url);
+                            console.log('[ImageFetch] Fetching image via backend:', url);
                             const result = await apiCall('getImageBase64', { imageUrl: url }, false);
-                            console.log('?? Backend response:', result);
+                            console.log('[ImageFetch] Backend response:', result);
 
                             if (result && result.base64) {
                                 console.log('? Got base64 data, length:', result.base64.length);
@@ -26632,7 +27041,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 const trials = state.trials.filter(t => t.ProjectID === projectId);
                 const photosToAnalyze = [];
 
-                console.log(`?? Found ${trials.length} trials for project ${projectId}`);
+                console.log(`[AI] Found ${trials.length} trials for project ${projectId}`);
 
                 trials.forEach(trial => {
                     // Use PhotoURLs (main trial photos) instead of WeedPhotosJSON (close-up weed ID only)
@@ -26653,9 +27062,9 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                                 const photoDate = new Date(photo.date);
                                 calculatedDAA = Math.round((photoDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24));
                                 calculatedDAA = calculatedDAA >= 0 ? calculatedDAA : 0;
-                                console.log(`  ?? Photo date: ${photo.date}, Trial date: ${trial.Date}, Calculated DAA: ${calculatedDAA}`);
+                                console.log(`  [AI] Photo date: ${photo.date}, Trial date: ${trial.Date}, Calculated DAA: ${calculatedDAA}`);
                             } else {
-                                console.warn(`  ?? Photo missing date, defaulting to DAA 0`);
+                                console.warn(`  [AI] Photo missing date, defaulting to DAA 0`);
                             }
 
                             photosToAnalyze.push({
@@ -26669,7 +27078,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     });
                 });
 
-                console.log(`??? Total photos to analyze: ${photosToAnalyze.length}`);
+                console.log(`[AI] Total photos to analyze: ${photosToAnalyze.length}`);
 
                 if (photosToAnalyze.length === 0) {
                     showToast('No photos found to analyze', 'warning');
@@ -26778,8 +27187,8 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
 
 
             async function createObservationFromAI(trialId, daa, aiData) {
-                console.log('?? Creating observation for trial:', trialId);
-                console.log('?? AI Data received:', aiData);
+                console.log('[AI] Creating observation for trial:', trialId);
+                console.log('[AI] Data received:', aiData);
 
                 const trial = state.trials.find(t => t.ID === trialId);
                 if (!trial) {
@@ -26788,7 +27197,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 }
 
                 const efficacyData = safeJsonParse(trial.EfficacyDataJSON) || [];
-                console.log(`?? Existing efficacy data: ${efficacyData.length} observations`);
+                console.log(`[AI] Existing efficacy data: ${efficacyData.length} observations`);
 
                 const normalizedWeeds = (aiData.weeds || []).map(w => ({
                     species: window.canonicalizeWeedSpecies(w.species),
@@ -26822,7 +27231,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     resultValue = aiData.weeds.reduce((sum, w) => sum + (w.cover || 0), 0) / aiData.weeds.length;
                 }
 
-                console.log(`?? Calculated Result value: ${resultValue.toFixed(2)}`);
+                console.log(`[AI] Calculated Result value: ${resultValue.toFixed(2)}`);
 
                 try {
                     const updatePayload = {
@@ -27477,7 +27886,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
             },
 
             showWarning: function (validation) {
-                showToast(`?? Biological Warning: Value deviates ${validation.deviation}% from median (${validation.median.toFixed(1)}). Expected range: ${validation.range}`, 'error');
+                showToast(`Biological warning: value deviates ${validation.deviation}% from median (${validation.median.toFixed(1)}). Expected range: ${validation.range}`, 'error');
             },
 
             // AI RE-ROLL CONSTRAINT: Generate AI values within biological limits
@@ -27754,7 +28163,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                 return [];
             }
 
-            showToast(`?? ${issues.length} quality issue(s) detected`, 'error');
+            showToast(`${issues.length} quality issue(s) detected`, 'error');
             window.openQualityModal(issues, projectId); // Pass projectId to modal
             return issues;
         }
@@ -27793,7 +28202,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     const severityClass = issue.conflict.severity === 'critical' ? 'bg-red-100 text-red-800' :
                         issue.conflict.severity === 'warning' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-blue-100 text-blue-800';
-                    const icon = issue.conflict.severity === 'critical' ? '??' : issue.conflict.severity === 'info' ? '??' : '?';
+                    const icon = issue.conflict.severity === 'critical' ? '!' : issue.conflict.severity === 'info' ? 'i' : '-';
                     conflictHtml = `<div class="mt-2 px-2 py-1 rounded ${severityClass} text-xs font-semibold">${icon} ${issue.conflict.message}</div>`;
                 }
 
@@ -27947,7 +28356,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
 
                 for (const provider of this.providers) {
                     try {
-                        console.log(`?? Attempting AI generation with: ${provider.name}`);
+                        console.log(`[AI] Attempting generation with: ${provider.name}`);
                         showToast(`Connecting to ${provider.name}...`, 'info');
 
                         // 1. Get Key (skip if user cancels/empty)
@@ -28001,7 +28410,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                     const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
                     const modelName = getActiveApiModel();
 
-                    console.log(`?? Sending prompt to ${modelName}...`);
+                    console.log(`[AI] Sending prompt to ${modelName}...`);
                     const response = await ai.models.generateContent({
                         model: modelName,
                         contents: prompt
@@ -29540,7 +29949,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                     }
                 });
                 await new Promise(r => setTimeout(r, 300));
-                chartImages.wceTimeline = wceCanvas.toDataURL('image/png');
+                chartImages.wceTimeline = wceCanvas.toDataURL('image/jpeg', 0.92);
 
                 // 2. Performance Chart (Final)
                 if (daas.length > 0) {
@@ -29572,7 +29981,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                             }
                         });
                         await new Promise(r => setTimeout(r, 300));
-                        chartImages.finalPerformance = perfCanvas.toDataURL('image/png');
+                        chartImages.finalPerformance = perfCanvas.toDataURL('image/jpeg', 0.92);
 
                         const confCanvas = document.createElement('canvas');
                         confCanvas.width = 1600; confCanvas.height = 800;
@@ -29608,7 +30017,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                             }
                         });
                         await new Promise(r => setTimeout(r, 300));
-                        chartImages.confidenceBands = confCanvas.toDataURL('image/png');
+                        chartImages.confidenceBands = confCanvas.toDataURL('image/jpeg', 0.92);
 
                         const doseCanvas = document.createElement('canvas');
                         doseCanvas.width = 1600; doseCanvas.height = 800;
@@ -29641,7 +30050,7 @@ Specific agronomic recommendation based on treatment performance trends and weed
                                 }
                             });
                             await new Promise(r => setTimeout(r, 300));
-                            chartImages.doseResponse = doseCanvas.toDataURL('image/png');
+                            chartImages.doseResponse = doseCanvas.toDataURL('image/jpeg', 0.92);
                         }
                     }
                 }
