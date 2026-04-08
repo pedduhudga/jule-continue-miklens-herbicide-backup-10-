@@ -1,4 +1,3 @@
-
  <!DOCTYPE html>
 <html lang="en">
 
@@ -171,6 +170,27 @@
         .dashboard-card {
             animation: contentFadeIn 0.5s ease-out forwards;
             opacity: 0;
+        }
+
+        /* Drag & Drop Photo Zones */
+        [data-dropzone] {
+            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        [data-dropzone].drag-over {
+            background: #d1fae5 !important;
+            border: 2px dashed #059669 !important;
+            box-shadow: inset 0 0 0 3px #6ee7b7;
+            border-radius: 10px;
+        }
+        [data-dropzone].drag-over::after {
+            content: '📥 Drop photo here';
+            display: block;
+            text-align: center;
+            font-size: 12px;
+            color: #065f46;
+            font-weight: 600;
+            padding: 4px 0 2px;
+            pointer-events: none;
         }
 
         /* Toast Notification */
@@ -745,7 +765,7 @@
     <div id="cropper-modal-fixed"
         class="fixed inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-[9999] p-4 hidden">
         <div class="bg-white rounded-lg p-4 w-full max-w-2xl">
-            <h3 class="text-lg font-bold mb-4">Crop & Rotate Image</h3>
+            <h3 class="text-lg font-bold mb-4">Crop & Rotate Image <span id="crop-mode-badge" class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full align-middle"></span></h3>
             <div class="img-container">
                 <img id="image-to-crop" src="" alt="Image to crop">
             </div>
@@ -3137,9 +3157,13 @@ IMPORTANT:
                 const trial = state.trials.find(t => t.ID === trialId);
                 if (!trial) return;
 
+                const nowIso = new Date().toISOString();
+
                 const newTrial = {
                     ...trial,
                     ID: `trial-${Date.now()}`,
+                    CreatedAt: nowIso,
+                    UpdatedAt: nowIso,
                     FormulationName: trial.FormulationName + ' (Copy)',
                     PlotNumber: null,
                     RandomizationOrder: null,
@@ -3151,7 +3175,7 @@ IMPORTANT:
 
                 try {
                     await apiCall('createTrialRecord', newTrial);
-                    state.trials.push(newTrial);
+                    state.trials.unshift(newTrial);
                     showToast('Trial duplicated successfully', 'success');
                     loadProjects(); // Refresh UI
                 } catch (error) {
@@ -6072,7 +6096,7 @@ IMPORTANT:
                                 </button>
                             </nav>
                         </div>
-                        <div class="bg-white p-4 rounded-lg shadow-md mb-6"><div class="flex justify-between items-center"><h3 class="font-semibold text-gray-800 mb-2">Filters & Sorting</h3><div class="flex gap-2"><button data-action="reset-filters" class="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-md hover:bg-red-200">Reset Filters</button><button data-action="sort-trials" data-sort="date" class="text-sm bg-gray-200 px-3 py-1 rounded-md">Sort by Date</button><button data-action="sort-trials" data-sort="result" class="text-sm bg-gray-200 px-3 py-1 rounded-md">Sort by Result</button></div></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4"><input type="search" data-action="filter" data-type="trial-search" placeholder="General search (Investigator, Species)..." class="w-full px-4 py-2 border rounded-lg form-input"><input type="text" data-action="filter" data-type="trial-formulation-text" placeholder="Search by Formulation Name..." class="w-full px-4 py-2 border rounded-lg form-input bg-emerald-50/50 border-emerald-200"><select data-action="filter" data-type="trial-formulation" class="p-2 border rounded-lg bg-white form-input"><option value="">Filter by Formulation (List)</option></select><div class="grid grid-cols-2 gap-2"><input type="date" data-action="filter" data-type="trial-start-date" class="p-2 border rounded-lg form-input" title="Start Date"><input type="date" data-action="filter" data-type="trial-end-date" class="p-2 border rounded-lg form-input" title="End Date"></div></div></div><div class="flex justify-between items-center mb-6"><button data-action="openModal" data-type="trial" class="btn-primary text-white px-4 py-2 rounded-lg shadow w-full sm:w-auto flex items-center gap-2"><i data-lucide="plus"></i> Log New Trial</button></div>
+                        <div class="bg-white p-4 rounded-lg shadow-md mb-6"><div class="flex justify-between items-center"><h3 class="font-semibold text-gray-800 mb-2">Filters & Sorting</h3><div class="flex gap-2"><button data-action="reset-filters" class="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-md hover:bg-red-200">Reset Filters</button><button data-action="sort-trials" data-sort="date" class="text-sm bg-gray-200 px-3 py-1 rounded-md">Newest First</button><button data-action="sort-trials" data-sort="result" class="text-sm bg-gray-200 px-3 py-1 rounded-md">Sort by Result</button></div></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4"><input type="search" data-action="filter" data-type="trial-search" placeholder="General search (Investigator, Species)..." class="w-full px-4 py-2 border rounded-lg form-input"><input type="text" data-action="filter" data-type="trial-formulation-text" placeholder="Search by Formulation Name..." class="w-full px-4 py-2 border rounded-lg form-input bg-emerald-50/50 border-emerald-200"><select data-action="filter" data-type="trial-formulation" class="p-2 border rounded-lg bg-white form-input"><option value="">Filter by Formulation (List)</option></select><div class="grid grid-cols-2 gap-2"><input type="date" data-action="filter" data-type="trial-start-date" class="p-2 border rounded-lg form-input" title="Start Date"><input type="date" data-action="filter" data-type="trial-end-date" class="p-2 border rounded-lg form-input" title="End Date"></div></div></div><div class="flex justify-between items-center mb-6"><button data-action="openModal" data-type="trial" class="btn-primary text-white px-4 py-2 rounded-lg shadow w-full sm:w-auto flex items-center gap-2"><i data-lucide="plus"></i> Log New Trial</button></div>
                         <div id="trials-list-standard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch"></div>
                         <div id="trials-list-rcbd" class="hidden space-y-8"></div>
 
@@ -6670,7 +6694,7 @@ IMPORTANT:
                         weedId: () => {
                             const { trial } = data;
                             if (!trial) return `<div id="weed-modal" class="modal"><div class="modal-content bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl mx-auto mt-10"><p class="text-red-500">Error: Trial data could not be loaded.</p></div></div>`;
-                            return `<div id="weed-modal" class="modal"><div class="modal-content bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl mx-auto mt-10"><h3 class="text-xl font-bold mb-4 text-slate-800">Weed Identification for: ${sanitizeHTML(trial.FormulationName)}</h3><div class="flex items-center gap-4 mb-6"><input type="file" id="weed-photos-input" multiple accept="image/*" class="hidden" data-trial-id="${trial.ID}"><label for="weed-photos-input" class="cursor-pointer btn-primary text-white px-4 py-2 rounded-lg font-semibold">Choose Files</label><button type="button" data-action="open-weed-camera" data-trial-id="${trial.ID}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 font-semibold">Camera</button></div><div id="weed-photo-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 h-96 overflow-y-auto bg-gray-50 p-4 rounded-lg">${safeJsonParse(trial.WeedPhotosJSON).map((p, index) => render.weedPhotoCard(p, trial.ID, index)).join('')}</div><div class="mt-6 flex justify-end"><button type="button" data-action="close-modal" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg transition hover:bg-slate-300">Done</button></div></div></div>`;
+                            return `<div id="weed-modal" class="modal"><div class="modal-content bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl mx-auto mt-10"><h3 class="text-xl font-bold mb-4 text-slate-800">Weed Identification for: ${sanitizeHTML(trial.FormulationName)}</h3><div class="flex items-center gap-4 mb-6"><input type="file" id="weed-photos-input" multiple accept="image/*" class="hidden" data-trial-id="${trial.ID}"><label for="weed-photos-input" class="cursor-pointer btn-primary text-white px-4 py-2 rounded-lg font-semibold">Choose Files</label><button type="button" data-action="open-weed-camera" data-trial-id="${trial.ID}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 font-semibold">Camera</button></div><div id="weed-photo-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 h-96 overflow-y-auto bg-gray-50 p-4 rounded-lg" data-dropzone="weed" data-trial-id="${trial.ID}">${safeJsonParse(trial.WeedPhotosJSON).map((p, index) => render.weedPhotoCard(p, trial.ID, index)).join('')}</div><div class="mt-6 flex justify-end"><button type="button" data-action="close-modal" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg transition hover:bg-slate-300">Done</button></div></div></div>`;
                         },
                         reportPreview: `<div id="report-preview-modal" class="modal"><div class="modal-content bg-white p-8 rounded-lg shadow-xl w-full max-w-3xl mx-auto mt-10 h-[90vh] flex flex-col"><h3 class="text-xl font-bold mb-4 text-slate-800">Prepare Efficacy Report</h3><div id="report-content" class="space-y-6 flex-grow overflow-y-auto pr-4">
                             <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100 mb-4 flex gap-6 flex-wrap">
@@ -7769,9 +7793,9 @@ IMPORTANT:
                                     })()}
                                     ${photos ? `<div class="mt-4 cursor-pointer" data-action="view-trial" data-id="${trial.ID}"><div class="flex flex-wrap gap-2">${photos}</div></div>` : ''}
                                 </div>
-                                <div class="mt-auto p-3 border-t bg-slate-50/50 rounded-b-xl flex items-center justify-between gap-2">
+                                <div class="mt-auto p-3 border-t bg-slate-50/50 rounded-b-xl flex items-center justify-between gap-2" data-dropzone="trial" data-id="${trial.ID}">
                                     <div class="flex items-center gap-2">
-                                        <button class="text-xs bg-white border rounded-md px-2 py-1 hover:bg-slate-100 transition" data-action="open-weed-modal" data-id="${trial.ID}">Identify Weeds</button>
+                                        <button class="text-xs bg-white border rounded-md px-2 py-1 hover:bg-slate-100 transition" data-action="open-weed-modal" data-id="${trial.ID}" data-dropzone="weed">Identify Weeds</button>
                                         <button class="text-xs bg-blue-100 text-blue-700 border border-blue-200 rounded-md px-2 py-1 hover:bg-blue-200 transition font-semibold" data-action="load-photos-from-drive" data-id="${trial.ID}" title="Scan Drive folder and import existing photos">Import Photos</button>
                                         <input type="file" id="quick-photo-input-${trial.ID}" class="hidden" data-action="quick-add-photo" data-id="${trial.ID}" accept="image/*" multiple>
                                         <label for="quick-photo-input-${trial.ID}" class="text-xs bg-white border rounded-md px-2 py-1 hover:bg-slate-100 transition cursor-pointer">Add Photo</label>
@@ -7816,7 +7840,7 @@ IMPORTANT:
                     return `<div class="border rounded-lg p-2 bg-white flex flex-col text-center relative"><img src="${proxiedUrl}" class="rounded-md w-full h-40 object-cover mb-2"><div class="mt-auto max-h-32 overflow-y-auto">${identificationHTML}</div><button data-action="delete-weed-photo" data-trial-id="${trialId}" data-index="${index}" class="absolute top-1 right-1 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold">&times;</button></div>`;
                 },
                 ingredients: (data = state.ingredients) => { const el = document.getElementById('ingredients-list'); if (el) el.innerHTML = `<ul class="divide-y divide-gray-200">${[...(data || [])].filter(ing => ing && ing.Name).sort((a, b) => String(b.ID).localeCompare(String(a.ID), undefined, { numeric: true })).map(ing => `<li class="py-3 flex justify-between items-center"><div><p class="font-medium">${sanitizeHTML(ing.Name)}</p><p class="text-sm text-gray-500">${CURRENCY_SYMBOL}${(parseFloat(ing.Cost) || 0).toFixed(2)} / ${sanitizeHTML(ing.Unit)}</p></div><div class="flex gap-4"><button data-action="edit" data-type="ingredient" data-id="${ing.ID}" class="text-emerald-600 hover:text-emerald-800 font-bold">Edit</button><button data-action="delete" data-type="ingredient" data-id="${ing.ID}" class="text-red-500 hover:text-red-700 font-bold">&times;</button></div></li>`).join('') || '<p class="text-gray-500">No ingredients.</p>'}</ul>`; },
-                formulations: (data = state.formulations) => { const el = document.getElementById('formulations-list'); if (el) el.innerHTML = [...(data || [])].sort((a, b) => String(b.ID).localeCompare(String(a.ID), undefined, { numeric: true })).map(form => `<div class="bg-white p-6 rounded-xl shadow-lg relative transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-transparent hover:border-emerald-500/50"><div class="absolute top-4 right-4 flex gap-2"><button data-action="duplicate" data-type="formulation" data-id="${form.ID}" class="bg-slate-200 text-slate-700 px-3 py-1 rounded-md text-sm hover:bg-slate-300">Duplicate</button><button data-action="edit" data-type="formulation" data-id="${form.ID}" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-md text-sm hover:bg-emerald-200">Edit</button><button data-action="delete" data-type="formulation" data-id="${form.ID}" class="text-red-500 hover:text-red-700 font-bold text-xl">&times;</button></div><h3 class="font-bold text-lg text-slate-800">${sanitizeHTML(form.Name)}</h3><div class="mt-2 text-sm text-gray-600"><ul class="list-disc list-inside">${safeJsonParse(form.IngredientsJSON).map(ing => `<li>${sanitizeHTML(ing.name)} (${ing.quantity} ${ing.unit})</li>`).join('')}</ul>${form.Notes ? `<p class="mt-2"><strong>Notes:</strong> ${sanitizeHTML(form.Notes)}</p>` : ''}</div><p class="mt-4 font-semibold text-emerald-700">Cost: ${CURRENCY_SYMBOL}${parseFloat(form.EstimatedCost || 0).toFixed(2)}</p></div>`).join('') || '<p class="text-gray-500 col-span-full">No formulations found.</p>'; },
+                formulations: (data = state.formulations) => { const el = document.getElementById('formulations-list'); if (el) el.innerHTML = [...(data || [])].sort((a, b) => { const aTs = new Date(a.CreatedAt || 0).getTime() || 0; const bTs = new Date(b.CreatedAt || 0).getTime() || 0; if (bTs !== aTs) return bTs - aTs; return 0; }).map(form => `<div class="bg-white p-6 rounded-xl shadow-lg relative transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-transparent hover:border-emerald-500/50"><div class="absolute top-4 right-4 flex gap-2"><button data-action="duplicate" data-type="formulation" data-id="${form.ID}" class="bg-slate-200 text-slate-700 px-3 py-1 rounded-md text-sm hover:bg-slate-300">Duplicate</button><button data-action="edit" data-type="formulation" data-id="${form.ID}" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-md text-sm hover:bg-emerald-200">Edit</button><button data-action="delete" data-type="formulation" data-id="${form.ID}" class="text-red-500 hover:text-red-700 font-bold text-xl">&times;</button></div><h3 class="font-bold text-lg text-slate-800">${sanitizeHTML(form.Name)}</h3><div class="mt-2 text-sm text-gray-600"><ul class="list-disc list-inside">${safeJsonParse(form.IngredientsJSON).map(ing => `<li>${sanitizeHTML(ing.name)} (${ing.quantity} ${ing.unit})</li>`).join('')}</ul>${form.Notes ? `<p class="mt-2"><strong>Notes:</strong> ${sanitizeHTML(form.Notes)}</p>` : ''}</div><p class="mt-4 font-semibold text-emerald-700">Cost: ${CURRENCY_SYMBOL}${parseFloat(form.EstimatedCost || 0).toFixed(2)}</p></div>`).join('') || '<p class="text-gray-500 col-span-full">No formulations found.</p>'; },
                 trials: (data = state.trials) => {
                     // Separate trials
                     const standardTrials = (data || []).filter(t => !t.ProjectID);
@@ -10046,15 +10070,26 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 const isUpdate = !!id;
                 const action = isUpdate ? `update${type.charAt(0).toUpperCase() + type.slice(1)}` : `add${type.charAt(0).toUpperCase() + type.slice(1)}`;
                 const formData = Object.fromEntries(new FormData(form));
+                const requestTimestamp = new Date().toISOString();
 
                 try {
                     let recordForApi;
                     if (type === 'formulation') {
+                        const existingFormulation = isUpdate ? state.formulations.find(f => f.ID === id) : null;
                         const ingredients = [...document.querySelectorAll('.formulation-ingredient-row')].map(r => ({ id: r.querySelector('.ingredient-selector').value, name: r.querySelector('.ingredient-selector').selectedOptions[0].text, quantity: r.querySelector('.ingredient-quantity').value, unit: r.querySelector('.ingredient-unit-selector').value })).filter(r => r.id);
                         if (ingredients.length === 0) throw new Error('A formulation must have at least one ingredient.');
-                        recordForApi = { ID: id, Name: formData.name, Notes: formData.notes, IngredientsJSON: JSON.stringify(ingredients), EstimatedCost: calculateFormulationCost(ingredients) };
+                        recordForApi = {
+                            ID: id,
+                            Name: formData.name,
+                            Notes: formData.notes,
+                            IngredientsJSON: JSON.stringify(ingredients),
+                            EstimatedCost: calculateFormulationCost(ingredients),
+                            CreatedAt: isUpdate ? (existingFormulation?.CreatedAt || null) : requestTimestamp,
+                            UpdatedAt: requestTimestamp
+                        };
                         if (state.auth?.Role === 'Admin' && state.adminViewUserId) recordForApi.OnBehalfOf = state.adminViewUserId;
                     } else if (type === 'trial') {
+                        const existingTrial = isUpdate ? state.trials.find(t => t.ID === id) : null;
                         const formulation = state.formulations.find(f => f.ID == formData.formulationId);
                         if (!formulation) {
                             console.warn('Formulation not found in state for ID:', formData.formulationId);
@@ -10145,8 +10180,8 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             BlockID: formData.blockId || null,
                             IsControl: isControl || false,
                             IsStandardCheck: form.querySelector('[name="isStandardCheck"]')?.checked || false,
-                            RandomizationOrder: (state.trials.find(x => x.ID === id)?.RandomizationOrder) || (safeJsonParse(aiSummariesJSON)?.plotNum) || null,
-                            PlotNumber: (state.trials.find(x => x.ID === id)?.PlotNumber) || (safeJsonParse(aiSummariesJSON)?.plotNum) || (formData.replication ? `${formData.replication}.${formData.randomizationOrder || 1}` : null),
+                            RandomizationOrder: (existingTrial?.RandomizationOrder) || (safeJsonParse(aiSummariesJSON)?.plotNum) || null,
+                            PlotNumber: (existingTrial?.PlotNumber) || (safeJsonParse(aiSummariesJSON)?.plotNum) || (formData.replication ? `${formData.replication}.${formData.randomizationOrder || 1}` : null),
                             EfficacyDataJSON: efficacyDataJSON,
                             AISummariesJSON: aiSummariesJSON,
                             SoilDataJSON: JSON.stringify(soilData),
@@ -10154,7 +10189,9 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             SoilClay: formData.soilClay || null,
                             SoilSand: formData.soilSand || null,
                             SoilOC: formData.soilOC || null,
-                            SoilTexture: formData.soilTexture || ''
+                            SoilTexture: formData.soilTexture || '',
+                            CreatedAt: isUpdate ? (existingTrial?.CreatedAt || null) : requestTimestamp,
+                            UpdatedAt: requestTimestamp
                         };
                         if (state.auth?.Role === 'Admin' && state.adminViewUserId) recordForApi.OnBehalfOf = state.adminViewUserId;
                     } else if (type === 'ingredient') {
@@ -10293,7 +10330,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         if (!isUpdate) throw new Error('Server sync failed. Response was invalid.');
                     }
 
-                    const savedRecord = backendRecord || recordForApi;
+                    const savedRecord = { ...recordForApi, ...(backendRecord || {}) };
 
                     // Manual State Update (Optimistic-ish, after server confirmation)
                     const collection = type + 's';
@@ -10304,7 +10341,11 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                                 state[collection][index] = { ...state[collection][index], ...savedRecord };
                             }
                         } else {
-                            state[collection].push(savedRecord);
+                            if (type === 'trial' || type === 'formulation') {
+                                state[collection].unshift(savedRecord);
+                            } else {
+                                state[collection].push(savedRecord);
+                            }
                         }
                     }
 
@@ -10892,6 +10933,17 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 imageToCrop.src = imageData;
                 cropperModal.classList.remove('hidden');
                 cropperModal.style.display = 'flex'; // FORCE FLEX
+                // Update mode badge
+                const badge = document.getElementById('crop-mode-badge');
+                if (badge) {
+                    if (state.cameraMode === 'weed') {
+                        badge.textContent = '🌿 Weed Photo';
+                        badge.className = 'ml-2 text-xs font-semibold px-2 py-0.5 rounded-full align-middle bg-emerald-100 text-emerald-800';
+                    } else {
+                        badge.textContent = '📷 Trial Photo';
+                        badge.className = 'ml-2 text-xs font-semibold px-2 py-0.5 rounded-full align-middle bg-blue-100 text-blue-800';
+                    }
+                }
                 if (cropper) cropper.destroy();
                 cropper = new Cropper(imageToCrop, { viewMode: 0, autoCrop: false, background: false, movable: true, zoomable: true, scalable: true, rotatable: true });
             }
@@ -10902,15 +10954,17 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 cropperModal.classList.add('hidden');
                 cropperModal.style.display = 'none';
                 if (state.photoQueue.length > 0) processPhotoQueue(state.currentTrialIdForCamera);
-                else state.currentTrialIdForCamera = null;
+                else { state.currentTrialIdForCamera = null; state.cameraMode = 'general'; }
             }
 
             async function cropAndSaveImage() {
                 let canvas = cropper.getCroppedCanvas();
 
+                const isPhoneCapture = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+
                 // 1. DIMENSION SCALING: If photo is massive, shrink it to a reasonable high-res limit (2000px)
                 // This reduces the pixel count and makes compression MUCH more effective.
-                const MAX_DIM = 2000;
+                const MAX_DIM = isPhoneCapture ? 4096 : 2000;
                 if (canvas.width > MAX_DIM || canvas.height > MAX_DIM) {
                     const scale = MAX_DIM / Math.max(canvas.width, canvas.height);
                     const scaledCanvas = document.createElement('canvas');
@@ -10922,16 +10976,16 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     console.log(`[Compression] Scaled dimensions to ${canvas.width}x${canvas.height}`);
                 }
 
-                let quality = 0.9;
+                let quality = isPhoneCapture ? 0.98 : 0.9;
                 let croppedImageData = canvas.toDataURL('image/jpeg', quality);
 
                 // Target: ~1.2MB (Approx 1,600,000 chars in Base64)
-                const MAX_BASE64_SIZE = 1600000;
+                const MAX_BASE64_SIZE = isPhoneCapture ? 7500000 : 1600000;
 
                 if (croppedImageData.length > MAX_BASE64_SIZE) {
                     console.log(`[Compression] Initial size ${Math.round(croppedImageData.length / 1024)}KB. Iterating...`);
-                    while (croppedImageData.length > MAX_BASE64_SIZE && quality > 0.4) {
-                        quality -= 0.1;
+                    while (croppedImageData.length > MAX_BASE64_SIZE && quality > (isPhoneCapture ? 0.75 : 0.4)) {
+                        quality -= isPhoneCapture ? 0.05 : 0.1;
                         croppedImageData = canvas.toDataURL('image/jpeg', quality);
                         console.log(`[Compression] Quality: ${quality.toFixed(1)} | Size: ${Math.round(croppedImageData.length / 1024)}KB`);
                     }
@@ -11052,7 +11106,6 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     state.croppedPhotosData.push(photoData);
                     updatePhotoPreview();
                 }
-                state.cameraMode = 'general';
             }
 
             async function openCamera(trialId = null) {
@@ -11086,8 +11139,8 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     const constraints = {
                         video: {
                             facingMode: { ideal: 'environment' },
-                            width: { ideal: 1920 },
-                            height: { ideal: 1080 }
+                            width: { ideal: 4032 },
+                            height: { ideal: 3024 }
                         }
                     };
 
@@ -11242,8 +11295,14 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     // CRITICAL: Compress image before opening cropper
                     const rawImage = canvasElement.toDataURL('image/jpeg', 1.0);
                     closeCamera();
-                    const compressed = await compressImage(rawImage, 2); // Max 2MB
-                    openCropper(compressed, state.currentTrialIdForCamera);
+                    const isPhoneCapture = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+                    if (isPhoneCapture) {
+                        // Keep native-like quality on phone by skipping pre-crop compression.
+                        openCropper(rawImage, state.currentTrialIdForCamera);
+                    } else {
+                        const compressed = await compressImage(rawImage, 2); // Max 2MB on desktop flow
+                        openCropper(compressed, state.currentTrialIdForCamera);
+                    }
                 } catch (err) {
                     console.error('Capture photo failed:', err);
                     showToast(`Capture failed: ${err?.message || 'Unknown error'}`, 'error');
@@ -13816,6 +13875,44 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 });
 
                 document.body.addEventListener('submit', e => { e.preventDefault(); handleFormSubmit(e.target); });
+
+                // --- DRAG & DROP PHOTO UPLOAD ---
+                document.body.addEventListener('dragover', e => {
+                    const zone = e.target.closest('[data-dropzone]');
+                    if (zone) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'copy';
+                        zone.classList.add('drag-over');
+                    }
+                });
+                document.body.addEventListener('dragleave', e => {
+                    const zone = e.target.closest('[data-dropzone]');
+                    if (zone && !zone.contains(e.relatedTarget)) {
+                        zone.classList.remove('drag-over');
+                    }
+                });
+                document.body.addEventListener('drop', e => {
+                    const zone = e.target.closest('[data-dropzone]');
+                    if (!zone) return;
+                    e.preventDefault();
+                    zone.classList.remove('drag-over');
+                    const files = [...(e.dataTransfer.files || [])].filter(f => f.type.startsWith('image/'));
+                    if (!files.length) { showToast('Please drop image files only.', 'error'); return; }
+                    const type = zone.dataset.dropzone;
+                    if (type === 'weed') {
+                        const trialId = zone.dataset.trialId || zone.dataset.id;
+                        if (!trialId) return;
+                        state.cameraMode = 'weed';
+                        state.photoQueue = files;
+                        processPhotoQueue(trialId);
+                    } else {
+                        const trialId = zone.dataset.id;
+                        if (!trialId) return;
+                        state.cameraMode = 'general';
+                        state.photoQueue = files;
+                        processPhotoQueue(trialId);
+                    }
+                });
             }
 
             function updateSelectionBar() {
@@ -23279,16 +23376,37 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
 
                 if (sortBy === 'date') {
                     filtered.sort((a, b) => {
+                        const aUpdated = new Date(a.UpdatedAt || a.CreatedAt || 0).getTime() || 0;
+                        const bUpdated = new Date(b.UpdatedAt || b.CreatedAt || 0).getTime() || 0;
+                        if (bUpdated !== aUpdated) return bUpdated - aUpdated;
                         const ad = a.Date ? new Date(a.Date).getTime() : 0;
                         const bd = b.Date ? new Date(b.Date).getTime() : 0;
                         if (bd !== ad) return bd - ad; // Newer dates first
-                        // Tie-breaker: keep newer IDs (recently created) first
-                        return String(b.ID).localeCompare(String(a.ID), undefined, { numeric: true });
+                        // Keep original sheet order when both timestamp and date are tied.
+                        return 0;
                     });
                 }
                 if (sortBy === 'result') {
-                    const scores = { 'Excellent': 4, 'Good': 3, 'Fair': 2, 'Poor': 1, '': 0 };
-                    filtered.sort((a, b) => scores[b.Result || ''] - scores[a.Result || '']);
+                    const scores = { excellent: 4, good: 3, fair: 2, poor: 1, none: 0, '': 0 };
+                    const getResultScore = (trial) => {
+                        const normalized = String(trial?.Result || '').trim().toLowerCase();
+                        return Object.prototype.hasOwnProperty.call(scores, normalized) ? scores[normalized] : 0;
+                    };
+
+                    filtered.sort((a, b) => {
+                        const scoreDiff = getResultScore(b) - getResultScore(a);
+                        if (scoreDiff !== 0) return scoreDiff;
+
+                        const aUpdated = new Date(a.UpdatedAt || a.CreatedAt || 0).getTime() || 0;
+                        const bUpdated = new Date(b.UpdatedAt || b.CreatedAt || 0).getTime() || 0;
+                        if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+
+                        const ad = a.Date ? new Date(a.Date).getTime() : 0;
+                        const bd = b.Date ? new Date(b.Date).getTime() : 0;
+                        if (bd !== ad) return bd - ad;
+
+                        return 0;
+                    });
                 }
 
                 render.trials(filtered);
@@ -23632,12 +23750,19 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                             openScanActions(trialId); // NEW RAPID WORKFLOW
                         }
                     } else {
-                        showToast('Trial ID found in QR, but not in local database.', 'warning');
-                        const isContinuous = document.getElementById('continuous-scan-toggle')?.checked;
-                        if (isContinuous) {
-                            setTimeout(() => { scannerAnimationId = requestAnimationFrame(scanQrTick); }, 1500);
-                        } else {
+                        // Trial not in local state — if it's a full URL (online QR), open the live report page directly
+                        if (data.startsWith('http')) {
                             closeQrScanner();
+                            showToast('Opening live report in browser...', 'info');
+                            window.open(data, '_blank');
+                        } else {
+                            showToast('Trial not found in local data. Try refreshing the app.', 'warning');
+                            const isContinuous = document.getElementById('continuous-scan-toggle')?.checked;
+                            if (isContinuous) {
+                                setTimeout(() => { scannerAnimationId = requestAnimationFrame(scanQrTick); }, 1500);
+                            } else {
+                                closeQrScanner();
+                            }
                         }
                     }
                 } else {
