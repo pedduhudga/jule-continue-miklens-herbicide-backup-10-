@@ -13890,7 +13890,14 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                 const isFileDragEvent = (e) => {
                     try {
-                        return Array.from(e?.dataTransfer?.types || []).includes('Files');
+                        const dt = e && e.dataTransfer;
+                        if (!dt) return false;
+                        const types = Array.from(dt.types || []);
+                        if (types.includes('Files')) return true;
+                        const items = Array.from(dt.items || []);
+                        if (items.some(i => i && i.kind === 'file')) return true;
+                        if (dt.files && dt.files.length > 0) return true;
+                        return false;
                     } catch (_) {
                         return false;
                     }
@@ -13901,14 +13908,28 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     activeDropZone = null;
                 };
 
+                // Capture-phase safety net: block browser navigation if file is dropped outside valid zone.
+                document.addEventListener('drop', e => {
+                    if (!isFileDragEvent(e)) return;
+                    const zone = e.target && e.target.closest ? e.target.closest('[data-dropzone]') : null;
+                    if (!zone) {
+                        e.preventDefault();
+                        clearDropHighlights();
+                    }
+                }, true);
+
                 window.addEventListener('dragover', e => {
                     if (!isFileDragEvent(e)) return;
 
-                    // Always prevent default for file drags so browser never opens dropped file in a new tab.
-                    e.preventDefault();
-
                     const zone = e.target.closest ? e.target.closest('[data-dropzone]') : null;
-                    e.dataTransfer.dropEffect = zone ? 'copy' : 'none';
+
+                    // Only prevent default inside valid zones, so page scroll remains natural elsewhere.
+                    if (zone) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'copy';
+                    } else {
+                        e.dataTransfer.dropEffect = 'none';
+                    }
 
                     if (activeDropZone && activeDropZone !== zone) {
                         activeDropZone.classList.remove('drag-over');
@@ -13922,14 +13943,14 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 window.addEventListener('drop', e => {
                     if (!isFileDragEvent(e)) return;
 
-                    // Block browser default file-open behavior globally.
-                    e.preventDefault();
-
                     const zone = e.target.closest ? e.target.closest('[data-dropzone]') : null;
                     clearDropHighlights();
 
                     // If dropped outside a valid zone, ignore quietly.
                     if (!zone) return;
+
+                    // Valid drop target: prevent default and handle upload.
+                    e.preventDefault();
 
                     const files = [...(e.dataTransfer.files || [])].filter(f => String(f.type || '').startsWith('image/'));
                     if (!files.length) {
