@@ -1,4 +1,3 @@
-
  <!DOCTYPE html>
 <html lang="en">
 
@@ -10140,7 +10139,16 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                                 finalControlDuration = days < 0 ? 0 : days;
                             }
                         }
-                        const efficacyData = collectEfficacyDataFromModal();
+                        let efficacyData = collectEfficacyDataFromModal();
+
+                        // Keep Weed Timeline consistent with current Photo Log.
+                        // If a photo is deleted or dates were changed, remove orphaned
+                        // photo-linked observations and recalculate DAA for remaining ones.
+                        efficacyData = reconcileEfficacyWithPhotos(
+                            formData.date,
+                            efficacyData,
+                            photoURLsForPayload || []
+                        );
 
                         // VALIDATION
                         const validationError = validateEfficacyObservation(efficacyData);
@@ -17634,6 +17642,53 @@ Style Guidelines:
                         return false;
                     }
                 }
+            }
+
+            function reconcileEfficacyWithPhotos(trialDate, efficacyData, photoList) {
+                const photos = Array.isArray(photoList) ? photoList : [];
+                const photoUrlSet = new Set(photos.map(p => String(p?.url || '').trim()).filter(Boolean));
+                const photoDateSet = new Set(photos.map(p => window.toDateKey(p?.date)).filter(Boolean));
+                const photoDateByUrl = new Map(
+                    photos
+                        .map(p => [String(p?.url || '').trim(), window.toDateKey(p?.date)])
+                        .filter(([u, d]) => u && d)
+                );
+
+                const normalized = safeJsonParse(JSON.stringify(Array.isArray(efficacyData) ? efficacyData : []), []);
+                const reconciled = [];
+
+                normalized.forEach(obs => {
+                    const obsUrl = String(obs?.photoUrl || '').trim();
+                    const obsDateKey = window.toDateKey(obs?.date);
+                    const notes = String(obs?.notes || '').toLowerCase();
+                    const looksAutoPhotoObs = obs?.weedCoverMode === 'auto' || notes.includes('photo') || notes.includes('ai analysis');
+
+                    if (obsUrl) {
+                        // Photo-linked observation must be dropped if the photo was deleted.
+                        if (!photoUrlSet.has(obsUrl)) {
+                            return;
+                        }
+                        const photoDateKey = photoDateByUrl.get(obsUrl) || obsDateKey;
+                        obs.date = photoDateKey || obs.date;
+                        obs.daa = window.calculateDAA(obs.date, trialDate);
+                        reconciled.push(obs);
+                        return;
+                    }
+
+                    // Legacy auto-generated observations without photoUrl should not survive
+                    // if their date no longer exists in the remaining photos.
+                    if (looksAutoPhotoObs && obsDateKey && photoDateSet.size > 0 && !photoDateSet.has(obsDateKey)) {
+                        return;
+                    }
+
+                    if (obsDateKey) {
+                        obs.date = obsDateKey;
+                        obs.daa = window.calculateDAA(obsDateKey, trialDate);
+                    }
+                    reconciled.push(obs);
+                });
+
+                return reconciled;
             }
 
             function getTrialTotalControlDays(trial, efficacyOverride = null) {
