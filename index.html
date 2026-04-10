@@ -23415,7 +23415,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
 
                 state.filterState = { search, formulationText, formulation, startDate: start, endDate: end, sortBy };
 
-                let filtered = state.trials;
+                let filtered = Array.isArray(state.trials) ? [...state.trials] : [];
 
                 // Admin Individual User Filter
                 if (state.auth?.Role === 'Admin' && state.adminViewUserId) {
@@ -23432,13 +23432,10 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
 
                 if (sortBy === 'date') {
                     filtered.sort((a, b) => {
-                        const aUpdated = new Date(a.UpdatedAt || a.CreatedAt || 0).getTime() || 0;
-                        const bUpdated = new Date(b.UpdatedAt || b.CreatedAt || 0).getTime() || 0;
-                        if (bUpdated !== aUpdated) return bUpdated - aUpdated;
                         const ad = a.Date ? new Date(a.Date).getTime() : 0;
                         const bd = b.Date ? new Date(b.Date).getTime() : 0;
                         if (bd !== ad) return bd - ad; // Newer dates first
-                        // Keep original sheet order when both timestamp and date are tied.
+                        // Keep original order when dates are tied to avoid visual jumps.
                         return 0;
                     });
                 }
@@ -23452,10 +23449,6 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     filtered.sort((a, b) => {
                         const scoreDiff = getResultScore(b) - getResultScore(a);
                         if (scoreDiff !== 0) return scoreDiff;
-
-                        const aUpdated = new Date(a.UpdatedAt || a.CreatedAt || 0).getTime() || 0;
-                        const bUpdated = new Date(b.UpdatedAt || b.CreatedAt || 0).getTime() || 0;
-                        if (bUpdated !== aUpdated) return bUpdated - aUpdated;
 
                         const ad = a.Date ? new Date(a.Date).getTime() : 0;
                         const bd = b.Date ? new Date(b.Date).getTime() : 0;
