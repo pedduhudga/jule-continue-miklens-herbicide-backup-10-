@@ -9,11 +9,11 @@ export function useSync() {
 
   const showToast = useCallback((msg, type) => {
     if(state.platformAdapter && state.platformAdapter.showToast) { state.platformAdapter.showToast(msg, type); } else { console.log("Toast:", type, msg); }
-  }, []);
+  }, [state.platformAdapter]);
 
   const renderSyncStatus = useCallback(() => {
     if(state.platformAdapter && state.platformAdapter.renderSyncStatus) { state.platformAdapter.renderSyncStatus(); }
-  }, []);
+  }, [state.platformAdapter]);
 
   useEffect(() => {
     const handleOnline = () => {

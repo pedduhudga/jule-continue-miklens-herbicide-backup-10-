@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from 'react';
+const fs = require('fs');
+
+let code = fs.readFileSync('src/pages/Projects.jsx', 'utf8');
+
+const importReplacement = `import React, { useState, useEffect } from 'react';
 import { useAppState } from '../hooks/useAppState.jsx';
 import TopBar from '../components/TopBar.jsx';
 import Modal from '../components/Modal.jsx';
 import { addProject, deleteProject } from '../services/db.js';
 import { Plus, Trash2, Layers, Beaker, Activity, ChevronRight, ArrowLeft } from 'lucide-react';
 import { safeJsonParse } from '../utils/helpers.js';
-import { AnalysisEngine } from '../utils/analysisUtils.js';
+import { AnalysisEngine } from '../utils/analysisUtils.js';`;
 
+code = code.replace(/import React, \{ useState \} from 'react';[\s\S]*?import \{ safeJsonParse \} from '\.\.\/utils\/helpers\.js';/, importReplacement);
 
+// We'll replace the entire `openProjectDashboard` implementation to actually show the dashboard instead of a toast
+// and conditionally render either the project list or the dashboard view.
+
+const componentBody = `
 export default function Projects({ onMenuClick }) {
   const { state, updateState, getAppState } = useAppState();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -246,7 +255,7 @@ export default function Projects({ onMenuClick }) {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="font-bold text-lg text-slate-800 truncate pr-2">{p.Name}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusClass}`}>{p.Status}</span>
+                      <span className={\`text-xs px-2 py-0.5 rounded-full font-semibold \${statusClass}\`}>{p.Status}</span>
                     </div>
                     <button onClick={(e) => handleDelete(e, p.ID)} className="text-slate-300 hover:text-red-500 transition-colors p-1 flex-shrink-0">
                       <Trash2 className="h-4 w-4" />
@@ -321,4 +330,8 @@ export default function Projects({ onMenuClick }) {
       </Modal>
     </div>
   );
-}
+}`;
+
+code = code.replace(/export default function Projects\(\{ onMenuClick \}\) \{[\s\S]*/, componentBody);
+
+fs.writeFileSync('src/pages/Projects.jsx', code);

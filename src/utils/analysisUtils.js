@@ -423,3 +423,346 @@ export function validateEfficacyData (efficacy) {
 
                 return normalized;
             };
+
+export class AnalysisEngine {
+                constructor(projectId, state) {
+                    this.projectId = projectId;
+                    this.state = state; // Global state reference
+                    this.trials = state.trials.filter(t => t.ProjectID === projectId);
+                    this.blocks = state.blocks.filter(b => b.ProjectID === projectId);
+
+                    // Identify treatments (Formulations)
+                    this.treatments = [...new Set(this.trials.map(t => t.FormulationName))];
+
+                    // Identify UTC (Untreated Control)
+                    this.utcName = this.treatments.find(t =>
+                        t.toLowerCase().includes('control') ||
+                        t.toLowerCase().includes('untreated') ||
+                        t.toLowerCase().includes('check')
+                    );
+                }
+
+                /**
+                 * Fetch optimized analysis data from backend
+                 */
+                async fetchBackendData() {
+                    try {
+                        const result = await apiCall('getProjectAnalysisData', { projectId: this.projectId });
+                        if (result && result.success) {
+                            this.backendData = result;
+                            return result;
+                        }
+                        throw new Error(result.message || 'Failed to fetch backend data');
+                    } catch (e) {
+                        console.error('[AnalysisEngine] Backend fetch failed, falling back to local:', e);
+                        return null;
+                    }
+                }
+
+                getReplications(treatmentName) {
+                    if (this.backendData && this.backendData.dataMatrix && this.backendData.dataMatrix[treatmentName]) {
+                        return this.backendData.dataMatrix[treatmentName];
+                    }
+                    return this.trials.filter(t => t.FormulationName === treatmentName);
+                }
+
+                // Get aggregated data for a specific metric
+                getData(metric, species = null, daa = null) {
+                    const data = {};
+                    this.treatments.forEach(trt => {
+                        const reps = this.getReplications(trt);
+                        data[trt] = reps.map(r => {
+                            // If using backend data
+                            if (r.trialId) {
+                                if (metric === 'yield') return r.yield || 0;
+                                if (metric === 'cover') return r.cover || 0;
+                                return 0;
+                            }
+
+                            // Local fallback
+                            if (metric === 'yield') return parseFloat(r.Yield || 0);
+                            const eff = safeJsonParse(r.EfficacyDataJSON, []);
+                            if (eff.length === 0) return 0;
+                            let obs = daa !== null ? (eff.find(e => e.daa === daa) || eff[eff.length - 1]) : eff.sort((a, b) => b.daa - a.daa)[0];
+                            if (!obs) return 0;
+                            if (metric === 'cover') {
+                                if (species) {
+                                    const canonicalSpecies = window.canonicalizeWeedSpecies(species);
+                                    const d = (obs.weedDetails || []).find(w => window.canonicalizeWeedSpecies(w.species) === canonicalSpecies);
+                                    return d ? parseFloat(d.cover) : 0;
+                                }
+                                return (obs.weedDetails || []).reduce((sum, w) => sum + parseFloat(w.cover), 0);
+                            }
+                            return 0;
+                        });
+                    });
+                    return data;
+                }
+
+                // Main Analysis Method
+                async analyze(metric, species = null, daa = null, options = {}) {
+                    // Try to use backend data first
+                    await this.fetchBackendData();
+
+                    const dataMap = this.getData(metric, species, daa);
+                    const treatments = Object.keys(dataMap);
+                    const anovaData = treatments.map(t => dataMap[t]);
+
+                    const means = {};
+                    treatments.forEach(t => {
+                        means[t] = jStat.mean(dataMap[t]);
+                    });
+
+                    let anovaResults = this.calculateANOVA(anovaData);
+
+                    const efficacy = {};
+                    if (this.utcName && means[this.utcName] > 0) {
+                        treatments.forEach(t => {
+                            if (metric === 'cover') {
+                                efficacy[t] = ((means[this.utcName] - means[t]) / means[this.utcName]) * 100;
+                            } else {
+                                efficacy[t] = 0;
+                            }
+                        });
+                    }
+
+                    // Build counts per treatment for robust LSD in unbalanced cases
+                    const counts = {};
+                    treatments.forEach((tName, idx) => {
+                        const arr = dataMap[tName] || [];
+                        counts[tName] = arr.filter(v => !isNaN(v)).length || anovaData[0]?.length || 1;
+                    });
+                    const postHocMethod = (options.postHoc === 'tukey') ? 'tukey' : 'lsd';
+                    const alpha = (typeof options.alpha === 'number' && isFinite(options.alpha)) ? options.alpha : 0.05;
+                    const postHoc = this.getLetterGrouping(means, anovaResults.msError, anovaResults.dfError, counts, { method: postHocMethod, alpha });
+
+                    const formattedGrouping = treatments.map(t => ({
+                        name: t,
+                        mean: means[t],
+                        grouping: postHoc.letters[t] || '-'
+                    })).sort((a, b) => b.mean - a.mean);
+
+                    const results = {
+                        means,
+                        efficacy,
+                        anova: anovaResults,
+                        postHoc: postHoc,
+                        lsdResults: postHoc.method === 'lsd' ? { ...postHoc, groupings: formattedGrouping } : null,
+                        tukeyResults: postHoc.method === 'tukey' ? { ...postHoc, groupings: formattedGrouping } : null,
+                        grouping: formattedGrouping,
+                        raw: dataMap,
+                        balance: {
+                            isBalanced: (new Set(Object.values(counts))).size === 1,
+                            counts: counts
+                        },
+                        timestamp: new Date().toISOString(),
+                        metric: metric
+                    };
+
+                    // PERSIST RESULTS TO BACKEND
+                    if (options.persist !== false) {
+                        try {
+                            await apiCall('saveAnalysisResults', {
+                                projectId: this.projectId,
+                                results: results
+                            });
+                            await apiCall('logAnalysisRun', {
+                                projectId: this.projectId,
+                                metric: metric,
+                                fValue: anovaResults.fVal,
+                                pValue: anovaResults.pVal,
+                                significance: formatSignificance(anovaResults.pVal).symbol,
+                                results: results
+                            });
+                            console.log('[AnalysisEngine] Results persisted to sheet');
+                        } catch (e) {
+                            console.error('[AnalysisEngine] Failed to persist results:', e);
+                        }
+                    }
+
+                    return results;
+                }
+
+                calculateANOVA(groups) {
+                    // groups is array of arrays: [[r1, r2, ...], [r1, r2, ...]]
+                    // Handle both balanced and unbalanced RCBD
+                    const t = groups.length;
+                    const lens = groups.map(g => g.length);
+                    const isBalanced = lens.every(l => l === lens[0]);
+
+                    if (isBalanced) {
+                        const r = lens[0];
+                        const N = t * r;
+                        const flat = groups.flat();
+                        const grandTotal = flat.reduce((a, b) => a + b, 0);
+                        const grandMean = grandTotal / N;
+                        const CF = (grandTotal * grandTotal) / N;
+
+                        // SS Total
+                        const ssTotal = flat.reduce((acc, val) => acc + (val * val), 0) - CF;
+
+                        // SS Treatments
+                        let ssTreat = 0;
+                        groups.forEach(g => {
+                            const trTotal = g.reduce((a, b) => a + b, 0);
+                            ssTreat += (trTotal * trTotal) / r;
+                        });
+                        ssTreat -= CF;
+
+                        // SS Blocks (Rows)
+                        let ssBlock = 0;
+                        for (let j = 0; j < r; j++) {
+                            let blTotal = 0;
+                            for (let i = 0; i < t; i++) blTotal += groups[i][j];
+                            ssBlock += (blTotal * blTotal) / t;
+                        }
+                        ssBlock -= CF;
+
+                        // SS Error
+                        const ssError = Math.max(0, ssTotal - ssTreat - ssBlock);
+
+                        // DF
+                        const dfTreat = t - 1;
+                        const dfBlock = r - 1;
+                        const dfError = (t - 1) * (r - 1);
+                        const dfTotal = N - 1;
+
+                        // MS
+                        const msTreat = ssTreat / dfTreat;
+                        const msBlock = ssBlock / dfBlock;
+                        const msError = ssError / dfError;
+
+                        // F & P
+                        const fVal = msTreat / msError;
+                        const pVal = (typeof jStat !== 'undefined') ? 1 - jStat.centralF.cdf(fVal, dfTreat, dfError) : 0.05;
+
+                        return {
+                            ssTreat, ssBlock, ssError, ssTotal,
+                            dfTreat, dfBlock, dfError, dfTotal,
+                            msTreat, msBlock, msError,
+                            fVal, pVal, grandMean,
+                            cv: (Math.sqrt(msError) / grandMean) * 100
+                        };
+                    }
+
+                    // Unbalanced fallback (robust RCBD without interaction)
+                    // Flatten and compute grand mean
+                    const flatVals = [];
+                    groups.forEach(g => g.forEach(v => { if (!isNaN(v)) flatVals.push(v); }));
+                    const N = flatVals.length;
+                    const grandMean = flatVals.reduce((a, b) => a + b, 0) / (N || 1);
+
+                    // Treatment means and counts
+                    const trMeans = groups.map(g => {
+                        const vals = g.filter(v => !isNaN(v));
+                        return vals.length ? jStat.mean(vals) : 0;
+                    });
+                    const trCounts = groups.map(g => g.filter(v => !isNaN(v)).length);
+
+                    // Block means across available treatments
+                    const rUnique = Math.max(...lens);
+                    const blMeans = [];
+                    const blCounts = [];
+                    for (let j = 0; j < rUnique; j++) {
+                        const vals = [];
+                        for (let i = 0; i < t; i++) {
+                            const v = groups[i][j];
+                            if (v !== undefined && !isNaN(v)) vals.push(v);
+                        }
+                        blMeans[j] = vals.length ? jStat.mean(vals) : 0;
+                        blCounts[j] = vals.length;
+                    }
+
+                    // SS Total
+                    let ssTotal = 0;
+                    flatVals.forEach(v => { ssTotal += Math.pow(v - grandMean, 2); });
+
+                    // SS Treatments
+                    let ssTreat = 0;
+                    for (let i = 0; i < t; i++) {
+                        ssTreat += trCounts[i] * Math.pow(trMeans[i] - grandMean, 2);
+                    }
+
+                    // SS Blocks
+                    let ssBlock = 0;
+                    for (let j = 0; j < rUnique; j++) {
+                        ssBlock += blCounts[j] * Math.pow(blMeans[j] - grandMean, 2);
+                    }
+
+                    const ssError = Math.max(0, ssTotal - ssTreat - ssBlock);
+
+                    const dfTreat = t - 1;
+                    const dfBlock = rUnique - 1;
+                    const dfError = Math.max(1, N - t - rUnique + 1);
+                    const dfTotal = N - 1;
+
+                    const msTreat = ssTreat / dfTreat;
+                    const msBlock = ssBlock / dfBlock;
+                    const msError = ssError / dfError;
+
+                    const fVal = msTreat / msError;
+                    const pVal = (typeof jStat !== 'undefined') ? 1 - jStat.centralF.cdf(fVal, dfTreat, dfError) : 0.05;
+
+                    return {
+                        ssTreat, ssBlock, ssError, ssTotal,
+                        dfTreat, dfBlock, dfError, dfTotal,
+                        msTreat, msBlock, msError,
+                        fVal, pVal, grandMean,
+                        cv: (Math.sqrt(msError) / grandMean) * 100
+                    };
+                }
+
+                getLetterGrouping(meansObj, mse, dfError, countsOrReps, options = {}) {
+                    const method = (options.method === 'tukey') ? 'tukey' : 'lsd';
+                    const alpha = (typeof options.alpha === 'number' && isFinite(options.alpha)) ? options.alpha : 0.05;
+                    const tVal = (typeof jStat !== 'undefined') ? jStat.studentt.inv(1 - (alpha / 2), dfError) : 2.05;
+
+                    const trNames = Object.keys(meansObj);
+                    const k = trNames.length;
+                    const treatmentStats = trNames.map(name => ({ treatmentId: name, mean: meansObj[name] }));
+
+                    const counts = {};
+                    if (typeof countsOrReps === 'number') {
+                        trNames.forEach(n => counts[n] = Math.max(1, countsOrReps));
+                    } else if (countsOrReps && typeof countsOrReps === 'object') {
+                        trNames.forEach(n => counts[n] = Math.max(1, countsOrReps[n] || 1));
+                    } else {
+                        trNames.forEach(n => counts[n] = 1);
+                    }
+
+                    const minN = Math.max(1, Math.min(...Object.values(counts)));
+
+                    if (method === 'tukey') {
+                        // Proper studentized range critical value from q-table
+                        const qCrit = (typeof getStudentizedRangeCritical === 'function')
+                            ? getStudentizedRangeCritical(alpha, k, dfError)
+                            : 3.80; // Improved fallback for k around 4-5
+
+                        const hsdRef = qCrit * Math.sqrt(mse / minN);
+                        const isNonSignificant = (a, b) => {
+                            const ni = counts[a.treatmentId] || 1;
+                            const nj = counts[b.treatmentId] || 1;
+                            const hsd_ij = qCrit * Math.sqrt(mse * 0.5 * (1 / ni + 1 / nj));
+                            return Math.abs(a.mean - b.mean) <= hsd_ij;
+                        };
+                        assignCLDByComparator(treatmentStats, isNonSignificant);
+
+                        const letters = {};
+                        treatmentStats.forEach(ts => { letters[ts.treatmentId] = ts.rank; });
+                        return { method: 'tukey', alpha, qCrit, hsd: hsdRef, value: hsdRef, letters };
+                    }
+
+                    const lsdRef = tVal * Math.sqrt((2 * mse) / minN);
+                    const isNonSignificant = (a, b) => {
+                        const ni = counts[a.treatmentId] || 1;
+                        const nj = counts[b.treatmentId] || 1;
+                        const lsd_ij = tVal * Math.sqrt(mse * (1 / ni + 1 / nj));
+                        return Math.abs(a.mean - b.mean) <= lsd_ij;
+                    };
+                    assignCLDByComparator(treatmentStats, isNonSignificant);
+
+                    const letters = {};
+                    treatmentStats.forEach(ts => { letters[ts.treatmentId] = ts.rank; });
+                    return { method: 'lsd', alpha, lsd: lsdRef, value: lsdRef, letters };
+                }
+            }

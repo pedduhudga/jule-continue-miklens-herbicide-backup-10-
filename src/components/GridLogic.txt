@@ -1,0 +1,242 @@
+            window.GridWeedCoverTool = {
+                gridSize: 10,
+                selectedCells: new Set(),
+                currentImage: null,
+                imgObject: null, // Store the loaded image object
+                canvas: null,
+                ctx: null,
+                cellWidth: 0,
+                cellHeight: 0,
+                onUpdate: null,
+                isDragging: false,
+                dragMode: null,
+                lastDragCellId: null,
+                lastEditMethod: 'none',
+                setGridSize: function (size) {
+                    const s = parseInt(size, 10);
+                    if (!isFinite(s) || s < 5 || s > 50) return;
+                    this.gridSize = s;
+                },
+                getTotalCells: function () {
+                    return this.gridSize * this.gridSize;
+                },
+                setCellSelected: function (row, col, shouldSelect) {
+                    const cellId = `${row},${col}`;
+                    if (shouldSelect) this.selectedCells.add(cellId);
+                    else this.selectedCells.delete(cellId);
+                },
+                getCellFromEvent: function (event) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    const col = Math.floor(x / this.cellWidth);
+                    const row = Math.floor(y / this.cellHeight);
+                    if (col < 0 || col >= this.gridSize || row < 0 || row >= this.gridSize) return null;
+                    return { row, col, cellId: `${row},${col}` };
+                },
+
+                extractDriveFileId: function (url) {
+                    const raw = String(url || '');
+                    const m = raw.match(/(?:[?&]id=|\/d\/)([a-zA-Z0-9_-]{10,})/);
+                    return m ? m[1] : null;
+                },
+
+                buildImageCandidates: async function (imageDataUrl) {
+                    const raw = String(imageDataUrl || '').trim();
+                    if (!raw) return [];
+
+                    const candidates = [];
+                    const isDataUri = /^data:image\//i.test(raw);
+                    if (isDataUri) {
+                        candidates.push(raw);
+                    } else {
+                        candidates.push(raw);
+
+                        const driveId = this.extractDriveFileId(raw);
+                        if (driveId) {
+                            candidates.push(`https://drive.google.com/thumbnail?id=${driveId}&sz=w1600`);
+                            candidates.push(`https://drive.google.com/uc?export=view&id=${driveId}`);
+
+                            try {
+                                if (typeof apiCall === 'function') {
+                                    const base64Result = await apiCall('getImageBase64', { imageUrl: raw }, false);
+                                    if (base64Result && base64Result.base64) {
+                                        const mime = base64Result.mimeType || 'image/jpeg';
+                                        candidates.unshift(`data:${mime};base64,${base64Result.base64}`);
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('[Grid] Backend base64 image fetch failed:', e?.message || e);
+                            }
+                        }
+
+                        // Keep external proxies as last-resort fallbacks.
+                        candidates.push(`https://images.weserv.nl/?url=${encodeURIComponent(raw)}&w=1600&output=jpg`);
+                        candidates.push(`https://corsproxy.io/?${encodeURIComponent(raw)}`);
+                    }
+
+                    // Unique + non-empty candidates only
+                    return Array.from(new Set(candidates.filter(Boolean)));
+                },
+
+                tryLoadImage: function (src) {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        if (!/^data:image\//i.test(src)) img.crossOrigin = 'anonymous';
+                        img.onload = () => resolve(img);
+                        img.onerror = () => reject(new Error('Failed to load source'));
+                        img.src = src;
+                    });
+                },
+
+                initialize: function (imageDataUrl, container, preSelected = new Set()) {
+                    this.selectedCells = new Set(preSelected);
+                    this.currentImage = imageDataUrl;
+                    this.lastEditMethod = preSelected && preSelected.size ? 'manual' : 'none';
+
+                    this.canvas = document.createElement('canvas');
+                    this.canvas.style.cursor = 'crosshair';
+                    this.canvas.style.border = '2px solid #0d9488';
+                    this.canvas.style.borderRadius = '8px';
+                    this.canvas.style.touchAction = 'none';
+                    this.ctx = this.canvas.getContext('2d');
+
+                    container.innerHTML = '<div class="flex items-center justify-center h-64"><p class="text-slate-500 animate-pulse">Loading image for grid analysis...</p></div>';
+
+                    (async () => {
+                        try {
+                            const candidates = await this.buildImageCandidates(imageDataUrl);
+                            if (!candidates.length) throw new Error('No valid image source provided.');
+
+                            let loaded = null;
+                            for (const src of candidates) {
+                                try {
+                                    loaded = await this.tryLoadImage(src);
+                                    if (loaded) break;
+                                } catch (e) {
+                                    // Try next source silently.
+                                }
+                            }
+
+                            if (!loaded) throw new Error('All image sources failed to load.');
+                            this.imgObject = loaded;
+
+                            const maxWidth = container.clientWidth || 600;
+                            const scale = Math.min(1, maxWidth / this.imgObject.width);
+                            this.canvas.width = this.imgObject.width * scale;
+                            this.canvas.height = this.imgObject.height * scale;
+                            this.cellWidth = this.canvas.width / this.gridSize;
+                            this.cellHeight = this.canvas.height / this.gridSize;
+
+                            container.innerHTML = '';
+                            container.appendChild(this.canvas);
+                            this.drawGrid();
+
+                            this.canvas.addEventListener('pointerdown', (e) => this.handlePointerDown(e));
+                            this.canvas.addEventListener('pointermove', (e) => this.handlePointerMove(e));
+                            this.canvas.addEventListener('pointerup', (e) => this.handlePointerUp(e));
+                            this.canvas.addEventListener('pointercancel', (e) => this.handlePointerUp(e));
+                            this.canvas.addEventListener('pointerleave', (e) => this.handlePointerUp(e));
+                        } catch (err) {
+                            console.error('[Grid] Image loading failed:', err);
+                            container.innerHTML = `<div class="text-center p-4 text-red-600">
+                                <p class="font-bold">Image Load Failed</p>
+                                <p class="text-sm">${sanitizeHTML(err.message || 'Could not load trial photo for grid analysis.')}</p>
+                                <p class="text-xs mt-2 text-gray-500">Tip: Ensure the photo URL is valid and Google Drive sharing/permissions are correct.</p>
+                            </div>`;
+                        }
+                    })();
+                },
+
+                drawGrid: function () {
+                    if (!this.ctx || !this.imgObject) return;
+
+                    // Clear and redraw background image
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.drawImage(this.imgObject, 0, 0, this.canvas.width, this.canvas.height);
+
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                    this.ctx.lineWidth = 1.5;
+
+                    for (let i = 0; i <= this.gridSize; i++) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(i * this.cellWidth, 0);
+                        this.ctx.lineTo(i * this.cellWidth, this.canvas.height);
+                        this.ctx.stroke();
+
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(0, i * this.cellHeight);
+                        this.ctx.lineTo(this.canvas.width, i * this.cellHeight);
+                        this.ctx.stroke();
+                    }
+
+                    this.selectedCells.forEach(cellId => {
+                        const [row, col] = cellId.split(',').map(Number);
+                        this.highlightCell(row, col);
+                    });
+
+                    this.drawCounter();
+                },
+
+                handlePointerDown: function (event) {
+                    if (!this.canvas) return;
+                    event.preventDefault();
+                    const cell = this.getCellFromEvent(event);
+                    if (!cell) return;
+                    this.isDragging = true;
+                    this.lastDragCellId = null;
+                    const willSelect = !this.selectedCells.has(cell.cellId);
+                    this.dragMode = willSelect ? 'select' : 'deselect';
+                    this.applyDragCell(cell);
+                    try { this.canvas.setPointerCapture(event.pointerId); } catch (e) { }
+                },
+                handlePointerMove: function (event) {
+                    if (!this.isDragging) return;
+                    event.preventDefault();
+                    const cell = this.getCellFromEvent(event);
+                    if (!cell) return;
+                    this.applyDragCell(cell);
+                },
+                handlePointerUp: function (event) {
+                    if (!this.isDragging) return;
+                    event.preventDefault();
+                    this.isDragging = false;
+                    this.dragMode = null;
+                    this.lastDragCellId = null;
+                    try { this.canvas.releasePointerCapture(event.pointerId); } catch (e) { }
+                },
+                applyDragCell: function (cell) {
+                    if (!cell || cell.cellId === this.lastDragCellId) return;
+                    this.lastDragCellId = cell.cellId;
+                    this.setCellSelected(cell.row, cell.col, this.dragMode === 'select');
+                    this.lastEditMethod = 'manual';
+                    this.drawGrid();
+                    if (this.onUpdate) this.onUpdate(this.getCoverPercentage(), Array.from(this.selectedCells));
+                },
+
+                highlightCell: function (row, col) {
+                    const x = col * this.cellWidth;
+                    const y = row * this.cellHeight;
+
+                    this.ctx.fillStyle = 'rgba(16, 185, 129, 0.5)';
+                    this.ctx.fillRect(x + 1, y + 1, this.cellWidth - 2, this.cellHeight - 2);
+
+                    this.ctx.strokeStyle = '#10b981';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(x + 2, y + 2, this.cellWidth - 4, this.cellHeight - 4);
+                },
+
+                drawCounter: function () {
+                    const percentage = this.getCoverPercentage();
+                    const totalCells = this.getTotalCells();
+
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                    this.ctx.fillRect(8, 8, 240, 60);
+
+                    this.ctx.fillStyle = '#10b981';
+                    this.ctx.font = 'bold 28px Arial';
+                    this.ctx.fillText(`${percentage.toFixed(1)}%`, 20, 42);
+
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.font = '14px Arial';
+                    this.ctx.fillText(`${this.selectedCells.size}/${totalCells} cells`, 20, 60);
