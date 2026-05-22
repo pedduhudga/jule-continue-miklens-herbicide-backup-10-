@@ -1,5 +1,27 @@
 import QRScanner from './components/QRScanner.jsx';
 import TopBar from './components/TopBar.jsx';
+import DataManagement from './pages/DataManagement.jsx';
+import Settings from './pages/Settings.jsx';
+import UserManagement from './pages/UserManagement.jsx';
+import AIAssistant from './pages/AIAssistant.jsx';
+import SmartSearch from './pages/SmartSearch.jsx';
+import Analytics from './pages/Analytics.jsx';
+import Reports from './pages/Reports.jsx';
+import FieldMap from './pages/FieldMap.jsx';
+import Trials from './pages/Trials.jsx';
+import Projects from './pages/Projects.jsx';
+import Ingredients from './pages/Ingredients.jsx';
+import Organisations from './pages/Organisations.jsx';
+import Formulations from './pages/Formulations.jsx';
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppStateProvider } from './hooks/useAppState.jsx';
+import Sidebar from './components/Sidebar.jsx';
+import Toast from './components/Toast.jsx';
+import LoadingOverlay from './components/LoadingOverlay.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import PlaceholderPage from './pages/PlaceholderPage.jsx';
+
 
 function ScannerPage({ onMenuClick }) {
   const [isScanning, setIsScanning] = React.useState(false);
@@ -47,27 +69,6 @@ function ScannerPage({ onMenuClick }) {
     </div>
   );
 }
-import DataManagement from './pages/DataManagement.jsx';
-import Settings from './pages/Settings.jsx';
-import UserManagement from './pages/UserManagement.jsx';
-import AIAssistant from './pages/AIAssistant.jsx';
-import SmartSearch from './pages/SmartSearch.jsx';
-import Analytics from './pages/Analytics.jsx';
-import Reports from './pages/Reports.jsx';
-import FieldMap from './pages/FieldMap.jsx';
-import Trials from './pages/Trials.jsx';
-import Projects from './pages/Projects.jsx';
-import Ingredients from './pages/Ingredients.jsx';
-import Organisations from './pages/Organisations.jsx';
-import Formulations from './pages/Formulations.jsx';
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppStateProvider } from './hooks/useAppState.jsx';
-import Sidebar from './components/Sidebar.jsx';
-import Toast from './components/Toast.jsx';
-import LoadingOverlay from './components/LoadingOverlay.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import PlaceholderPage from './pages/PlaceholderPage.jsx';
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -104,11 +105,49 @@ function AppLayout() {
   );
 }
 
+
+// Platform adapter for Web (React DOM)
+function WebPlatformAdapter({ children }) {
+  const { updateState } = useAppState();
+
+  React.useEffect(() => {
+    // Setup the platform adapter methods in global state for hooks/services to use
+    updateState({
+      isOnline: navigator.onLine,
+      platformAdapter: {
+        showToast: (msg, type) => window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg, type } })),
+        showLoading: (show) => window.dispatchEvent(new CustomEvent('app:loading', { detail: { show } })),
+        renderSyncStatus: () => window.dispatchEvent(new CustomEvent('app:sync-status-update'))
+      }
+    });
+
+    const handleOnline = () => {
+      updateState({ isOnline: true });
+      window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Back online! Syncing data...', type: 'info' } }));
+    };
+
+    const handleOffline = () => {
+      updateState({ isOnline: false });
+      window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Offline Mode Active', type: 'info' } }));
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [updateState]);
+
+  return children;
+}
+
 function App() {
   return (
     <AppStateProvider>
       <BrowserRouter>
-        <AppLayout />
+        <WebPlatformAdapter><AppLayout /></WebPlatformAdapter>
       </BrowserRouter>
     </AppStateProvider>
   );

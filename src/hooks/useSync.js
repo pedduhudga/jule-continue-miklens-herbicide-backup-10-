@@ -4,15 +4,15 @@ import { processSyncQueue } from '../services/sync.js';
 
 export function useSync() {
   const { state, dispatch, getAppState, updateState } = useAppState();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(true); // Default true, managed by platform adapter
   const [isSyncing, setIsSyncing] = useState(false);
 
   const showToast = useCallback((msg, type) => {
-    window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg, type } }));
+    if(state.platformAdapter && state.platformAdapter.showToast) { state.platformAdapter.showToast(msg, type); } else { console.log("Toast:", type, msg); }
   }, []);
 
   const renderSyncStatus = useCallback(() => {
-    window.dispatchEvent(new CustomEvent('app:sync-status-update'));
+    if(state.platformAdapter && state.platformAdapter.renderSyncStatus) { state.platformAdapter.renderSyncStatus(); }
   }, []);
 
   useEffect(() => {
@@ -27,13 +27,7 @@ export function useSync() {
       showToast('Offline Mode Active', 'info');
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+    // Event listeners moved to platform adapter component
   }, [state.syncQueue, showToast]);
 
   useEffect(() => {

@@ -29,7 +29,8 @@ export async function apiCall(action, payload = {}, showOverlay = true, getAppSt
         return { _errType: errType, message: msg };
     };
 
-    if (!navigator.onLine) {
+    const isOnline = getAppState().isOnline !== false;
+    if (!isOnline) {
         return queueItem('network', 'Offline');
     }
 
@@ -42,7 +43,7 @@ export async function apiCall(action, payload = {}, showOverlay = true, getAppSt
 
     if (window.google && window.google.script && typeof window.google.script.run === 'object') {
         return new Promise((resolve) => {
-            if (showOverlay) window.dispatchEvent(new CustomEvent('app:loading', { detail: { show: true } }));
+            if (showOverlay) if(getAppState().platformAdapter?.showLoading) getAppState().platformAdapter.showLoading(true);
             try {
                 const fullPayload = {
                     ...payload,
@@ -57,12 +58,12 @@ export async function apiCall(action, payload = {}, showOverlay = true, getAppSt
             } catch (err) {
                 resolve(queueItem('client', err?.message || String(err)));
             } finally {
-                if (showOverlay) window.dispatchEvent(new CustomEvent('app:loading', { detail: { show: false } }));
+                if (showOverlay) if(getAppState().platformAdapter?.showLoading) getAppState().platformAdapter.showLoading(false);
             }
         });
     }
 
-    if (showOverlay) window.dispatchEvent(new CustomEvent('app:loading', { detail: { show: true } }));
+    if (showOverlay) if(getAppState().platformAdapter?.showLoading) getAppState().platformAdapter.showLoading(true);
 
     try {
         const fullPayload = {
@@ -91,7 +92,7 @@ export async function apiCall(action, payload = {}, showOverlay = true, getAppSt
     } catch (error) {
         return queueItem('fetch', error.message);
     } finally {
-        if (showOverlay) window.dispatchEvent(new CustomEvent('app:loading', { detail: { show: false } }));
+        if (showOverlay) if(getAppState().platformAdapter?.showLoading) getAppState().platformAdapter.showLoading(false);
     }
 }
 
