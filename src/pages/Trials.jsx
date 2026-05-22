@@ -3,7 +3,7 @@ import { useAppState } from '../hooks/useAppState.jsx';
 import TopBar from '../components/TopBar.jsx';
 import Modal from '../components/Modal.jsx';
 import { addTrial, deleteTrial, updateTrial } from '../services/db.js';
-import { Plus, Trash2, Edit, Copy, ChevronRight, Activity, MapPin, Calendar, CheckCircle, Camera, Grid, Info } from 'lucide-react';
+import { Plus, Trash2, Edit, Copy, ChevronRight, Activity, MapPin, Calendar, CheckCircle, Camera, Grid, Info, Sparkles } from 'lucide-react';
 import { safeJsonParse } from '../utils/helpers.js';
 import { extractMetricValue } from '../utils/helpers.js';
 import { calculateDAA, toDateKey } from '../utils/dateUtils.js';
@@ -133,6 +133,55 @@ export default function Trials({ onMenuClick }) {
       }
   };
 
+
+  const [isObservationModalOpen, setIsObservationModalOpen] = useState(false);
+  const [obsFormData, setObsFormData] = useState({ daa: '', date: new Date().toISOString().split('T')[0], weedCover: '', notes: '' });
+
+  const handleFinalizeTrial = async () => {
+     if(!activeTrial) return;
+     if(!window.confirm('Mark this trial as finalized?')) return;
+
+     const updated = { ...activeTrial, IsCompleted: true };
+     updateState({ trials: state.trials.map(t => t.ID === updated.ID ? updated : t) });
+     setActiveTrial(updated);
+
+     try {
+       await updateTrial({ ID: updated.ID, IsCompleted: true }, getAppState);
+       window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Trial finalized', type: 'success' } }));
+     } catch(e) {
+       window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Failed to finalize trial', type: 'error' } }));
+     }
+  };
+
+  const handleSaveObservation = async (e) => {
+     e.preventDefault();
+     if(!activeTrial) return;
+
+     const efficacyData = safeJsonParse(activeTrial.EfficacyDataJSON, []);
+     const newObs = {
+        daa: Number(obsFormData.daa),
+        date: obsFormData.date,
+        weedCover: Number(obsFormData.weedCover),
+        notes: obsFormData.notes,
+        weedDetails: [{ species: 'Total', cover: Number(obsFormData.weedCover), status: '', notes: obsFormData.notes }]
+     };
+
+     efficacyData.push(newObs);
+     efficacyData.sort((a,b) => a.daa - b.daa);
+
+     const updated = { ...activeTrial, EfficacyDataJSON: JSON.stringify(efficacyData) };
+     updateState({ trials: state.trials.map(t => t.ID === updated.ID ? updated : t) });
+     setActiveTrial(updated);
+     setIsObservationModalOpen(false);
+
+     try {
+       await updateTrial({ ID: updated.ID, EfficacyDataJSON: updated.EfficacyDataJSON }, getAppState);
+       window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Observation saved', type: 'success' } }));
+     } catch(err) {
+       window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Failed to save observation', type: 'error' } }));
+     }
+  };
+
   const openTrialDetail = (trial) => {
 
     setActiveTrial(trial);
@@ -172,7 +221,7 @@ export default function Trials({ onMenuClick }) {
        <div className="mt-6">
          <div className="flex justify-between items-center mb-4">
            <h4 className="text-lg font-semibold text-slate-800">Observation Timeline</h4>
-           <button className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-emerald-200">
+           <button onClick={() => { setObsFormData({ daa: '', date: new Date().toISOString().split('T')[0], weedCover: '', notes: '' }); setIsObservationModalOpen(true); }} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-emerald-200">
              + Log Observation
            </button>
          </div>
@@ -407,6 +456,34 @@ export default function Trials({ onMenuClick }) {
           </div>
         </form>
       </Modal>
+
+      <Modal isOpen={isObservationModalOpen} onClose={() => setIsObservationModalOpen(false)} title="Log Observation">
+         <form onSubmit={handleSaveObservation} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+               <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Days After App (DAA)</label>
+                  <input type="number" required value={obsFormData.daa} onChange={e => setObsFormData({...obsFormData, daa: e.target.value})} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" />
+               </div>
+               <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Date</label>
+                  <input type="date" required value={obsFormData.date} onChange={e => setObsFormData({...obsFormData, date: e.target.value})} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" />
+               </div>
+            </div>
+            <div>
+               <label className="block text-sm font-semibold text-slate-700 mb-1">Weed Cover %</label>
+               <input type="number" required min="0" max="100" value={obsFormData.weedCover} onChange={e => setObsFormData({...obsFormData, weedCover: e.target.value})} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+            <div>
+               <label className="block text-sm font-semibold text-slate-700 mb-1">Notes</label>
+               <textarea value={obsFormData.notes} onChange={e => setObsFormData({...obsFormData, notes: e.target.value})} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" rows="3"></textarea>
+            </div>
+            <div className="pt-4 flex justify-end gap-3 border-t">
+               <button type="button" onClick={() => setIsObservationModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-medium">Cancel</button>
+               <button type="submit" className="btn-primary px-6 py-2 rounded-xl">Save</button>
+            </div>
+         </form>
+      </Modal>
+
     </div>
   );
 }
