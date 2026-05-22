@@ -1,10 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+const fs = require('fs');
+
+let code = fs.readFileSync('src/pages/AIAssistant.jsx', 'utf8');
+
+const importReplacement = `import React, { useState, useRef, useEffect } from 'react';
 import { useAppState } from '../hooks/useAppState.jsx';
 import TopBar from '../components/TopBar.jsx';
 import { Sparkles, SendHorizontal } from 'lucide-react';
-import { aiAnalyzer } from '../services/ai.js';
+import { aiAnalyzer } from '../services/ai.js';`;
 
+code = code.replace(/import React, \{ useState \} from 'react';[\s\S]*?import \{ Sparkles, SendHorizontal \} from 'lucide-react';/, importReplacement);
 
+const newBody = `
 export default function AIAssistant({ onMenuClick }) {
   const { state, updateState, getAppState } = useAppState();
   const [input, setInput] = useState('');
@@ -41,18 +47,18 @@ export default function AIAssistant({ onMenuClick }) {
         weeds: t.WeedSpecies
       }));
 
-      const prompt = `Context: You are an agricultural research assistant helping a user manage herbicide trials.
-      Available Trial Data: ${JSON.stringify(trialsContext.slice(0, 10))}
-      User Question: ${userMsg}`;
+      const prompt = \`Context: You are an agricultural research assistant helping a user manage herbicide trials.
+      Available Trial Data: \${JSON.stringify(trialsContext.slice(0, 10))}
+      User Question: \${userMsg}\`;
 
       // Call AI via the abstracted aiAnalyzer service. We must pass getAppState so it can get keys.
       // Wait, aiAnalyzer.generateText doesn't accept getAppState natively in our extracted version unless we modified it.
       // Actually, let's just use it and rely on the platform adapter. Wait, aiAnalyzer uses the global state...
       // Since ai.js was extracted with getAppState modifications, we need to ensure we call it correctly.
-      // ai.js exports `callGeminiApi` directly which takes getAppState.
+      // ai.js exports \`callGeminiApi\` directly which takes getAppState.
       const { callGeminiApi } = await import('../services/ai.js');
 
-      const responseText = await callGeminiApi(`AI Chat: ${userMsg.substring(0, 30)}...`, async (genAI) => {
+      const responseText = await callGeminiApi(\`AI Chat: \${userMsg.substring(0, 30)}...\`, async (genAI) => {
           const modelName = getAppState().settings?.selectedModel || 'gemini-2.5-flash';
           const response = await genAI.models.generateContent({
              model: modelName,
@@ -67,7 +73,7 @@ export default function AIAssistant({ onMenuClick }) {
          updateState({ aiChatHistory: [...newHistory, { role: 'assistant', content: "Error: " + (responseText.message || "Failed to get AI response. Please check your API keys.") }] });
       }
     } catch (err) {
-      updateState({ aiChatHistory: [...newHistory, { role: 'assistant', content: `System error: ${err.message}` }] });
+      updateState({ aiChatHistory: [...newHistory, { role: 'assistant', content: \`System error: \${err.message}\` }] });
     } finally {
       setIsLoading(false);
     }
@@ -93,9 +99,9 @@ export default function AIAssistant({ onMenuClick }) {
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {state.aiChatHistory && state.aiChatHistory.length > 0 ? (
                state.aiChatHistory.map((msg, i) => (
-                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                   <div className={`max-w-[80%] rounded-2xl px-5 py-3 ${msg.role === 'user' ? 'bg-emerald-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'}`}>
-                     <div className="text-sm whitespace-pre-wrap leading-relaxed markdown-content" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></div>
+                 <div key={i} className={\`flex \${msg.role === 'user' ? 'justify-end' : 'justify-start'}\`}>
+                   <div className={\`max-w-[80%] rounded-2xl px-5 py-3 \${msg.role === 'user' ? 'bg-emerald-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm'}\`}>
+                     <div className="text-sm whitespace-pre-wrap leading-relaxed markdown-content" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\\n/g, '<br/>').replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>') }}></div>
                    </div>
                  </div>
                ))
@@ -141,4 +147,8 @@ export default function AIAssistant({ onMenuClick }) {
       </div>
     </div>
   );
-}
+}`;
+
+code = code.replace(/export default function AIAssistant\(\{ onMenuClick \}\) \{[\s\S]*/, newBody);
+
+fs.writeFileSync('src/pages/AIAssistant.jsx', code);

@@ -1,3 +1,5 @@
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import QRScanner from './components/QRScanner.jsx';
 import TopBar from './components/TopBar.jsx';
 import DataManagement from './pages/DataManagement.jsx';
@@ -13,14 +15,13 @@ import Projects from './pages/Projects.jsx';
 import Ingredients from './pages/Ingredients.jsx';
 import Organisations from './pages/Organisations.jsx';
 import Formulations from './pages/Formulations.jsx';
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppStateProvider } from './hooks/useAppState.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Toast from './components/Toast.jsx';
 import LoadingOverlay from './components/LoadingOverlay.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import PlaceholderPage from './pages/PlaceholderPage.jsx';
+
 
 
 function ScannerPage({ onMenuClick }) {

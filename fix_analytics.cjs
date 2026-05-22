@@ -1,4 +1,8 @@
+const fs = require('fs');
 
+let code = fs.readFileSync('src/pages/Analytics.jsx', 'utf8');
+
+const replacement = `
 import React, { useMemo } from 'react';
 import { useAppState } from '../hooks/useAppState.jsx';
 import TopBar from '../components/TopBar.jsx';
@@ -95,3 +99,8 @@ export default function Analytics({ onMenuClick }) {
     </div>
   );
 }
+`;
+
+code = code.replace(/import React from 'react';[\s\S]*?<\/div>\s*\);\s*\}/, replacement);
+
+fs.writeFileSync('src/pages/Analytics.jsx', code);

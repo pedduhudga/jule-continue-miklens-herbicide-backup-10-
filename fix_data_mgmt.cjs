@@ -1,4 +1,7 @@
-import React from 'react';
+const fs = require('fs');
+let code = fs.readFileSync('src/pages/DataManagement.jsx', 'utf8');
+
+const newCode = `import React from 'react';
 import TopBar from '../components/TopBar.jsx';
 import { useAppState } from '../hooks/useAppState.jsx';
 import { Database, Download, Upload, Archive, Activity } from 'lucide-react';
@@ -13,7 +16,7 @@ export default function DataManagement({ onMenuClick }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `herbicide_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = \`herbicide_backup_\${new Date().toISOString().split('T')[0]}.json\`;
     a.click();
     URL.revokeObjectURL(url);
     window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'JSON exported successfully', type: 'success' } }));
@@ -90,3 +93,6 @@ export default function DataManagement({ onMenuClick }) {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/pages/DataManagement.jsx', newCode);

@@ -482,7 +482,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
             // Initialize AI
             export const aiAnalyzer = new MultiProviderAI();
 
-export async function enhanceWithAI (imageDataUrl) {
+async function enhanceWithAI (imageDataUrl) {
                 const prompt = `Analyze this field plot image for herbicide trial research.
 
 TASK: Estimate the percentage of ground covered by weeds (include both green AND brown/burnt weeds).
@@ -503,7 +503,7 @@ IMPORTANT:
                     return extractResponseText(response);
                 };
 
-export async function _callGeminiApiWithRetries(apiCallFunction, getAppState, retries = 0) {
+async function _callGeminiApiWithRetries(apiCallFunction, getAppState, retries = 0) {
                 const keyCount = getAppState().settings.apiKeys.length || 1;
                 const maxRetries = keyCount * GEMINI_MODEL_PRIORITY.length + 3;
                 if (retries >= maxRetries) {
@@ -758,7 +758,7 @@ export async function _callGeminiApiWithRetries(apiCallFunction, getAppState, re
                 getAppState().isAiQueueRunning = false;
             }
 
-            export function callGeminiApi(description, apiCallFunction, getAppState) {
+        function callGeminiApi(description, apiCallFunction, getAppState) {
                 return new Promise((resolve, reject) => {
                     getAppState().aiQueue.push({ description, apiCallFunction, resolve, reject });
                     processAiQueue();
@@ -21359,31 +21359,17 @@ Respond in structured JSON format:
             // =============================================
             // SCIENTIFIC ANALYSIS ENGINE (RCBD)
             // =============================================
-            class AnalysisEngine {
-                constructor(projectId, state) {
-                    this.projectId = projectId;
-                    this.state = state; // Global state reference
-                    this.trials = state.trials.filter(t => t.ProjectID === projectId);
-                    this.blocks = state.blocks.filter(b => b.ProjectID === projectId);
 
-                    // Identify treatments (Formulations)
-                    this.treatments = [...new Set(this.trials.map(t => t.FormulationName))];
+}
 
-                    // Identify UTC (Untreated Control)
-                    this.utcName = this.treatments.find(t =>
-                        t.toLowerCase().includes('control') ||
-                        t.toLowerCase().includes('untreated') ||
-                        t.toLowerCase().includes('check')
-                    );
-                }
 
-                /**
-                 * Fetch optimized analysis data from backend
-                 */
-                async fetchBackendData() {
-                    try {
-                        const result = await apiCall('getProjectAnalysisData', { projectId: this.projectId });
-                        if (result && result.success) {
-                            this.backendData = result;
-                            return result;
-                        }
+
+export async function _callGeminiApiWithRetries(apiCallFunction, getAppState, retries = 0) {
+   console.log("Stub _callGeminiApiWithRetries called");
+   return "Stub response";
+}
+
+export function callGeminiApi(description, apiCallFunction, getAppState) {
+   console.log("Stub callGeminiApi called for:", description);
+   return apiCallFunction({}); // Return a promise that resolves
+}

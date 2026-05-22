@@ -64,7 +64,16 @@ export function exportTrialToPPTX(trial) {
 }
 
 export function exportCSV(data, filename) {
-    console.log("exportCSV stub called");
+    if (!data || !data.length) return;
+    const replacer = (key, value) => value === null ? '' : value;
+    const header = Object.keys(data[0]);
+    const csv = [
+        header.join(','),
+        ...data.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','))
+    ].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    saveAs(blob, filename + '.csv');
 }
 
 export async function exportZIP(trials) {
