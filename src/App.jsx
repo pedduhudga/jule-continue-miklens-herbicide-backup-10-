@@ -19,6 +19,13 @@ import { AppStateProvider } from './hooks/useAppState.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Toast from './components/Toast.jsx';
 import LoadingOverlay from './components/LoadingOverlay.jsx';
+
+import Setup from './pages/Setup.jsx';
+import Login from './pages/Login.jsx';
+import { useAuth } from './hooks/useAuth.js';
+import { useAppState } from './hooks/useAppState.jsx';
+
+import CompareTrials from './pages/CompareTrials.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import PlaceholderPage from './pages/PlaceholderPage.jsx';
 
@@ -71,12 +78,27 @@ function ScannerPage({ onMenuClick }) {
   );
 }
 
+
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  const { state } = useAppState();
+  const { isAuthenticated } = useAuth();
+
+  const isConfigured = !!state.settings?.scriptUrl && !!state.settings?.sheetId && !!state.settings?.folderId;
+
+  if (!isConfigured) {
+    return <Setup />;
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
   return (
     <div className="flex h-screen bg-slate-100 font-sans">
+
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-transparent">
@@ -96,6 +118,7 @@ function AppLayout() {
           <Route path="/data" element={<DataManagement onMenuClick={toggleSidebar} />} />
           <Route path="/settings" element={<Settings onMenuClick={toggleSidebar} />} />
           <Route path="/users" element={<UserManagement onMenuClick={toggleSidebar} />} />
+          <Route path="/compare" element={<CompareTrials onMenuClick={toggleSidebar} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -15,6 +15,7 @@ export function useSync() {
     if(state.platformAdapter && state.platformAdapter.renderSyncStatus) { state.platformAdapter.renderSyncStatus(); }
   }, [state.platformAdapter]);
 
+
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -27,8 +28,15 @@ export function useSync() {
       showToast('Offline Mode Active', 'info');
     };
 
-    // Event listeners moved to platform adapter component
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, [state.syncQueue, showToast]);
+
 
   useEffect(() => {
     const interval = setInterval(() => {
