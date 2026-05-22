@@ -1,4 +1,8 @@
-import React, { useEffect, useState } from 'react';
+const fs = require('fs');
+
+let code = fs.readFileSync('src/pages/UserManagement.jsx', 'utf8');
+
+const newCode = `import React, { useEffect, useState } from 'react';
 import TopBar from '../components/TopBar.jsx';
 import { useAppState } from '../hooks/useAppState.jsx';
 import { useAuth } from '../hooks/useAuth.js';
@@ -72,7 +76,7 @@ export default function UserManagement({ onMenuClick }) {
                        <p className="text-xs text-slate-500">{u.id}</p>
                      </td>
                      <td className="px-6 py-4">
-                       <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                       <span className={\`px-3 py-1 text-xs font-bold rounded-full uppercase \${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}\`}>
                          {u.role || 'user'}
                        </span>
                      </td>
@@ -101,3 +105,6 @@ export default function UserManagement({ onMenuClick }) {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/pages/UserManagement.jsx', newCode);

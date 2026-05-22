@@ -122,6 +122,6 @@ export const addOrganisation = (payload, getAppState) => apiCall('addOrganisatio
 export const deleteOrganisation = (payload, getAppState) => apiCall('deleteOrganisation', payload, true, getAppState);
 export const deleteProject = (payload, getAppState) => apiCall('deleteProject', payload, true, getAppState);
 
-export const loginUser = (payload, getAppState) => apiCall('loginUser', payload, true, getAppState);
-export const getUsers = (payload, getAppState) => apiCall('getUsers', payload, true, getAppState);
-export const updateUser = (payload, getAppState) => apiCall('updateUser', payload, true, getAppState);
+export const loginUser = (payload, getAppState) => apiCall('login', payload, true, getAppState);
+export const getUsers = (payload, getAppState) => apiCall('getUsersList', payload, true, getAppState);
+export const updateUser = (payload, getAppState) => apiCall('adminUpdateUserConfig', payload, true, getAppState);
