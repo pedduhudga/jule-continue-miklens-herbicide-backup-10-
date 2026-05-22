@@ -1,931 +1,5 @@
- <!DOCTYPE html>
-<html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Herbicide Trial Manager</title>
-
-    <!-- External Libraries -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-    <!-- QR Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <!-- Statistical Analysis Library -->
-    <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
-    <!-- DOC Export Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-    <!-- Interactive Graph Library -->
-    <script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
-    <!-- Leaflet.js for Field Heatmap -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
-
-    <style>
-        :root {
-            --primary-color: #059669;
-            /* emerald-600 */
-            --primary-hover-color: #047857;
-            /* emerald-700 */
-            --primary-light: #d1fae5;
-            /* emerald-100 */
-            --surface-glass: rgba(255, 255, 255, 0.85);
-            --surface-blur: 16px;
-        }
-
-        body {
-            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f8fafc;
-            background-image:
-                radial-gradient(at 0% 0%, hsla(160, 100%, 96%, 1) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, hsla(190, 100%, 96%, 1) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, hsla(160, 100%, 96%, 1) 0px, transparent 50%),
-                radial-gradient(at 0% 100%, hsla(210, 100%, 96%, 1) 0px, transparent 50%);
-            background-attachment: fixed;
-            color: #334155;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            letter-spacing: -0.01em;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover-color));
-            color: white;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-weight: 500;
-            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
-        }
-
-        .btn-primary:active {
-            transform: scale(0.97);
-        }
-
-        .btn-primary:hover {
-            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
-            transform: translateY(-1px);
-        }
-
-        .form-input {
-            transition: all 0.2s ease-in-out;
-            border-radius: 0.75rem;
-            background-color: rgba(255, 255, 255, 0.9);
-        }
-
-        .form-input:focus {
-            --tw-ring-color: var(--primary-color);
-            border-color: var(--primary-color);
-            outline: 2px solid transparent;
-            outline-offset: 2px;
-            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            background-color: white;
-            transform: translateY(-1px);
-        }
-
-        /* Modal Overrides */
-        #modal-container,
-        .modal-backdrop {
-            background-color: rgba(15, 23, 42, 0.4) !important;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-        }
-
-        .modal-content {
-            border-radius: 1.5rem !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            transform-origin: center;
-            animation: modalPopIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        @keyframes modalPopIn {
-            0% {
-                opacity: 0;
-                transform: scale(0.95) translateY(10px);
-            }
-
-            100% {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
-        }
-
-        /* Card Overrides */
-        .dashboard-card,
-        .bg-white.rounded-xl.shadow-lg {
-            border-radius: 1.25rem !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 10px -6px rgba(0, 0, 0, 0.01) !important;
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            background-color: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(16px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .dashboard-card:hover,
-        .bg-white.rounded-xl.shadow-lg:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01) !important;
-        }
-
-        .sidebar {
-            transition: transform 0.3s ease-in-out;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-        }
-
-        /* Animations */
-        @keyframes contentFadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .dashboard-card {
-            animation: contentFadeIn 0.5s ease-out forwards;
-            opacity: 0;
-        }
-
-        /* Drag & Drop Photo Zones */
-        [data-dropzone] {
-            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        [data-dropzone].drag-over {
-            background: #d1fae5 !important;
-            border: 2px dashed #059669 !important;
-            box-shadow: inset 0 0 0 3px #6ee7b7;
-            border-radius: 10px;
-        }
-        [data-dropzone].drag-over::after {
-            content: '📥 Drop photo here';
-            display: block;
-            text-align: center;
-            font-size: 12px;
-            color: #065f46;
-            font-weight: 600;
-            padding: 4px 0 2px;
-            pointer-events: none;
-        }
-
-        /* Toast Notification */
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 8px;
-            color: white;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s, visibility 0.3s, bottom 0.3s;
-            z-index: 10000;
-        }
-
-        .toast.show {
-            opacity: 1;
-            visibility: visible;
-            bottom: 30px;
-        }
-
-        .toast.success {
-            background-color: #10b981;
-        }
-
-        .toast.error {
-            background-color: #ef4444;
-            z-index: 9999;
-        }
-
-        .toast.warning {
-            background-color: #f59e0b;
-        }
-
-        .toast.info {
-            background-color: #3b82f6;
-        }
-
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: var(--primary-color);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Cropper Modal */
-        /* Cropper Modal */
-        #cropper-modal-fixed {
-            display: none;
-        }
-
-        #image-to-crop {
-            max-height: 60vh;
-            max-width: 100%;
-            display: block;
-        }
-
-        /* Camera Modal */
-        #camera-modal-fixed {
-            display: none;
-        }
-
-        /* Result Colors */
-        .result-excellent {
-            color: #059669;
-            background-color: #d1fae5;
-        }
-
-        .result-good {
-            color: #0284c7;
-            background-color: #dbeafe;
-        }
-
-        .result-fair {
-            color: #d97706;
-            background-color: #fef3c7;
-        }
-
-        .result-poor {
-            color: #dc2626;
-            background-color: #fee2e2;
-        }
-
-        .result-none {
-            color: #4b5563;
-            background-color: #e5e7eb;
-        }
-
-        /* Utility */
-        .hidden {
-            display: none !important;
-        }
-
-        /* QR Scanner Overlay */
-        .scanner-frame {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 250px;
-            height: 250px;
-            border: 4px solid var(--primary-color);
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-            pointer-events: none;
-        }
-
-        .scanner-line {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: var(--primary-color);
-            box-shadow: 0 0 8px var(--primary-color);
-            animation: scan 2s linear infinite;
-        }
-
-        @keyframes scan {
-            0% {
-                top: 0;
-            }
-
-            100% {
-                top: 100%;
-            }
-        }
-
-        /* Selection Bar */
-        #selection-bar {
-            transition: transform 0.3s ease-in-out;
-        }
-
-        #selection-bar.hidden {
-            transform: translate(-50%, 150%);
-            display: flex !important;
-        }
-        /* Mobile-Responsive Fullscreen Camera & Scanner UI */
-        .fullscreen-overlay {
-            position: fixed;
-            inset: 0;
-            background: #000;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            color: white;
-            animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        #camera-modal-fixed.fullscreen-overlay {
-            background: rgba(15, 23, 42, 0.78);
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-            animation: none;
-            /* Prevent any content from escaping the viewport */
-            overflow: hidden;
-        }
-
-        .camera-shell {
-            position: relative;
-            width: min(98vw, 760px);
-            /* Use % of the overlay (which is fixed inset:0) instead of vh to avoid mobile viewport bugs */
-            height: 92%;
-            max-height: 960px;
-            border-radius: 24px;
-            overflow: hidden;
-            background: #020617;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-            flex-shrink: 0;
-        }
-
-        .camera-preview-wrap {
-            position: absolute;
-            inset: 0;
-            background: #000;
-        }
-
-        @keyframes slideInUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-
-        .camera-controls {
-            position: absolute;
-            bottom: 1rem;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 1rem;
-            z-index: 10001;
-        }
-
-        .shutter-btn {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: white;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .shutter-btn:active {
-            transform: scale(0.9);
-            background: #e2e8f0;
-        }
-
-        .shutter-inner {
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            border: 2px solid #000;
-        }
-
-        .camera-close-btn {
-            position: absolute;
-            top: 0.85rem;
-            right: 0.85rem;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(4px);
-            z-index: 10002;
-        }
-
-        .scanner-guide {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: min(88vw, 460px);
-            height: min(88vw, 460px);
-            border: 2px solid rgba(255,255,255,0.5);
-            border-radius: 24px;
-            box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);
-            z-index: 10001;
-        }
-
-        .scanner-corner {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            border-color: var(--primary-color);
-            border-style: solid;
-        }
-
-        .corner-tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 20px; }
-        .corner-tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 20px; }
-        .corner-bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 20px; }
-        .corner-br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 20px; }
-
-        .scan-anim-line {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(to bottom, transparent, var(--primary-color));
-            box-shadow: 0 0 15px var(--primary-color);
-            animation: scanLoop 2.5s ease-in-out infinite;
-            border-radius: 2px;
-        }
-
-        @keyframes scanLoop {
-            0%, 100% { top: 0%; opacity: 0; }
-            5%, 95% { opacity: 1; }
-            50% { top: 100%; }
-        }
-
-        .camera-preview {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        @media (max-width: 640px) {
-            .camera-shell {
-                width: min(99vw, 620px);
-                height: 94%;
-                border-radius: 18px;
-            }
-
-            .scanner-guide {
-                width: min(92vw, 520px);
-                height: min(92vw, 520px);
-                border-radius: 18px;
-            }
-
-            .camera-controls {
-                bottom: 0.75rem;
-            }
-
-            .shutter-btn {
-                width: 64px;
-                height: 64px;
-            }
-
-            .shutter-inner {
-                width: 50px;
-                height: 50px;
-            }
-        }
-    </style>
-
-    <!-- Import Map for Gemini SDK -->
-
-</head>
-
-<body class="bg-slate-100">
-    <!-- Selection Bar -->
-    <div id="selection-bar"
-        class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white py-3 px-6 rounded-full shadow-lg flex items-center gap-4 z-50 text-sm font-semibold hidden transition-transform duration-300">
-        <span id="selected-items-count">0 selected</span>
-        <div class="h-4 w-px bg-slate-600 mx-2"></div>
-        <button data-action="open-organise-modal" class="hover:text-emerald-300 transition flex items-center gap-2"><i
-                data-lucide="folder-plus" class="h-4 w-4"></i>Group</button>
-        <button data-action="go-to-compare" class="hover:text-emerald-300 transition flex items-center gap-2"><i
-                data-lucide="bar-chart-3" class="h-4 w-4"></i>Compare</button>
-        <button data-action="print-pdf" class="hover:text-emerald-300 transition flex items-center gap-2"><i
-                data-lucide="file-down" class="h-4 w-4"></i>PDF Cards</button>
-        <button data-action="print-cards" class="hover:text-emerald-300 transition flex items-center gap-2"><i
-                data-lucide="printer" class="h-4 w-4"></i>Print</button>
-        <button data-action="clear-selection" class="ml-2 text-slate-400 hover:text-white">&times;</button>
-    </div>
-    <div class="flex h-screen">
-        <!-- Sidebar -->
-        <aside id="sidebar"
-            class="sidebar bg-white/70 backdrop-blur-md w-64 flex-shrink-0 border-r border-white/40 shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex flex-col fixed inset-y-0 left-0 z-30 md:relative md:translate-x-0 transition-transform duration-300">
-            <div class="px-6 py-6 border-b border-white/50">
-                <h2 class="font-bold text-xl text-emerald-800 flex items-center gap-2 tracking-tight"><i
-                        data-lucide="flask-conical" class="text-emerald-600"></i>
-                    Trial Manager</h2>
-            </div>
-            <nav id="sidebar-nav" class="flex-grow p-4 space-y-1 mt-2">
-                <a href="#" data-page="dashboard"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i><span>Dashboard</span>
-                </a>
-                <a href="#" data-page="projects"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="folder-kanban" class="w-5 h-5"></i><span>Projects (RCBD)</span>
-                </a>
-                <a href="#" data-action="open-plot-scanner"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="scan-qr-code" class="w-5 h-5"></i><span>Plot Scanner</span>
-                </a>
-                <a href="#" data-page="formulations"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="flask-conical" class="w-5 h-5"></i><span>Formulations</span>
-                </a>
-                <a href="#" data-page="trials"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="list-checks" class="w-5 h-5"></i><span>Trials</span>
-                </a>
-                <a href="#" data-page="compareTrials"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="file-box" class="w-5 h-5"></i><span>Reports & Cards</span>
-                </a>
-                <a href="#" data-page="organisations"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="folder-kanban" class="w-5 h-5"></i><span>Organisations</span>
-                </a>
-                <a href="#" data-page="ingredients"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="shopping-bag" class="w-5 h-5"></i><span>Ingredient Costs</span>
-                </a>
-                <a href="#" data-page="aiAssistant"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="sparkles" class="w-5 h-5"></i><span>AI Assistant</span>
-                </a>
-                <a href="#" data-page="analytics"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="bar-chart-big" class="w-5 h-5"></i><span>Analytics & Stats</span>
-                </a>
-                <a href="#" data-page="fieldMap"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="map-pin" class="w-5 h-5"></i><span>Field Map</span>
-                </a>
-                <a href="#" data-page="smartSearch"
-                    class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                    <i data-lucide="search" class="w-5 h-5"></i><span>Smart Search</span>
-                </a>
-                <div class="pt-4 mt-8 border-t border-slate-200/50">
-                    <a href="#" data-page="dataMgmt"
-                        class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                        <i data-lucide="database" class="w-5 h-5"></i><span>Data Management</span>
-                    </a>
-                    <a href="#" data-page="settings"
-                        class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 hover:bg-emerald-50 hover:text-emerald-700">
-                        <i data-lucide="settings"></i><span>Settings</span>
-                    </a>
-                    <!-- Admin Only Section -->
-                    <div id="admin-sidebar-section" class="hidden border-t border-slate-200/50 mt-4 pt-4">
-                        <a href="#" data-page="users"
-                            class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-sm hover:translate-x-1 transition-all duration-200 font-medium">
-                            <i data-lucide="users" class="w-5 h-5"></i><span>User Management</span>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- User Profile & Logout -->
-                <div id="user-profile-section" class="mt-auto p-4 border-t border-slate-200/50 hidden">
-                    <div class="flex items-center gap-3 mb-4 px-2">
-                        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold" id="user-avatar">
-                            U
-                        </div>
-                        <div class="flex flex-col overflow-hidden">
-                            <span class="text-sm font-bold text-slate-800 truncate" id="user-display-name">User</span>
-                            <span class="text-xs text-slate-500 uppercase tracking-wider font-semibold" id="user-role-badge">Role</span>
-                        </div>
-                    </div>
-                    <button id="logout-btn" onclick="if(window.handleLogout) window.handleLogout()" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200 font-medium">
-                        <i data-lucide="log-out" class="w-5 h-5"></i><span>Sign Out</span>
-                    </button>
-                </div>
-            </nav>
-
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1 flex flex-col overflow-hidden bg-transparent">
-            <!-- Header -->
-            <header
-                class="bg-white/60 backdrop-blur-md border-b border-white/40 p-5 flex justify-between items-center flex-shrink-0 shadow-[0_4px_24px_rgba(0,0,0,0.02)] sticky top-0 z-20">
-                <button id="menu-toggle"
-                    class="md:hidden p-2 rounded-xl text-slate-600 hover:bg-white/80 transition-colors">
-                    <i data-lucide="menu"></i>
-                </button>
-                <h1 id="page-title" class="text-2xl font-bold text-slate-800 tracking-tight">Dashboard</h1>
-                <div id="sync-status"
-                    class="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm backdrop-blur-sm">
-                </div>
-                <div><!-- Placeholder for any header actions --></div>
-            </header>
-
-            <!-- Content Area -->
-            <div id="main-content-wrapper" class="flex-1 overflow-y-auto p-6">
-                <!-- Global Admin View Banner -->
-                <div id="admin-view-status" class="hidden bg-amber-50 border border-amber-200 p-4 mb-6 rounded-xl flex items-center justify-between shadow-sm">
-                    <div class="flex items-center gap-3">
-                        <div class="p-2 bg-amber-100 rounded-lg text-amber-700">
-                            <i data-lucide="eye" class="h-5 w-5"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold text-amber-900">Admin Mode: Viewing Specific User Data</p>
-                            <p class="text-xs text-amber-700">Currently showing trials created by <span id="admin-viewing-user-name" class="font-bold">None</span></p>
-                        </div>
-                    </div>
-                    <button onclick="window.clearAdminView()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">
-                        Show All Users
-                    </button>
-                </div>
-
-                <div id="main-content">
-                    <!-- Dynamic content will be injected here -->
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Sync items floating panel (fixed, never affects layout) -->
-    <div id="sync-items-panel" style="display:none;position:fixed;top:72px;right:16px;z-index:9990;min-width:260px;max-width:340px;background:#fff;border:1px solid rgba(0,0,0,0.13);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:10px;display:none;flex-direction:column;gap:6px;"></div>
-
-    <!-- Overlays and Modals -->
-    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 z-40 overflow-y-auto hidden"></div>
-
-    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center hidden">
-        <div class="spinner"></div>
-    </div>
-
-    <div id="toast" class="toast"></div>
-    <div id="issue-banner" class="issue-banner hidden">
-        <span id="issue-banner-text" class="text-sm font-medium">Issue detected</span>
-        <button onclick="window.dismissIssueBanner && window.dismissIssueBanner()" class="text-white/90 hover:text-white font-bold px-2">x</button>
-    </div>
-
-    <!-- Login Overlay -->
-    <div id="login-overlay" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-[20000] hidden">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-300">
-            <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 mb-4">
-                    <i data-lucide="lock" class="w-10 h-10"></i>
-                </div>
-                <h2 class="text-3xl font-extrabold text-slate-800">Welcome Back</h2>
-                <p class="text-slate-500 mt-2">Sign in to manage your trials</p>
-            </div>
-            
-            <form id="login-form" class="space-y-6">
-                <div id="login-error" class="hidden flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl mb-6">
-                    <i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>
-                    <p id="login-error-text" class="text-sm text-red-600 font-medium"></p>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Username</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                            <i data-lucide="user" class="w-5 h-5"></i>
-                        </span>
-                        <input type="text" id="login-username" required
-                            class="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all shadow-sm"
-                            placeholder="Type your username">
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                            <i data-lucide="key" class="w-5 h-5"></i>
-                        </span>
-                        <input type="password" id="login-password" required
-                            class="block w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all shadow-sm"
-                            placeholder="--------">
-                        <button type="button" onclick="(function(){const i=document.getElementById('login-password');const icon=document.getElementById('pw-eye-icon');if(i.type==='password'){i.type='text';icon.setAttribute('data-lucide','eye-off');}else{i.type='password';icon.setAttribute('data-lucide','eye');}if(window.lucide)lucide.createIcons();})()"
-                            class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition" tabindex="-1">
-                            <i id="pw-eye-icon" data-lucide="eye" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <button type="submit"
-                    class="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
-                    Sign In
-                </button>
-            </form>
-            
-            <div class="mt-8 pt-6 border-t border-slate-100 text-center space-y-3">
-                <button type="button" onclick="if(window.resetAppSettings) window.resetAppSettings()" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline">
-                    Reset Server Connection Settings
-                </button>
-                <p class="text-xs text-slate-400 flex items-center justify-center gap-2">
-                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i>
-                    Secure Multi-User Authentication Active
-                </p>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- Cropper Modal -->
-    <div id="cropper-modal-fixed"
-        class="fixed inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-[9999] p-4 hidden">
-        <div class="bg-white rounded-lg p-4 w-full max-w-2xl">
-            <h3 class="text-lg font-bold mb-4">Crop & Rotate Image <span id="crop-mode-badge" class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full align-middle"></span></h3>
-            <div class="img-container">
-                <img id="image-to-crop" src="" alt="Image to crop">
-            </div>
-            <div class="flex justify-center gap-4 mt-4">
-                <button data-action="rotate-left" class="p-2 bg-slate-200 rounded-lg"><i
-                        data-lucide="rotate-ccw"></i></button>
-                <button data-action="rotate-right" class="p-2 bg-slate-200 rounded-lg"><i
-                        data-lucide="rotate-cw"></i></button>
-            </div>
-            <div class="flex justify-end space-x-3 mt-4">
-                <button data-action="cancel-crop"
-                    class="bg-slate-200 text-slate-800 px-4 py-2 rounded-lg">Cancel</button>
-                <button data-action="crop-image" class="btn-primary text-white px-4 py-2 rounded-lg">Apply Crop</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Centered Camera Modal -->
-    <div id="camera-modal-fixed" class="fullscreen-overlay hidden">
-        <div class="camera-shell">
-            <button data-action="close-camera" class="camera-close-btn text-white">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </button>
-            <div class="camera-preview-wrap">
-                <video id="camera-stream" autoplay playsinline class="camera-preview"></video>
-                <canvas id="camera-canvas" class="hidden"></canvas>
-                <div class="camera-controls">
-                    <div class="w-12 h-12"></div>
-                    <button data-action="capture-photo" class="shutter-btn">
-                        <div class="shutter-inner"></div>
-                    </button>
-                    <button id="toggle-flash" class="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center">
-                        <i data-lucide="zap" class="w-6 h-6"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- New Fullscreen QR Scanner Modal -->
-    <div id="qr-scanner-modal-fixed" class="fullscreen-overlay hidden">
-        <button data-action="close-qr-scanner" class="camera-close-btn text-white">
-            <i data-lucide="x" class="w-6 h-6"></i>
-        </button>
-        <video id="qr-video" autoplay playsinline class="camera-preview"></video>
-        
-        <div class="scanner-guide">
-            <div class="scanner-corner corner-tl"></div>
-            <div class="scanner-corner corner-tr"></div>
-            <div class="scanner-corner corner-bl"></div>
-            <div class="scanner-corner corner-br"></div>
-            <div class="scan-anim-line"></div>
-        </div>
-
-        <div class="absolute bottom-10 left-0 right-0 flex flex-col items-center gap-4 px-6">
-            <div class="bg-black/50 backdrop-blur-md px-4 py-2 rounded-full text-sm border border-white/20">
-                Align QR code within the frame
-            </div>
-            <label class="flex items-center gap-2 bg-black/50 backdrop-blur-md px-4 py-2 rounded-full text-sm border border-white/20 cursor-pointer">
-                <input type="checkbox" id="continuous-scan-toggle" class="h-4 w-4 text-emerald-500 rounded border-white/30 bg-transparent">
-                Continuous Scan Mode
-            </label>
-        </div>
-    </div>
-
-    <!-- Quick Action Modal (Scan Result) -->
-    <div id="scan-action-modal"
-        class="fixed inset-0 bg-black bg-opacity-80 z-[9999] flex items-center justify-center p-4 hidden">
-        <div
-            class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
-            <div class="px-5 py-4 border-b bg-emerald-50">
-                <h3 class="font-bold text-lg text-emerald-800" id="scan-match-title">Trial Found</h3>
-                <p class="text-xs text-emerald-600" id="scan-match-subtitle">Select an action</p>
-            </div>
-            <div class="p-6 grid grid-cols-1 gap-4">
-                <button id="scan-action-camera"
-                    class="flex items-center gap-4 p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition group">
-                    <div
-                        class="bg-blue-500 text-white p-3 rounded-full shadow-md group-hover:scale-110 transition-transform">
-                        <i data-lucide="camera" class="h-6 w-6"></i>
-                    </div>
-                    <div class="text-left">
-                        <span class="block font-bold text-gray-800">Add Photo</span>
-                        <span class="block text-xs text-gray-500">Capture general trial image</span>
-                    </div>
-                </button>
-
-                <button id="scan-action-weed"
-                    class="flex items-center gap-4 p-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition group">
-                    <div
-                        class="bg-emerald-500 text-white p-3 rounded-full shadow-md group-hover:scale-110 transition-transform">
-                        <i data-lucide="sprout" class="h-6 w-6"></i>
-                    </div>
-                    <div class="text-left">
-                        <span class="block font-bold text-gray-800">Identify Weeds</span>
-                        <span class="block text-xs text-gray-500">AI Weed Analysis</span>
-                    </div>
-                </button>
-
-                <button id="scan-action-gallery"
-                    class="flex items-center gap-4 p-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition group">
-                    <div
-                        class="bg-purple-500 text-white p-3 rounded-full shadow-md group-hover:scale-110 transition-transform">
-                        <i data-lucide="image" class="h-6 w-6"></i>
-                    </div>
-                    <div class="text-left">
-                        <span class="block font-bold text-gray-800">Upload from Gallery</span>
-                        <span class="block text-xs text-gray-500">Pick from device</span>
-                    </div>
-                </button>
-                <input type="file" id="scan-gallery-input" accept="image/*" class="hidden">
-
-                <button id="scan-action-detail"
-                    class="flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition group">
-                    <div
-                        class="bg-slate-500 text-white p-3 rounded-full shadow-md group-hover:scale-110 transition-transform">
-                        <i data-lucide="file-text" class="h-6 w-6"></i>
-                    </div>
-                    <div class="text-left">
-                        <span class="block font-bold text-gray-800">View Details</span>
-                        <span class="block text-xs text-gray-500">Full trial data & history</span>
-                    </div>
-                </button>
-            </div>
-            <div class="px-5 py-3 border-t bg-slate-50 flex justify-center">
-                <button onclick="document.getElementById('scan-action-modal').classList.add('hidden')"
-                    class="text-slate-500 hover:text-slate-700 text-sm font-medium px-4 py-2">
-                    Cancel
-                </button>
-            </div>
-        </div>
-    </div>
-    <!-- Quick Action Modal End -->
-
-    <!-- Sidebar toggle script for mobile -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const menuToggle = document.getElementById('menu-toggle');
-            const sidebar = document.getElementById('sidebar');
-
-            if (menuToggle && sidebar) {
-                // Toggle sidebar on mobile
-                menuToggle.addEventListener('click', () => {
-                    sidebar.classList.toggle('open');
-                });
-
-                // Close sidebar when a navigation link is clicked on mobile
-                sidebar.addEventListener('click', (e) => {
-                    if (window.innerWidth < 768 && e.target.closest('a[data-page]')) {
-                        sidebar.classList.remove('open');
-                    }
-                });
-
-                // Close sidebar when clicking on the main content area on mobile
-                document.querySelector('main').addEventListener('click', () => {
-                    if (window.innerWidth < 768 && sidebar.classList.contains('open')) {
-                        sidebar.classList.remove('open');
-                    }
-                });
-            }
-        });
-    </script>
-
-    <!-- MAIN APPLICATION LOGIC -->
-    <script type="module">
-
+        import { GoogleGenAI, Type } from "@google/genai";
 
         document.addEventListener('DOMContentLoaded', () => {
             // Global Chart.js configuration for high-resolution exports
@@ -934,7 +8,7 @@
             }
             const loadingOverlay = document.getElementById('loading-overlay');
             const mainContent = document.getElementById('main-content');
-            
+
             // --- STATE MANAGEMENT ---
             let state = {
                 auth: {
@@ -1042,7 +116,7 @@
                     self.addEventListener('fetch', (e) => {
                         // Skip POST requests (like Google GAS API calls) from caching
                         if (e.request.method !== 'GET') return;
-                        
+
                         e.respondWith(
                             caches.match(e.request).then((response) => {
                                 return response || fetch(e.request).then((fetchRes) => {
@@ -1078,7 +152,7 @@
                 if (window.lucide) window.lucide.createIcons();
                 processSyncQueue();
             });
-            
+
             // CRITICAL FIX: Automatic periodic sync every 60 seconds if items are pending
             setInterval(() => {
                 if (!_isSyncProcessing && navigator.onLine && state.syncQueue && state.syncQueue.length > 0) {
@@ -2558,7 +1632,7 @@ IMPORTANT:
                 try {
                     // If date is provided and today, or if no date provided, get current weather
                     const isToday = !date || new Date(date).toDateString() === new Date().toDateString();
-                    
+
                     let url;
                     if (isToday) {
                         url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
@@ -2570,9 +1644,9 @@ IMPORTANT:
 
                     const response = await fetch(url);
                     if (!response.ok) throw new Error('Weather API request failed');
-                    
+
                     const data = await response.json();
-                    
+
                     if (isToday) {
                         return {
                             temp: Math.round(data.main.temp),
@@ -2609,13 +1683,13 @@ IMPORTANT:
                 const temp = parseFloat(trial.Temperature || trial.temperature || trial.temp);
                 const wind = parseFloat(trial.Windspeed || trial.windspeed || trial.wind);
                 const rain = parseFloat(trial.Rain || trial.rain);
-                
+
                 if (temp > 30) risks.push({ type: 'warning', message: 'Heat Stress Risk (>30°C). May reduce herbicide efficacy and consistency.' });
                 if (temp < 5) risks.push({ type: 'info', message: 'Cold Stress. Slow plant metabolism may delay herbicide action.' });
                 if (wind > 15) risks.push({ type: 'danger', message: `High Wind (${wind} km/h). Severe risk of spray drift to neighboring crops.` });
                 if (wind > 10 && wind <= 15) risks.push({ type: 'warning', message: 'Moderate Wind. Use low-drift nozzles.' });
                 if (rain > 0) risks.push({ type: 'danger', message: `Rain detected (${rain}mm). Herbicide wash-off likely if not rain-fast.` });
-                
+
                 // Historical audit from WeatherJSON if available
                 const weatherData = safeJsonParse(trial.WeatherJSON);
                 if (weatherData && (weatherData.hourly || weatherData.data)) {
@@ -5980,7 +5054,7 @@ IMPORTANT:
                                 </button>
                             </div>
                         </div>
-                        
+
                         <!-- AI RECOMMENDATION ENGINE -->
                         <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 mb-8 shadow-md">
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -6115,7 +5189,7 @@ IMPORTANT:
                                     <button data-action="export-professional-report" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-emerald-700 transition"><i data-lucide="file-text"></i> Export Scientific Report</button>
                                 </div>
                             </div>
-                            
+
                             <div id="compare-selection-warning" class="hidden flex-col items-center justify-center bg-white p-10 rounded-lg shadow-md text-center">
                                 <div class="bg-amber-100 p-4 rounded-full mb-4"><i data-lucide="alert-circle" class="h-10 w-10 text-amber-600"></i></div>
                                 <h3 class="text-lg font-bold text-gray-800">No Trials Selected</h3>
@@ -6132,7 +5206,7 @@ IMPORTANT:
                                             <h3 class="font-semibold text-slate-800 mb-3 border-b pb-2">Selected Trials</h3>
                                             <ul id="compare-selected-list" class="space-y-2 text-sm text-gray-600 max-h-48 overflow-y-auto"></ul>
                                         </div>
-                                        
+
                                         <div>
                                             <h3 class="font-semibold text-slate-800 mb-3 border-b pb-2">Chart Settings</h3>
                                             <div class="space-y-4">
@@ -6203,7 +5277,7 @@ IMPORTANT:
                                 </h2>
                                 <button data-action="clear-chat" class="text-sm bg-gray-200 px-3 py-1 rounded-md hover:bg-gray-300 transition-colors">Clear History</button>
                             </div>
-                            
+
                             <!-- AI Quick Prompts List -->
                             <div class="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide shrink-0">
                                 <button id="btn-prompt-optimizer" class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full hover:bg-emerald-100 whitespace-nowrap transition-colors flex items-center gap-1 font-medium shadow-sm">
@@ -6220,12 +5294,12 @@ IMPORTANT:
                             <div id="ai-chat-box" class="border rounded-lg p-4 overflow-y-auto mb-4 bg-gray-50 flex flex-col gap-4 flex-grow relative">
                                 <!-- Chat history renders here. Chart.js canvases will be injected inside message bubbles -->
                             </div>
-                            
+
                             <div id="ai-image-preview-container" class="relative hidden w-20 mb-2 shrink-0">
                                 <img id="ai-image-preview" class="h-20 w-20 object-cover rounded-md border shadow-sm">
                                 <button data-action="remove-ai-image" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold shadow hover:bg-red-600 transition-colors">&times;</button>
                             </div>
-                            
+
                             <form id="ai-form" class="flex gap-3 shrink-0">
                                 <input type="file" id="ai-image-input" class="hidden" accept="image/*">
                                 <button type="button" data-action="attach-ai-image" class="p-3 border rounded-lg bg-white hover:bg-gray-50 text-gray-600 shadow-sm transition-colors flex items-center justify-center" title="Attach Image">
@@ -6385,7 +5459,7 @@ IMPORTANT:
                                 <div>
                                     <h2 class="text-xl font-semibold text-gray-700 mb-4">AI Integration (Gemini)</h2>
                                     <p class="mt-1 text-sm text-gray-600">Add one or more Google Gemini API keys. The app will automatically rotate to the next key if one exceeds its free quota.</p>
-                                    
+
                                     <!-- API Model Selection -->
                                     <div class="mb-4 mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
@@ -6446,7 +5520,7 @@ IMPORTANT:
                                         <button type="button" data-action="test-all-api-keys" class="text-sm bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-md hover:bg-indigo-200 font-semibold flex items-center gap-1"><i data-lucide="list-checks" class="h-4 w-4"></i> Test All Keys</button>
                                     </div>
                                     <div id="api-key-test-results" class="mt-4"></div>
-                                    
+
                                     <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                                         <h4 class="text-sm font-semibold text-amber-800 mb-2">API Quota Saver</h4>
                                         <div class="flex items-center gap-3">
@@ -6506,7 +5580,7 @@ IMPORTANT:
                                         <div class="md:col-span-2">
                                             <label class="block text-sm font-medium text-gray-700">Drive Photo Folder URL</label>
                                             <input type="url" id="folder-url" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 form-input" placeholder="https://drive.google.com/drive/folders/...">
-                                            
+
                                             <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                                                     <div class="flex items-center justify-between gap-4">
@@ -6564,7 +5638,7 @@ IMPORTANT:
                                     </div>
                                 </div>
                             </form>
-                            
+
                             <div class="border-t pt-8">
                                 <h3 class="text-lg font-medium text-gray-900">Troubleshooting</h3>
                                 <p class="mt-1 text-sm text-gray-600">If you are experiencing issues, clear the application cache and perform a hard reload.</p>
@@ -6709,9 +5783,9 @@ IMPORTANT:
                         trialDetail: () => {
                             const { trial } = data;
                             if (!trial) return '';
-                            
+
                             const climateAlerts = window.runClimateAudit ? window.runClimateAudit(trial) : [];
-                            const alertsHtml = climateAlerts.length > 0 
+                            const alertsHtml = climateAlerts.length > 0
                                 ? `<div class="bg-red-50 border border-red-200 p-4 rounded-lg mb-6 shadow-sm"><h4 class="text-red-800 font-bold flex items-center gap-2 mb-2"><i data-lucide="alert-triangle" class="h-5 w-5"></i> Climate Guard Alerts</h4><ul class="list-disc list-inside text-sm text-red-700 space-y-1">${climateAlerts.map(a => `<li><strong>${a.type}:</strong> ${a.message}</li>`).join('')}</ul></div>`
                                 : `<div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg mb-6 flex items-center gap-2 text-emerald-800 text-sm shadow-sm"><i data-lucide="shield-check" class="h-5 w-5"></i> <strong>Climate Guard:</strong> Optimal application conditions detected.</div>`;
 
@@ -6817,7 +5891,7 @@ IMPORTANT:
                                 }
 
                                 statsContent = `<div class="p-4">${wceTable}${anovaContent}${lsdContent}`;
-                                
+
                                 if (stats.tukeyResults && stats.tukeyResults.groupings) {
                                     const tukeyContent = `<div class="mb-6"><h4 class="text-md font-bold text-slate-800 mb-2">Detailed Groupings (Tukey HSD)</h4><p class="text-xs text-gray-500 mb-2">Alpha = ${stats.tukeyResults.alpha}, HSD = ${Number.isFinite(stats.tukeyResults.hsd) ? stats.tukeyResults.hsd.toFixed(2) : '-'}</p><div class="overflow-x-auto border rounded-lg"><table class="min-w-full divide-y divide-gray-200 text-sm"><thead class="bg-slate-50"><tr><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Treatment</th><th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Mean WCE</th><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Group</th></tr></thead><tbody class="divide-y divide-gray-200 bg-white">${stats.tukeyResults.groupings.map(g => `<tr><td class="px-3 py-2 font-medium">${sanitizeHTML(g.name)}</td><td class="px-3 py-2 text-right">${Number.isFinite(g.mean) ? g.mean.toFixed(2) : '-'}%</td><td class="px-3 py-2 font-bold text-indigo-700">${g.grouping}</td></tr>`).join('')}</tbody></table></div></div>`;
                                     statsContent += tukeyContent;
@@ -6836,7 +5910,7 @@ IMPORTANT:
                                     </div>
                                 </div>
                                 <div class="flex-grow overflow-y-auto pr-4">
-                                    
+
                                     <!-- REPORT TAB -->
                                     <div id="trial-detail-report" class="trial-detail-content">
                                         ${alertsHtml}
@@ -7026,7 +6100,7 @@ IMPORTANT:
                                                 </div>
                                             </div>
                                         </div>
-                                        <button onclick="window.viewUserData('${u.ID}', '${sanitizeHTML(u.Username)}')" 
+                                        <button onclick="window.viewUserData('${u.ID}', '${sanitizeHTML(u.Username)}')"
                                             class="${isCurrentView ? 'bg-amber-100 text-amber-700' : 'text-emerald-600 hover:bg-emerald-100'} p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold ring-1 ring-emerald-600/20">
                                             <i data-lucide="${isCurrentView ? 'check-circle' : 'eye'}" class="w-4 h-4"></i> ${isCurrentView ? 'Viewing' : 'View Data'}
                                         </button>
@@ -7071,13 +6145,13 @@ IMPORTANT:
                 dashboard: () => {
                     Object.values(state.charts).forEach(chart => { if (chart) chart.destroy() });
                     state.charts = {};
-                    
+
                     // Admin View filtering for dashboard
                     let trials = state.trials || [];
                     if (state.auth?.Role === 'Admin' && state.adminViewUserId) {
                         trials = trials.filter(t => String(t.CreatedBy || '').trim() === String(state.adminViewUserId));
                     }
-                    
+
                     const formulations = state.formulations || [];
                     document.getElementById('total-trials').textContent = String(trials.length);
                     document.getElementById('completed-trials').textContent = String(trials.filter(t => String(t.IsCompleted).toLowerCase() === 'true').length);
@@ -7649,18 +6723,18 @@ IMPORTANT:
                         showToast('Generating Statistical Report PDF...', 'info');
                         const { jsPDF } = window.jspdf;
                         const doc = createPdfDoc('p', 'mm', 'a4');
-                        
+
                         doc.setFontSize(22);
                         doc.setTextColor(15, 118, 110);
                         doc.text('Advanced Herbicide Analytics Report', 20, 25);
-                        
+
                         doc.setFontSize(10);
                         doc.setTextColor(100);
                         doc.text(`Generated on ${new Date().toLocaleString()} | Formula: Multi-Factor Stats v2.0`, 20, 32);
 
                         let yPos = 45;
                         const chartCanvasIds = ['chart-efficacy-formulation', 'chart-yield-dist', 'chart-radar-perf'];
-                        
+
                         for (const id of chartCanvasIds) {
                             const canvas = document.getElementById(id);
                             if (canvas) {
@@ -7764,13 +6838,13 @@ IMPORTANT:
                                         </div>
                                         <button data-action="toggle-live-status" data-id="${trial.ID}" class="text-[10px] ${String(trial.IsLive).toLowerCase() !== 'false' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-green-50 text-green-700 border-green-200'} px-2 py-0.5 border rounded font-bold hover:opacity-80 transition">${String(trial.IsLive).toLowerCase() !== 'false' ? 'Deactivate' : 'Activate'}</button>
                                     </div>
-                                    
+
                                     ${(() => {
                                         const soilData = safeJsonParse(trial.SoilDataJSON, {});
                                         const ph = trial.SoilPH || soilData.ph;
                                         const texture = trial.SoilTexture || soilData.texture;
                                         const oc = trial.SoilOC || soilData.organicCarbon;
-                                        
+
                                         if (ph || texture || oc) {
                                             return `<div class="mt-4 p-2 bg-amber-50/50 rounded-lg border border-amber-100/50 flex items-center gap-3 text-[11px]">
                                                 <div class="flex items-center gap-1 text-amber-800 font-bold">
@@ -7821,7 +6895,7 @@ IMPORTANT:
                             // Show ALL identified weeds, not just the first one
                             identificationHTML = p.identifications.map((weed, i) => `
                                 <div class="text-left border-b border-gray-100 pb-1 mb-1 ${i > 0 ? 'mt-2' : ''}">
-                                    <p class="font-semibold text-sm text-gray-800">${sanitizeHTML(weed.name)} 
+                                    <p class="font-semibold text-sm text-gray-800">${sanitizeHTML(weed.name)}
                                         <em class="text-gray-500 font-normal text-xs">${sanitizeHTML(weed?.commonNames?.[0]) || ''}</em>
                                     </p>
                                     <p class="text-xs text-gray-500">Confidence: ${((weed.confidence || 0) * 100).toFixed(1)}%${weed.growthStage ? ` - ${sanitizeHTML(weed.growthStage)}` : ''}</p>
@@ -7887,7 +6961,7 @@ IMPORTANT:
                                                 <i id="icon-${pid}" data-lucide="chevron-down" class="h-6 w-6 transition-transform duration-300"></i>
                                             </div>
                                         </div>
-                                        
+
                                         <!-- Accordion Body / Plots Grid -->
                                         <div id="content-${pid}" class="hidden border-t border-slate-100 bg-slate-50/50 p-6">
                                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
@@ -7922,10 +6996,10 @@ IMPORTANT:
                     const rcbdContainer = document.getElementById('trials-list-rcbd');
 
                     // Remove old listeners to prevent duplicates (not strictly necessary with replace, but good practice)
-                    // Actually, simpler to just re-query and re-attach or check if attached. 
+                    // Actually, simpler to just re-query and re-attach or check if attached.
                     // Since this function runs on every render, adding listeners repeatedly is bad.
-                    // Better to delegate or attach once. 
-                    // BUT: tabs are in the template, so they are re-rendered? 
+                    // Better to delegate or attach once.
+                    // BUT: tabs are in the template, so they are re-rendered?
                     // Wait, templates.trials is rendered ONCE when switching TO the page.
                     // render.trials is called to populate data.
                     // The tabs are in the TEMPLATE. The template is rendered in `switchPage`.
@@ -8086,13 +7160,13 @@ IMPORTANT:
                 projects: () => {
                     const el = document.getElementById('projects-list');
                     if (!el) return;
-                    
+
                     // Admin View filtering for projects
                     let projects = state.projects || [];
                     if (state.auth?.Role === 'Admin' && state.adminViewUserId) {
                         projects = projects.filter(p => String(p.CreatedBy || '').trim() === String(state.adminViewUserId));
                     }
-                    
+
                     el.innerHTML = projects.length > 0
                         ? projects.map(p => render.projectCard(p)).join('')
                         : `<div class="col-span-full text-center py-12 bg-white rounded-xl border-2 border-dashed border-slate-200">
@@ -8390,7 +7464,7 @@ IMPORTANT:
                         analysisSection.innerHTML = `
                             <div class="flex flex-col gap-6">
                                 <h3 class="text-2xl font-bold text-slate-800 border-b pb-4">Statistical Analysis Results</h3>
-                                
+
                                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                                         <h4 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
@@ -8651,7 +7725,7 @@ IMPORTANT:
                                          <canvas id="project-species-chart"></canvas>
                                      </div>
                                  </div>
-                                 
+
                                  <!-- NEW: Weed Spectrum Radar -->
                                  <div>
                                       <h4 class="text-sm font-semibold text-slate-500 mb-4 text-center">Weed Control Spectrum (Efficacy %)</h4>
@@ -8669,7 +7743,7 @@ IMPORTANT:
                                      </div>
                                  </div>
                              </div>
-                             
+
                              <!-- Extra Row for Radar & Yield -->
                              <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mt-8 border-t pt-8">
                                  <!-- Weed Spectrum Radar -->
@@ -8779,7 +7853,7 @@ IMPORTANT:
                                         <i data-lucide="save" class="h-4 w-4"></i> Save Narrative
                                     </button>
                                  </div>
-                                 
+
                                  <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                                     <h3 class="text-sm font-bold text-slate-500 uppercase mb-4">Trial Statistics</h3>
                                     <div class="space-y-4">
@@ -8789,16 +7863,16 @@ IMPORTANT:
                                         </div>
                                          <div class="flex justify-between items-center">
                                             <span id="posthoc-stat-label" class="text-slate-600">${(results.postHoc?.method === 'tukey') ? 'HSD (0.05)' : 'LSD (0.05)'}</span>
-                                            <span id="posthoc-stat-value" class="font-bold text-slate-800">${(results.postHoc && typeof results.postHoc.value === 'number' && isFinite(results.postHoc.value)) ? results.postHoc.value.toFixed(2) : '-'}</span> 
+                                            <span id="posthoc-stat-value" class="font-bold text-slate-800">${(results.postHoc && typeof results.postHoc.value === 'number' && isFinite(results.postHoc.value)) ? results.postHoc.value.toFixed(2) : '-'}</span>
                                         </div>
                                          ${(results.postHoc?.method === 'tukey' && results.postHoc?.qCrit) ? `
                                          <div class="flex justify-between items-center">
                                             <span class="text-slate-600">q critical</span>
-                                            <span class="font-bold text-slate-800">${Number.isFinite(results.postHoc?.qCrit) ? results.postHoc.qCrit.toFixed(3) : '-'}</span> 
+                                            <span class="font-bold text-slate-800">${Number.isFinite(results.postHoc?.qCrit) ? results.postHoc.qCrit.toFixed(3) : '-'}</span>
                                          </div>` : ''}
                                          <div class="flex justify-between items-center">
                                             <span class="text-slate-600">Design</span>
-                                            <span class="font-bold text-slate-800">${results.balance && results.balance.isBalanced ? 'Balanced RCBD' : 'Unbalanced RCBD (robust ANOVA)'}</span> 
+                                            <span class="font-bold text-slate-800">${results.balance && results.balance.isBalanced ? 'Balanced RCBD' : 'Unbalanced RCBD (robust ANOVA)'}</span>
                                          </div>
                                     </div>
                                  </div>
@@ -9033,7 +8107,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     return `
                 <div class="w-48 flex-shrink-0 ${bgColor} border-2 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer relative overflow-hidden" onclick="openTrialDetail('${t.ID}')">
                             <div class="absolute top-0 left-0 w-1 h-full ${ribbonColor}"></div>
-                            
+
                             <!-- 3-Dot Menu -->
                             <div class="absolute top-2 right-2 z-10">
                                 <button onclick="event.stopPropagation(); toggleTrialMenu('${t.ID}')" class="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100">
@@ -9053,7 +8127,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div class="flex justify-between items-start mb-1">
                                 <span class="text-[10px] font-bold text-slate-400">PLOT ${t.RandomizationOrder || t.PlotNumber || (safeJsonParse(t.AISummariesJSON)?.plotNum) || '?'}</span>
                                 ${treatmentLabel}
@@ -9293,7 +8367,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
             async function apiCall(action, payload = {}, showOverlay = true) {
                 const OFFLINE_ACTIONS = ['addTrial', 'createTrialRecord', 'updateTrialRecord', 'updateTrialStatus', 'addFormulation', 'addIngredient', 'finalizeTrial', 'addBatchTrials', 'updateProject', 'addBlock'];
-                
+
                 const queueItem = (errType, msg) => {
                     if (OFFLINE_ACTIONS.includes(action)) {
                         const queuedAction = {
@@ -9323,9 +8397,9 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     return new Promise((resolve, reject) => {
                         if (showOverlay) loadingOverlay.classList.remove('hidden');
                         try {
-                            const fullPayload = { 
-                                ...payload, 
-                                spreadsheetId: state.settings.sheetId, 
+                            const fullPayload = {
+                                ...payload,
+                                spreadsheetId: state.settings.sheetId,
                                 folderId: getEffectiveFolderId(),
                                 auth: state.auth
                             };
@@ -9349,9 +8423,9 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
                 if (showOverlay) loadingOverlay.classList.remove('hidden');
                 try {
-                    const fullPayload = { 
-                        ...payload, 
-                        spreadsheetId: state.settings.sheetId, 
+                    const fullPayload = {
+                        ...payload,
+                        spreadsheetId: state.settings.sheetId,
                         folderId: getEffectiveFolderId()
                     };
                     const res = await fetch(String(state.settings.scriptUrl).replace(/\s/g, ''), {
@@ -9618,7 +8692,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             window.viewUserData = (userId, username) => {
                 state.adminViewUserId = userId;
                 state.adminViewUsername = username;
-                
+
                 // Persist to localStorage
                 localStorage.setItem('adminViewUserId', userId);
                 localStorage.setItem('adminViewUsername', username);
@@ -9628,7 +8702,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 const label = document.getElementById('admin-viewing-user-name');
                 if (banner) banner.classList.remove('hidden');
                 if (label) label.textContent = username;
-                
+
                 showToast(`Viewing data as: ${username}`, 'success');
                 switchPage('dashboard');
             };
@@ -9636,7 +8710,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
             window.clearAdminView = () => {
                 state.adminViewUserId = null;
                 state.adminViewUsername = null;
-                
+
                 // Clear from localStorage
                 localStorage.removeItem('adminViewUserId');
                 localStorage.removeItem('adminViewUsername');
@@ -9644,7 +8718,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 // Hide Global Banner
                 const banner = document.getElementById('admin-view-status');
                 if (banner) banner.classList.add('hidden');
-                
+
                 showToast('Returned to your own data view', 'info');
                 switchPage('dashboard');
             };
@@ -9682,7 +8756,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 }
             }
 
-            // DELETED: Redundant version of setupTrialModalLogic. 
+            // DELETED: Redundant version of setupTrialModalLogic.
             // single-trial chart rendering is handled by renderSingleTrialCharts or specifically in detail views.
 
             function showConfirmation(title, message, onConfirm) {
@@ -10166,7 +9240,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         };
 
                         recordForApi = {
-                            ID: id, InvestigatorName: formData.investigatorName, Location: formData.location, 
+                            ID: id, InvestigatorName: formData.investigatorName, Location: formData.location,
                             Lat: formData.lat || null, Lon: formData.lon || null,
                             WeatherJSON: formData.weatherJSON || null,
                             FormulationID: formData.formulationId, FormulationName: formulation ? formulation.Name : 'Unknown', Dosage: formData.dosage,
@@ -10448,7 +9522,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     form.querySelector('[name="humidity"]').value = data.Humidity || '';
                     form.querySelector('[name="windspeed"]').value = data.Windspeed || '';
                     form.querySelector('[name="rain"]').value = data.Rain || '';
-                    
+
                     // Populate Soil Inputs
                     const soilData = safeJsonParse(data.SoilDataJSON, {});
                     const soilPanel = form.querySelector('#soil-data-panel');
@@ -11031,7 +10105,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
                 // CRITICAL FIX: Generate truly unique ID (Date.now() can duplicate in fast clicks!)
                 const uniqueTempId = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                
+
                 const photoData = {
                     fileData: croppedImageData,
                     fileName: `cropped_${Date.now()}.jpg`,
@@ -11044,7 +10118,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
                 if (trialId) {
                     const trial = state.trials.find(t => t.ID === trialId);
-                    
+
                     // CRITICAL FIX: Check if photo with same tempId already exists in queue (prevent duplicate sync items)
                     const alreadyInQueue = state.syncQueue.some(s => s.photo.tempId === uniqueTempId || (s.trialId === trialId && s.photo.date === photoDate && Math.abs(Date.now() - new Date(s.photo.date).getTime()) < 100));
                     if (alreadyInQueue) {
@@ -11053,7 +10127,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                         closeCropper();
                         return;
                     }
-                    
+
                     // CRITICAL FIX: Check if photo already in trial array (prevent duplicate trial entries)
                     if (trial) {
                         const photoArray = currentCameraMode === 'weed' ? safeJsonParse(trial.WeedPhotosJSON) : safeJsonParse(trial.PhotoURLs);
@@ -11065,7 +10139,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             return;
                         }
                     }
-                    
+
                     const syncItem = {
                         id: `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                         trialId: trialId,
@@ -11113,7 +10187,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
 
             async function openCamera(trialId = null) {
                 state.currentTrialIdForCamera = trialId;
-                
+
                 // 1. Secure Context Check (HTTPS/Localhost required)
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     console.error("Camera API unavailable. Protocol:", window.location.protocol);
@@ -11128,7 +10202,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 // 2. Fetch references locally to be safe
                 const modal = document.getElementById('camera-modal-fixed');
                 const video = document.getElementById('camera-stream');
-                
+
                 if (!modal || !video) {
                     console.error("Camera DOM elements not found!");
                     return showToast("Critical UI Error: Camera elements missing.", "error");
@@ -11138,7 +10212,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     // 3. Show modal
                     modal.classList.remove('hidden');
                     modal.style.display = 'flex';
-                    
+
                     const constraints = {
                         video: {
                             facingMode: { ideal: 'environment' },
@@ -11154,7 +10228,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             video.srcObject = stream;
                             video.setAttribute("playsinline", true);
                             await video.play();
-                            
+
                             if (window.lucide) window.lucide.createIcons();
                         } catch (err) {
                             console.warn("Camera attempt failed:", currentConstraints, err);
@@ -11162,7 +10236,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                             if (currentConstraints.video.width) {
                                 console.log("Retrying with standard resolution...");
                                 await startCamera({ video: { facingMode: { ideal: 'environment' } } });
-                            } 
+                            }
                             // Fallback 2: Try any camera
                             else if (currentConstraints.video.facingMode) {
                                 console.log("Retrying with generic camera...");
@@ -11188,8 +10262,8 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                 const modal = document.getElementById('camera-modal-fixed');
                 const video = document.getElementById('camera-stream');
 
-                if (cameraStream) { 
-                    cameraStream.getTracks().forEach(track => track.stop()); 
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
                     cameraStream = null;
                 }
 
@@ -11197,7 +10271,7 @@ Write a 3-paragraph Narrative covering Methodology, Results and Conclusions. Foc
                     modal.classList.add('hidden');
                     modal.style.display = 'none';
                 }
-                
+
                 if (video) {
                     video.pause();
                     video.srcObject = null;
@@ -12116,11 +11190,11 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         try {
                             const efficacyData = safeJsonParse(trial.EfficacyDataJSON, []);
                             const newDaa = window.calculateDAA(newDate, trial.Date);
-                            
+
                             // Find and update efficacy observations that match this photo's old date
                             const oldPhotoDateStr = oldDate ? window.toDateKey(oldDate) : null;
                             const newPhotoDateStr = newDate ? window.toDateKey(newDate) : null;
-                            
+
                             let updated = false;
                             efficacyData.forEach(obs => {
                                 // Match by date and optional photoUrl if available
@@ -12132,7 +11206,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                     console.log(`[Photo Date Update] Recalculated DAA for observation: ${newPhotoDateStr} -> DAA ${obs.daa}`);
                                 }
                             });
-                            
+
                             if (updated) {
                                 trial.EfficacyDataJSON = JSON.stringify(efficacyData);
                             }
@@ -12190,8 +11264,8 @@ Respond ONLY with a single minified JSON object in this format: {"identification
 
                     // Background Sync
                     // We do NOT wait for this to finish before closing UI
-                    apiCall('updateTrialRecord', { 
-                        ID: trialId, 
+                    apiCall('updateTrialRecord', {
+                        ID: trialId,
                         PhotoURLs: trial.PhotoURLs,
                         EfficacyDataJSON: trial.EfficacyDataJSON // Also sync updated DAA values
                     }, false)
@@ -12295,7 +11369,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     }
                 });
             }
-            
+
             // --- AUTHENTICATION FUNCTIONS ---
             function checkSession() {
                 const savedAuth = localStorage.getItem('herbicide_auth');
@@ -12322,7 +11396,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 const userVal = document.getElementById('login-username').value;
                 const passVal = document.getElementById('login-password').value;
                 const errorEl = document.getElementById('login-error');
-                
+
                 if (!userVal || !passVal) {
                     const errText3 = document.getElementById('login-error-text') || errorEl;
                     errText3.textContent = 'Please enter both username and password.';
@@ -12342,7 +11416,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         return;
                     }
                     const result = await apiCall('login', { username: userVal, password: passVal }, false);
-                    
+
                     // Backend returns the user object directly (ID, Username, Role, Name)
                     // OR an error object with _errType if login failed
                     if (result && result.ID && !result._errType) {
@@ -12351,12 +11425,12 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                             expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
                         };
                         applyUserScopedConfigFromAuth();
-                        
+
                         localStorage.setItem('herbicide_auth', JSON.stringify(state.auth));
                         document.getElementById('login-overlay').classList.add('hidden');
                         updateUserUI();
                         showToast('Login successful! Welcome, ' + (result.Name || result.Username) + '!', 'success');
-                        
+
                         // Proceed with app initialization
                         await initializeApp(true);
                     } else {
@@ -12379,11 +11453,11 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 state.auth = { user: null, token: null };
                 state.adminViewUserId = null;
                 state.adminViewUsername = null;
-                
+
                 // Hide and Reset Global Banner
                 const banner = document.getElementById('admin-view-status');
                 if (banner) banner.classList.add('hidden');
-                
+
                 localStorage.removeItem('herbicide_auth');
                 localStorage.removeItem('adminViewUserId');
                 localStorage.removeItem('adminViewUsername');
@@ -12416,7 +11490,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                 } else {
                     if (profileSection) profileSection.classList.add('hidden');
                 }
-                
+
                 // Show Admin sidebar section
                 const adminSection = document.getElementById('admin-sidebar-section');
                 if (adminSection) {
@@ -12450,7 +11524,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
             document.addEventListener('DOMContentLoaded', () => {
                 const loginForm = document.getElementById('login-form');
                 if (loginForm) loginForm.addEventListener('submit', handleLogin);
-                
+
                 const logoutBtn = document.getElementById('logout-btn');
                 if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
             });
@@ -12480,7 +11554,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     const savedQueue = localStorage.getItem('herbicide_sync_queue');
                     if (savedQueue) {
                         state.syncQueue = JSON.parse(savedQueue);
-                        
+
                         // CRITICAL FIX: Deduplicate queue on startup
                         // Remove duplicate sync items for the same photo (keep first, remove rest)
                         const seenTempIds = new Set();
@@ -12498,7 +11572,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                             console.log(`[Dedup] Removed ${originalLength - state.syncQueue.length} duplicate items from queue`);
                             saveSyncQueue();
                         }
-                        
+
                         // Reset any 'uploading' or 'processing' states to 'pending' as we are starting fresh
                         state.syncQueue.forEach(s => {
                             if (s.status === 'uploading' || s.status === 'processing') s.status = 'pending';
@@ -12880,7 +11954,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                         showToast('AI report generated successfully!', 'success');
                         applyFilters(); // Refresh UI
                     } else if (efficacyWasGenerated) {
-                        // Saved efficacy but failed summary step maybe? 
+                        // Saved efficacy but failed summary step maybe?
                         // Just saving trial record in updateTrialAISummaries handles saving, but if we didn't call it...
                         const payload = { id: trial.ID, EfficacyDataJSON: trial.EfficacyDataJSON, AISummariesJSON: '{}' };
                         await apiCall('updateTrialRecord', payload, false);
@@ -13185,34 +12259,34 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                 showToast('Scanning Drive folder for photos...', 'info');
                                 const trial = state.trials.find(t => t.ID === id);
                                 if (!trial) return showToast('Trial not found', 'error');
-                                
-                                const result = await apiCall('listTrialPhotosFromDrive', { 
+
+                                const result = await apiCall('listTrialPhotosFromDrive', {
                                     trialId: id,
                                     formulation: trial.FormulationName,
                                     date: trial.Date
                                 }, false);
-                                
+
                                 if (result._errType) {
                                     showToast(`Failed to scan Drive: ${result.message}`, 'error');
                                     return;
                                 }
-                                
+
                                 if (!result.photos || result.photos.length === 0) {
                                     showToast('No photos found in Drive folder', 'warning');
                                     return;
                                 }
-                                
+
                                 // Filter out files that might not be images
                                 const images = result.photos.filter(f => /\.(jpg|jpeg|png|gif|webp)$/i.test(f.name));
                                 if (images.length === 0) {
                                     showToast('No image files found in Drive folder', 'warning');
                                     return;
                                 }
-                                
+
                                 // Update PhotoURLs with found images
                                 const photoURLs = safeJsonParse(trial.PhotoURLs, []);
                                 const existingUrls = new Set(photoURLs.map(p => p.url));
-                                
+
                                 let addedCount = 0;
                                 images.forEach(img => {
                                     const webViewUrl = `https://drive.google.com/uc?id=${img.id}`;
@@ -13228,12 +12302,12 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                         addedCount++;
                                     }
                                 });
-                                
+
                                 if (addedCount > 0) {
                                     trial.PhotoURLs = JSON.stringify(photoURLs);
-                                    await apiCall('updateTrialRecord', { 
-                                        ID: trial.ID, 
-                                        PhotoURLs: trial.PhotoURLs 
+                                    await apiCall('updateTrialRecord', {
+                                        ID: trial.ID,
+                                        PhotoURLs: trial.PhotoURLs
                                     }, false);
                                     showToast(`Successfully imported ${addedCount} photo(s) from Drive!`, 'success');
                                     applyFilters(); // Refresh display
@@ -13262,7 +12336,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                             if (latInput) latInput.value = coords.lat;
                             if (lonInput) lonInput.value = coords.lon;
                             showToast('Location captured with high accuracy!', 'success');
-                            
+
                             // Auto-fetch soil data for this new location
                             fetchSoilData(coords.lat, coords.lon);
                         }),
@@ -13694,15 +12768,15 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                 let btn = document.querySelector(`button[data-action="analyze-general-photo-weeds"][data-trial-id="${trialId}"][data-photo-index="${photoIdx}"]`);
                                 if (!btn) btn = target; // Fallback to target if not found
                                 if (!btn) throw new Error('Cannot find button element for this photo');
-                                
+
                                 const btnText = btn.textContent.trim();
                                 btn.disabled = true;
                                 btn.style.opacity = '0.6';
                                 btn.textContent = 'Analyzing...';
                                 btn.style.cursor = 'not-allowed';
-                                
+
                                 const result = await analyzeGeneralPhotoWeeds(trialId, { index: photoIdx });
-                                
+
                                 if (result && result.length > 0) {
                                     btn.textContent = 'Re-check Weeds';
                                     showToast(`Identified ${result.length} weed species in photo.`, 'success');
@@ -13710,7 +12784,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                                     btn.textContent = btnText;
                                     showToast('No weeds detected in this photo.', 'info');
                                 }
-                                
+
                                 // Refresh the trial detail to show updated status
                                 openTrialDetail(trialId);
                             } catch (err) {
@@ -15331,7 +14405,7 @@ If early reduction is followed by rebound, explicitly describe this as "Fast Bur
                     : '';
 
                 const narrativeContext = `Generate a professional, human-like technical executive summary for an individual herbicide trial report.
-                
+
 Trial: ${trial.FormulationName}
 Investigator: ${trial.InvestigatorName || 'N/A'}
 Date: ${trialDate}
@@ -15362,8 +14436,8 @@ SCIENTIFIC INTEGRITY RULES (MANDATORY):
 8. If individual species WCE contradicts aggregate WCE, flag the inconsistency and defer to per-species data.
 
 Style Guidelines:
-- Tone: Formal, objective, senior agronomist. 
-- Format: Plain text only. DO NOT use markdown symbols like **, *, #, or hashes. 
+- Tone: Formal, objective, senior agronomist.
+- Format: Plain text only. DO NOT use markdown symbols like **, *, #, or hashes.
 - Headers: Place "Methodology", "Results", and "Conclusions" on their own lines (no surrounding symbols).
 - Interaction: Avoid all AI conversational filler (e.g., "Certainly," "Here is"). Write as a human professional.`;
 
@@ -17523,10 +16597,10 @@ Style Guidelines:
                     `;
 
                     // Attempt to use a model - defaulting to a fast one if possible, or iterating
-                    // Since MultiProviderAI handles iteration, we just need a standard "text generation" method if exposed, 
-                    // or we can use a specific provider flow. 
-                    // Assuming MultiProviderAI has a generic 'generateText' or we can repurpose 'analyzePhoto' 
-                    // Wait, MultiProviderAI seems designed for photos. 
+                    // Since MultiProviderAI handles iteration, we just need a standard "text generation" method if exposed,
+                    // or we can use a specific provider flow.
+                    // Assuming MultiProviderAI has a generic 'generateText' or we can repurpose 'analyzePhoto'
+                    // Wait, MultiProviderAI seems designed for photos.
                     // Let's add a generic text generation method to MultiProviderAI or use 'callGroq' etc directly if we have keys.
                     // Actually, looking at MultiProviderAI, it has 'generateText' method!
 
@@ -20404,7 +19478,7 @@ Style Guidelines:
             }
 
             // --- MISSING HELPERS ---
-            
+
             async function fetchWithRetry(url, options = {}, retries = 3, backoff = 1000) {
                 for (let i = 0; i < retries; i++) {
                     try {
@@ -20438,9 +19512,9 @@ Style Guidelines:
                 }
 
                 showToast('Fetching soil data...', 'info');
-                
+
                 let result = null;
-                
+
                 // 1. TRY TERTIARY (PREMIUM): Ag-Analytics (if key provided)
                 if (state.settings.agAnalyticsKey) {
                     try {
@@ -20500,7 +19574,7 @@ Style Guidelines:
                             const s = data.soil || data;
                             const chemical = s.chemical || s.chemical_properties || {};
                             const physical = s.physical || s.physical_properties || {};
-                            
+
                             result = {
                                 ph: chemical.ph || chemical.ph_value || null,
                                 clay: physical.clay || physical.clay_percentage || null,
@@ -20515,10 +19589,10 @@ Style Guidelines:
 
                 if (result) {
                     // Normalize and populate
-                    const soilData = { 
-                        ph: result.ph ? parseFloat(result.ph).toFixed(1) : '-', 
-                        clay: result.clay ? parseFloat(result.clay).toFixed(1) : '-', 
-                        sand: result.sand ? parseFloat(result.sand).toFixed(1) : '-', 
+                    const soilData = {
+                        ph: result.ph ? parseFloat(result.ph).toFixed(1) : '-',
+                        clay: result.clay ? parseFloat(result.clay).toFixed(1) : '-',
+                        sand: result.sand ? parseFloat(result.sand).toFixed(1) : '-',
                         organicCarbon: result.oc ? parseFloat(result.oc).toFixed(1) : '-',
                         texture: result.texture || calculateTextureClass(result.clay, result.sand),
                         provider: result.provider,
@@ -20556,7 +19630,7 @@ Style Guidelines:
 
                 const ids = ['soil-ph', 'soil-clay', 'soil-sand', 'soil-oc', 'soil-texture'];
                 const keys = ['ph', 'clay', 'sand', 'organicCarbon', 'texture'];
-                
+
                 ids.forEach((id, i) => {
                     const el = document.getElementById(id);
                     if (el) el.textContent = soilData[keys[i]] || '-';
@@ -20567,7 +19641,7 @@ Style Guidelines:
             }
 
             async function fetchWeather(lat, lon, date) {
-                let url = ''; 
+                let url = '';
                 try {
                     const latNum = parseFloat(lat);
                     const lonNum = parseFloat(lon);
@@ -20740,7 +19814,7 @@ Style Guidelines:
 
                 if (lat && lon) {
                     showToast('Syncing Field Conditions (Weather & Soil)...', 'info');
-                    
+
                     // 1. Weather
                     const w = await fetchWeather(lat, lon, date);
                     if (w) {
@@ -20764,18 +19838,18 @@ Style Guidelines:
                         if (soil) {
                             const soilPanel = document.getElementById('soil-data-panel');
                             if (soilPanel) soilPanel.classList.remove('hidden');
-                            
+
                             const setSoil = (name, val) => {
                                 const el = document.querySelector(`[name="${name}"]`);
                                 if (el) el.value = val || '';
                             };
-                            
+
                             setSoil('soilPH', soil.ph);
                             setSoil('soilClay', soil.clay);
                             setSoil('soilSand', soil.sand);
                             setSoil('soilOC', soil.organicCarbon);
                             setSoil('soilTexture', soil.texture);
-                            
+
                             const soilJsonField = document.querySelector('[name="soilDataJSON"]');
                             if (soilJsonField) soilJsonField.value = JSON.stringify(soil);
                         }
@@ -20995,7 +20069,7 @@ Style Guidelines:
             async function fetchPhotoAsBase64(url) {
                 try {
                     console.log(`[Photo Fetch] Starting fetch for: ${url}`);
-                    
+
                     // Convert Google Drive /view URLs to download-friendly format
                     let fetchUrl = url;
                     const driveViewMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9-_]+)/);
@@ -21005,7 +20079,7 @@ Style Guidelines:
                         fetchUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
                         console.log(`[Photo Fetch] Converted Drive URL to: ${fetchUrl}`);
                     }
-                    
+
                     // Use the proxy to avoid CORS issues
                     const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(fetchUrl)}&output=jpg`;
                     const fetchStart = Date.now();
@@ -21137,7 +20211,7 @@ Style Guidelines:
                     }
                 }
 
-                // FIX: Parse AnalysisResultsJSON if AnalysisResults is not available  
+                // FIX: Parse AnalysisResultsJSON if AnalysisResults is not available
                 let results = project.AnalysisResults;
                 if (!results || Object.keys(results).length === 0) {
                     try {
@@ -21235,12 +20309,12 @@ Style Guidelines:
                     try {
                         showToast('Generating AI executive summary...', 'info');
                         const summaryContext = `Generate a professional, human-like technical executive summary for this herbicide efficacy project report.
-                            
+
     Project: ${project.Name}
     Design: RCBD with ${blocks.length} replications
     Treatments: ${[...new Set(trials.map(t => t.FormulationName))].join(', ')}
     Metric: ${project.Metric}
-    
+
     Data Summary:
     ${daas.map(dat => {
                             const res = results[dat];
@@ -21249,7 +20323,7 @@ Style Guidelines:
                             const name = state.formulations.find(f => f.ID === top.treatmentId)?.Name || 'Unknown';
                             return `${dat} DAA: Best performance from ${name} (${top.wce.toFixed(1)}% WCE).`;
                         }).join('\n')}
-    
+
     Task: Write a professional summary with three sections: Methodology, Results, and Conclusion.
     - Consistency: Maintain a human, technical tone. Avoid robotic AI phrases.
     - Formatting: Plain text only. No markdown symbols or heading markers.
@@ -22797,8 +21871,8 @@ Style Guidelines:
                     saveSyncQueue(); // Save queue to localStorage
 
                     // Persist local trial state modification immediately so it survives refresh even if sync hasn't run
-                    // Note: We avoid apiCall here because syncQueue handles the cloud update. 
-                    // But we SHOULD save the local state changes (WeedPhotosJSON with base64/tempId) to LS if we had full local persistent storage. 
+                    // Note: We avoid apiCall here because syncQueue handles the cloud update.
+                    // But we SHOULD save the local state changes (WeedPhotosJSON with base64/tempId) to LS if we had full local persistent storage.
                     // Since we rely on simple state, this is fine for session.
 
                     processSyncQueue(); // Trigger background sync
@@ -23631,7 +22705,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     showToast('Location set from map!', 'success');
                     pickerMap.remove();
                     overlay.remove();
-                    
+
                     // Auto-fetch soil data for this new location
                     fetchSoilData(selectedLat, selectedLon);
                 });
@@ -24481,7 +23555,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     m.includes('triggerdrivepermissions') ||
                     m.includes('execute as: me');
             }
-            
+
             // CRITICAL FIX: Detect stuck flag every 90 seconds and force recovery
             setInterval(() => {
                 if (_isSyncProcessing && Date.now() - _lastSyncAttempt > SYNC_STUCK_TIMEOUT) {
@@ -24495,16 +23569,16 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     }, 1000);
                 }
             }, 90000);
-            
+
             async function processSyncQueue() {
                 if (_isSyncProcessing || state.syncQueue.length === 0) return;
-                
+
                 const now = Date.now();
                 if (now - _lastSyncAttempt < SYNC_MIN_INTERVAL) {
                     console.log('[HighTechSync] Rate-limiting: Skipping rapid re-trigger');
                     return;
                 }
-                
+
                 _isSyncProcessing = true;
                 _lastSyncAttempt = now;
 
@@ -24534,7 +23608,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                         console.warn("[HighTechSync] [WARN] Offline detected. Pausing sync.");
                         break;
                     }
-                    
+
                     // SAFETY: Check if we've been processing for too long (processing one item shouldn't exceed 1 minute)
                     if (Date.now() - _lastSyncAttempt > SYNC_STUCK_TIMEOUT) {
                         console.warn('[HighTechSync] [WARN] Processing timeout detected. Breaking to prevent hang.');
@@ -24559,7 +23633,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                             item.status = 'uploading';
                             saveSyncQueue();
                             renderSyncStatus();
-                            
+
                             console.log(`[HighTechSync] [INFO] Syncing Action: ${item.action}`);
                             const result = await apiCall(item.action, item.payload, false);
 
@@ -24569,9 +23643,9 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                                 saveSyncQueue();
                                 continue;
                             }
-                            
+
                             if (result && result._errType) throw new Error(result.message);
-                            
+
                             console.log(`%c? Action Synced: ${item.action}`, "color: #16a34a;");
                             item.status = 'completed';
                             state.syncQueue = state.syncQueue.filter(i => i.id !== item.id);
@@ -24592,7 +23666,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     if (trial && item.photo.tempId) {
                         const isWeed = item.type === 'weed_upload';
                         let photos = isWeed ? safeJsonParse(trial.WeedPhotosJSON) : safeJsonParse(trial.PhotoURLs);
-                        
+
                         // Check if this exact tempId already exists in photos AND either:
                         // 1) Has a URL (already uploaded successfully), OR
                         // 2) Another sync item is CURRENTLY uploading it (to prevent parallel uploads)
@@ -24604,11 +23678,11 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                             saveSyncQueue();
                             continue;
                         }
-                        
+
                         // Check if another sync item for the same photo is already uploading
-                        const otherUploadingItem = state.syncQueue.find(s => 
-                            s.photo.tempId === item.photo.tempId && 
-                            s.id !== item.id && 
+                        const otherUploadingItem = state.syncQueue.find(s =>
+                            s.photo.tempId === item.photo.tempId &&
+                            s.id !== item.id &&
                             s.status === 'uploading'
                         );
                         if (otherUploadingItem) {
@@ -24659,11 +23733,11 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                                 date: item.photo.date,
                                 folderPath: folderPath
                             }, false);
-                            
+
                             // Timeout after 45 seconds
                             result = await Promise.race([
                                 uploadPromise,
-                                new Promise((_, reject) => 
+                                new Promise((_, reject) =>
                                     setTimeout(() => reject(new Error('Upload timeout after 45s - connection too slow. Will retry.')), 45000)
                                 )
                             ]);
@@ -24922,7 +23996,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 const failedCount = itemsToProcess.filter(i => i.status === 'failed' && !i.noRetry).length;
                 const blockedCount = state.syncQueue.filter(i => i.status === 'failed' && i.noRetry).length;
                 const pendingCount = state.syncQueue.filter(i => i.status === 'pending' || (i.status === 'failed' && !i.noRetry)).length;
-                
+
                 if (successCount > 0) {
                     showToast(`? Sync complete! ${successCount} item(s) uploaded. ${pendingCount} pending.`, 'success');
                 } else if (failedCount > 0) {
@@ -25594,10 +24668,10 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 let finalScores = Object.values(formulationMatches).map(item => {
                     const trials = item.trials;
                     const avgEfficacy = trials.reduce((s, t) => s + t.efficacy, 0) / trials.length;
-                    
+
                     // Multi-Factor Algorithm
                     let efficacyScore = (avgEfficacy / 100) * 40;
-                    
+
                     let weatherScore = 12; // Base 12/20 (neutral)
                     if ((env.temp || env.humidity) && trials.some(t => t.temp || t.humidity)) {
                         let diffs = trials.map(t => {
@@ -25618,7 +24692,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                     }
 
                     let dosageScore = 15; // Optimal dosage bonus
-                    
+
                     const totalScore = efficacyScore + weatherScore + consistencyScore + dosageScore;
                     const confidence = trials.length >= 3 && avgEfficacy > 80 ? 'High' : (trials.length >= 1 ? 'Medium' : 'Low');
 
@@ -25640,7 +24714,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                 const topResults = finalScores.slice(0, 4);
 
                 if (matchCountBadge) matchCountBadge.textContent = `${topResults.length} Matches`;
-                
+
                 if (topResults.length === 0) {
                     resultsList.innerHTML = `<div class="col-span-full text-center py-12 text-gray-500 italic">No historical matches found for "${weedQuery}" under these constraints.</div>`;
                     return;
@@ -25658,7 +24732,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                                 <div class="text-[9px] text-gray-400 font-bold uppercase">Avg Efficacy</div>
                             </div>
                         </div>
-                        
+
                         <div class="space-y-2 mb-4">
                             <div class="flex justify-between text-[10px]">
                                 <span class="text-gray-500">Environmental Match</span>
@@ -25685,7 +24759,7 @@ Total Trials: ${(state.trials || []).length} | Total Projects: ${(state.projects
                         </button>
                     </div>
                 `).join('');
-                
+
                 if (window.lucide) window.lucide.createIcons();
             }
 
@@ -26421,7 +25495,7 @@ Respond in structured JSON format:
                                 if (metric === 'cover') return r.cover || 0;
                                 return 0;
                             }
-                            
+
                             // Local fallback
                             if (metric === 'yield') return parseFloat(r.Yield || 0);
                             const eff = safeJsonParse(r.EfficacyDataJSON, []);
@@ -26446,7 +25520,7 @@ Respond in structured JSON format:
                 async analyze(metric, species = null, daa = null, options = {}) {
                     // Try to use backend data first
                     await this.fetchBackendData();
-                    
+
                     const dataMap = this.getData(metric, species, daa);
                     const treatments = Object.keys(dataMap);
                     const anovaData = treatments.map(t => dataMap[t]);
@@ -26505,9 +25579,9 @@ Respond in structured JSON format:
                     // PERSIST RESULTS TO BACKEND
                     if (options.persist !== false) {
                         try {
-                            await apiCall('saveAnalysisResults', { 
-                                projectId: this.projectId, 
-                                results: results 
+                            await apiCall('saveAnalysisResults', {
+                                projectId: this.projectId,
+                                results: results
                             });
                             await apiCall('logAnalysisRun', {
                                 projectId: this.projectId,
@@ -27399,7 +26473,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                         <div class="flex items-center gap-2 mb-2">
                             <div class="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
                             <span class="font-semibold text-gray-800">AI Analysis</span>
-                            <button onclick="document.getElementById('ai-status-widget').classList.add('hidden')" 
+                            <button onclick="document.getElementById('ai-status-widget').classList.add('hidden')"
                                     class="ml-auto text-gray-400 hover:text-gray-600"  style="margin-left:auto;">?</button>
                         </div>
                         <div id="ai-status-text" class="text-sm text-gray-600 mb-2">Starting...</div>
@@ -27502,7 +26576,7 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
                         wrapper.id = 'ai-settings-injected';
                         wrapper.appendChild(clone);
                         mainContent.appendChild(wrapper);
-                        
+
                         // Load both keys and resilience settings
                         if (typeof window.loadAIKeys === 'function') window.loadAIKeys();
                         if (typeof window.loadAIResilience === 'function') window.loadAIResilience();
@@ -27587,3493 +26661,3 @@ RESPOND WITH JSON ONLY (no markdown, no explanation):
             };
 
         });
-    </script>
-
-    <!-- AI ANALYSIS MODAL -->
-    <div id="ai-analysis-modal"
-        class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-2xl">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800">AI Photo Analysis</h2>
-
-            <div id="ai-analysis-status" class="mb-4">
-                <p class="text-gray-700">Ready to analyze all trial photos with FREE AI providers</p>
-                <p class="text-sm text-gray-500 mt-2">Note: 4-second delay between photos (rate limit compliance)</p>
-            </div>
-
-            <div id="ai-progress" class="hidden mb-4">
-                <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                    <div id="ai-progress-bar"
-                        class="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full transition-all duration-300"
-                        style="width: 0%"></div>
-                </div>
-                <p id="ai-progress-text" class="text-sm text-gray-600 mt-2 font-semibold"></p>
-            </div>
-
-            <div class="flex gap-4 justify-end">
-                <button onclick="closeAIAnalysisModal()"
-                    class="px-6 py-2 bg-gray-300 hover:bg-gray-400 rounded-md font-semibold transition-colors">
-                    Cancel
-                </button>
-                <button onclick="startAIAnalysis()" id="start-ai-btn"
-                    class="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-md font-semibold shadow-lg transition-all">
-                    Start AI Analysis (FREE)
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- AI SETTINGS CONTAINER (Will be appended to settings page) -->
-    <template id="ai-settings-template">
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6 mt-6">
-            <h3 class="text-xl font-bold mb-4">AI Provider API Keys (FREE)</h3>
-            <p class="text-sm text-gray-600 mb-4">Add API keys for automatic photo analysis. All providers are 100%
-                FREE!</p>
-
-            <div class="space-y-4">
-                <!-- Groq -->
-                <div class="border rounded-lg p-4 bg-gradient-to-r from-purple-50 to-blue-50">
-                    <label class="font-semibold flex items-center justify-between">
-                        Groq LLaMA 4 Scout (FASTEST - 1-2 seconds!)
-                        <a href="https://console.groq.com/keys" target="_blank"
-                            class="text-blue-600 text-sm underline hover:text-blue-800">
-                            Get Free Key ?
-                        </a>
-                    </label>
-                    <input type="password" id="ai-key-groq"
-                        class="w-full mt-2 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500"
-                        placeholder="gsk_..." />
-                    <button onclick="saveAIKey('groq')"
-                        class="mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-semibold transition-colors">
-                        Save & Test
-                    </button>
-                    <span id="groq-status" class="ml-2 text-sm"></span>
-                </div>
-
-                <!-- Gemini -->
-                <div class="border rounded-lg p-4 bg-gradient-to-r from-blue-50 to-green-50">
-                    <label class="font-semibold flex items-center justify-between">
-                        Gemini 2.5 Pro (Most Accurate)
-                        <a href="https://aistudio.google.com/apikey" target="_blank"
-                            class="text-blue-600 text-sm underline hover:text-blue-800">
-                            Get Free Key ?
-                        </a>
-                    </label>
-                    <input type="password" id="ai-key-gemini"
-                        class="w-full mt-2 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                        placeholder="AIza..." />
-                    <button onclick="saveAIKey('gemini')"
-                        class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold transition-colors">
-                        Save & Test
-                    </button>
-                    <span id="gemini-status" class="ml-2 text-sm"></span>
-                </div>
-
-                <!-- Pixtral (Mistral) -->
-                <div class="border rounded-lg p-4 bg-gradient-to-r from-yellow-50 to-orange-50">
-                    <label class="font-semibold flex items-center justify-between">
-                        Pixtral (Mistral) (High Capacity - 10k/day!)
-                        <a href="https://console.mistral.ai/" target="_blank"
-                            class="text-blue-600 text-sm underline hover:text-blue-800">
-                            Get Free Key ?
-                        </a>
-                    </label>
-                    <input type="password" id="ai-key-pixtral"
-                        class="w-full mt-2 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500"
-                        placeholder="Key..." />
-                    <button onclick="saveAIKey('pixtral')"
-                        class="mt-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-semibold transition-colors">
-                        Save & Test
-                    </button>
-                    <span id="pixtral-status" class="ml-2 text-sm"></span>
-                </div>
-
-                <!-- Alibaba Qwen -->
-                <div class="border rounded-lg p-4 bg-gradient-to-r from-red-50 to-pink-50">
-                    <label class="font-semibold flex items-center justify-between">
-                        Alibaba Qwen 2.5 (High Speed)
-                        <a href="https://bailian.console.aliyun.com/" target="_blank"
-                            class="text-blue-600 text-sm underline hover:text-blue-800">
-                            Get Free Key ?
-                        </a>
-                    </label>
-                    <input type="password" id="ai-key-qwen"
-                        class="w-full mt-2 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500"
-                        placeholder="sk-..." />
-                    <button onclick="saveAIKey('qwen')"
-                        class="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-semibold transition-colors">
-                        Save & Test
-                    </button>
-                    <span id="qwen-status" class="ml-2 text-sm"></span>
-                </div>
-
-                <!-- Florence -->
-                <div class="border rounded-lg p-4 bg-gradient-to-r from-gray-50 to-gray-200">
-                    <label class="font-semibold flex items-center justify-between">
-                        HuggingFace Florence (Backup)
-                        <a href="https://huggingface.co/settings/tokens" target="_blank"
-                            class="text-blue-600 text-sm underline hover:text-blue-800">
-                            Get Free Token ?
-                        </a>
-                    </label>
-                    <input type="password" id="ai-key-florence"
-                        class="w-full mt-2 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-500"
-                        placeholder="hf_..." />
-                    <button onclick="saveAIKey('florence')"
-                        class="mt-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md font-semibold transition-colors">
-                        Save & Test
-                    </button>
-                    <span id="florence-status" class="ml-2 text-sm"></span>
-                </div>
-
-                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4">
-                    <p class="text-sm text-yellow-800">
-                        <strong>Tip:</strong> Add at least one API key to enable AI photo analysis. Both are free!
-                    </p>
-                </div>
-            </div>
-        </div>
-    </template>
-
-    <!-- AI ANALYZE BUTTON TEMPLATE (Will be added to project dashboard) -->
-    <template id="ai-analyze-button-template">
-        <button onclick="openAIAnalysisModal()"
-            class="px-6 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:from-purple-600 hover:via-pink-600 hover:to-red-600 text-white rounded-lg font-bold shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 flex items-center gap-2 mb-4">
-            <span class="text-2xl"><i data-lucide="sparkles" class="h-6 w-6"></i></span>
-            <span>Analyze All Photos with AI (FREE)</span>
-        </button>
-    </template>
-
-    <script>
-        // Global Key Management Functions (Override)
-        window.loadAIKeys = function () {
-            const providers = ['groq', 'gemini', 'pixtral', 'qwen', 'florence'];
-            providers.forEach(id => {
-                const key = localStorage.getItem(`AI_KEY_${id.toUpperCase()}`);
-                const input = document.getElementById(`ai-key-${id}`);
-                const status = document.getElementById(`${id}-status`);
-                if (input && key) {
-                    input.value = key;
-                    if (status) {
-                        status.textContent = '? Saved';
-                        status.className = 'ml-2 text-sm text-green-600 font-semibold';
-                    }
-                }
-            });
-        };
-
-        window.loadAIResilience = function() {
-            const delay = localStorage.getItem('AI_RETRY_DELAY') || '4000';
-            const retries = localStorage.getItem('AI_MAX_RETRIES') || '3';
-            
-            const delayInput = document.getElementById('ai-retry-delay');
-            const retriesInput = document.getElementById('ai-max-retries');
-            
-            if (delayInput) delayInput.value = delay;
-            if (retriesInput) retriesInput.value = retries;
-        };
-
-        window.saveAIResilience = function() {
-            const delayInput = document.getElementById('ai-retry-delay');
-            const retriesInput = document.getElementById('ai-max-retries');
-            const status = document.getElementById('resilience-status');
-            
-            if (!delayInput || !retriesInput) return;
-            
-            const delay = delayInput.value;
-            const retries = retriesInput.value;
-            
-            localStorage.setItem('AI_RETRY_DELAY', delay);
-            localStorage.setItem('AI_MAX_RETRIES', retries);
-            
-            // Update the aiAnalyzer instance if it exists
-            if (window.aiAnalyzer) {
-                window.aiAnalyzer.retryDelay = parseInt(delay);
-                window.aiAnalyzer.maxRetries = parseInt(retries);
-            }
-            
-            if (status) {
-                status.textContent = '? Saved';
-                status.className = 'ml-2 text-sm text-green-600 font-semibold';
-                setTimeout(() => { status.textContent = ''; }, 3000);
-            }
-            
-            if (typeof showToast === 'function') {
-                showToast('AI Resilience settings saved!', 'success');
-            }
-        };
-
-        window.saveAIKey = function (providerId) {
-            const input = document.getElementById(`ai-key-${providerId}`);
-            const status = document.getElementById(`${providerId}-status`);
-            if (!input) return;
-
-            const key = input.value.trim();
-            if (!key) {
-                if (typeof showToast === 'function') showToast('Please enter an API key', 'error');
-                return;
-            }
-
-            localStorage.setItem(`AI_KEY_${providerId.toUpperCase()}`, key);
-            if (status) {
-                status.textContent = '? Saved';
-                status.className = 'ml-2 text-sm text-green-600 font-semibold';
-            }
-            if (typeof showToast === 'function') {
-                showToast(`${providerId.charAt(0).toUpperCase() + providerId.slice(1)} key saved!`, 'success');
-            }
-        };
-
-        // === ENHANCED CHART RENDERING FOR SCIENTIFIC REPORT ===
-        function renderAllProjectCharts(project) {
-            // Call existing chart renderer for WCE/Performance
-            if (typeof renderProjectAnalysisCharts === 'function') {
-                renderProjectAnalysisCharts(project);
-            }
-
-            // Render additional detailed charts
-            renderSecondaryCharts(project);
-        }
-
-        function renderSecondaryCharts(project) {
-            try {
-                // 1. SPECIES COVER CHART (Stacked Bar)
-                const ctxSpecies = document.getElementById('project-species-chart');
-                if (ctxSpecies) {
-                    const engine = new AnalysisEngine(project.ID, state);
-
-                    // Find all unique species
-                    const allSpecies = new Set();
-                    engine.trials.forEach(t => {
-                        const eff = safeJsonParse(t.EfficacyDataJSON, []);
-                        eff.forEach(e => {
-                            if (e.weedDetails && Array.isArray(e.weedDetails)) {
-                                e.weedDetails.forEach(w => allSpecies.add(w.species));
-                            }
-                        });
-                    });
-
-                    if (allSpecies.size > 0 && engine.treatments.length > 0) {
-                        const speciesList = [...allSpecies];
-
-                        const datasets = speciesList.map((species, i) => {
-                            const data = engine.treatments.map(tName => {
-                                // Get final cover for this species (null DAA means latest/final)
-                                const repValues = engine.getData('cover', species, null)[tName];
-                                return repValues && repValues.length > 0 ? jStat.mean(repValues) : 0;
-                            });
-
-                            const colors = ['#059669', '#d97706', '#7c3aed', '#db2777', '#2563eb', '#dc2626', '#0891b2', '#ea580c'];
-                            return {
-                                label: species,
-                                data: data,
-                                backgroundColor: colors[i % colors.length],
-                                borderColor: colors[i % colors.length],
-                                borderWidth: 1
-                            };
-                        });
-
-                        new Chart(ctxSpecies, {
-                            type: 'bar',
-                            data: {
-                                labels: engine.treatments.map(t => truncateText(t, 12)),
-                                datasets: datasets
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    tooltip: { mode: 'index', intersect: false },
-                                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
-                                },
-                                scales: {
-                                    x: { stacked: true, title: { display: true, text: 'Treatments' } },
-                                    y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Weed Cover (%)' } }
-                                }
-                            }
-                        });
-                    } else {
-                        // No species data available - show message
-                        const ctx = ctxSpecies.getContext('2d');
-                        ctx.font = '14px sans-serif';
-                        ctx.fillStyle = '#94a3b8';
-                        ctx.textAlign = 'center';
-                        ctx.fillText('No species data recorded', ctxSpecies.width / 2, ctxSpecies.height / 2);
-                    }
-                }
-
-                // 3. RADAR CHART (Weed Control Spectrum)
-                const ctxRadar = document.getElementById('project-radar-chart');
-                if (ctxRadar) {
-                    const engine = new AnalysisEngine(project.ID, state);
-                    // Find Untreated Control (UTC)
-                    const utcName = engine.utcName; // AnalysisEngine automatically identifies UTC
-                    const treatments = engine.treatments;
-
-                    if (treatments.length > 0) {
-                        // Collect all species
-                        const allSpecies = new Set();
-                        engine.trials.forEach(t => {
-                            const eff = safeJsonParse(t.EfficacyDataJSON, []);
-                            eff.forEach(e => {
-                                if (e.weedDetails && Array.isArray(e.weedDetails)) {
-                                    e.weedDetails.forEach(w => allSpecies.add(w.species));
-                                }
-                            });
-                        });
-                        const speciesList = [...allSpecies];
-
-                        if (speciesList.length >= 3) {
-                            // Calculate Means for UTC first (for control calc)
-                            const utcMeans = {};
-                            if (utcName) {
-                                speciesList.forEach(s => {
-                                    const vals = engine.getData('cover', s, null)[utcName];
-                                    utcMeans[s] = vals && vals.length > 0 ? jStat.mean(vals) : 0;
-                                });
-                            }
-
-                            const datasets = treatments.filter(t => t !== utcName).map((tName, i) => {
-                                const data = speciesList.map(s => {
-                                    // Get treatment mean
-                                    const tVals = engine.getData('cover', s, null)[tName];
-                                    const tMean = tVals && tVals.length > 0 ? jStat.mean(tVals) : 0;
-
-                                    // Calculate % Control
-                                    // If UTC exists and has weed pressure: (UTC - Trt) / UTC * 100
-                                    // Else: Use inverse of cover (High cover = Low control)? No, just show 0 if no UTC.
-                                    // Actually, if no UTC, just show (100 - Cover) as a proxy or skip.
-                                    // Let's assume UTC exists for valid calculation.
-                                    let control = 0;
-                                    if (utcName && utcMeans[s] > 0) {
-                                        control = ((utcMeans[s] - tMean) / utcMeans[s]) * 100;
-                                    } else if (!utcName) {
-                                        // Fallback: Show Efficacy as (100 - Cover%) - purely theoretical
-                                        control = Math.max(0, 100 - tMean);
-                                    }
-                                    return Math.min(100, Math.max(0, control));
-                                });
-
-                                const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-                                return {
-                                    label: tName,
-                                    data: data,
-                                    borderColor: colors[i % colors.length],
-                                    backgroundColor: colors[i % colors.length] + '33',
-                                    fill: true,
-                                    pointRadius: 3
-                                };
-                            });
-
-                            new Chart(ctxRadar, {
-                                type: 'radar',
-                                data: { labels: speciesList, datasets: datasets },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
-                                    },
-                                    scales: {
-                                        r: {
-                                            min: 0,
-                                            max: 100,
-                                            ticks: { display: false, stepSize: 20 },
-                                            pointLabels: { font: { size: 10 } }
-                                        }
-                                    }
-                                }
-                            });
-                        } else {
-                            // Valid but too few species for Radar
-                            const ctx = ctxRadar.getContext('2d');
-                            ctx.font = '12px sans-serif';
-                            ctx.fillStyle = '#94a3b8';
-                            ctx.textAlign = 'center';
-                            ctx.fillText('Need 3+ species for Radar analysis', ctxRadar.width / 2, ctxRadar.height / 2);
-                        }
-                    }
-                }
-
-                // 4. YIELD CHART (Bar)
-                const ctxYield = document.getElementById('project-yield-chart');
-                // Check if we have yield data first
-                const engine = new AnalysisEngine(project.ID, state);
-                const yieldData = engine.getData('yield');
-                const hasYield = Object.values(yieldData).some(arr => arr.some(v => v > 0));
-
-                if (hasYield && ctxYield) {
-                    // Reveal container
-                    const container = document.getElementById('project-yield-container');
-                    if (container) container.classList.remove('hidden');
-
-                    const labels = engine.treatments;
-                    const means = labels.map(t => {
-                        const vals = yieldData[t] || [];
-                        return vals.length > 0 ? jStat.mean(vals) : 0;
-                    });
-
-                    // Prepare colors (Highlight Superior)
-                    // We need simplified ranking - just visually color differently
-                    const colors = labels.map((t, i) => ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5]);
-
-                    new Chart(ctxYield, {
-                        type: 'bar',
-                        data: {
-                            labels: labels.map(t => truncateText(t, 12)),
-                            datasets: [{
-                                label: 'Mean Yield',
-                                data: means,
-                                backgroundColor: colors,
-                                borderRadius: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: { beginAtZero: true, title: { display: true, text: 'Yield' } }
-                            }
-                        }
-                    });
-                }
-            } catch (err) {
-                console.error('Error rendering secondary charts:', err);
-            }
-        }
-
-        // Make functions globally accessible
-        window.renderAllProjectCharts = renderAllProjectCharts;
-        window.renderSecondaryCharts = renderSecondaryCharts;
-
-        // ==================== SCIENTIFIC INTEGRITY SYSTEM ====================
-        const scientificIntegrity = {
-            cvThreshold: 20, // CV% threshold for high variability
-            madThreshold: 3.5, // Modified Z-Score threshold for MAD-based outlier detection
-
-            calculateCV: function (values) {
-                if (!values || values.length < 2) return 0;
-                const mean = jStat.mean(values);
-                if (mean === 0) return 0;
-                const sd = jStat.stdev(values, true);
-                return (sd / mean) * 100;
-            },
-
-            // UPGRADED: MAD-based outlier detection (more robust than Z-score)
-            detectOutliers: function (values) {
-                if (!values || values.length < 3) return [];
-
-                // Calculate Median Absolute Deviation (MAD)
-                const median = jStat.median(values);
-                const absoluteDeviations = values.map(v => Math.abs(v - median));
-                const mad = jStat.median(absoluteDeviations);
-
-                if (mad === 0) return []; // No variability
-
-                const outliers = [];
-                values.forEach((val, index) => {
-                    // Modified Z-Score = 0.6745 * (val - median) / MAD
-                    const modifiedZ = Math.abs(0.6745 * (val - median) / mad);
-                    if (modifiedZ > this.madThreshold) {
-                        outliers.push({ index, val, modifiedZ });
-                    }
-                });
-                return outliers;
-            },
-
-            getRecommendedValue: function (values, outlierIndex) {
-                const filtered = values.filter((_, i) => i !== outlierIndex);
-                return filtered.length > 0 ? Math.round(jStat.mean(filtered) * 10) / 10 : null;
-            }
-        };
-
-        // MODULE 1: BIOLOGICAL CONSTRAINT LOGIC (Data Entry Firewall)
-        const biologicalValidator = {
-            deviationThreshold: 15, // ±15% from median
-
-            validateValue: function (newValue, existingValues) {
-                if (!existingValues || existingValues.length < 2) {
-                    return { valid: true };
-                }
-
-                const median = jStat.median(existingValues);
-                const tolerance = median * (this.deviationThreshold / 100);
-                const min = median - tolerance;
-                const max = median + tolerance;
-
-                if (newValue < min || newValue > max) {
-                    return {
-                        valid: false,
-                        median: median,
-                        range: `${min.toFixed(1)} - ${max.toFixed(1)}`,
-                        deviation: Math.abs(((newValue - median) / median) * 100).toFixed(1)
-                    };
-                }
-                return { valid: true };
-            },
-
-            showWarning: function (validation) {
-                showToast(`Biological warning: value deviates ${validation.deviation}% from median (${validation.median.toFixed(1)}). Expected range: ${validation.range}`, 'error');
-            },
-
-            // AI RE-ROLL CONSTRAINT: Generate AI values within biological limits
-            generateConstrainedValue: function (aiSuggestedValue, existingValues, maxAttempts = 5) {
-                // If no existing values, accept AI suggestion
-                if (!existingValues || existingValues.length < 2) {
-                    return { value: aiSuggestedValue, attempts: 0, constrained: false };
-                }
-
-                const median = jStat.median(existingValues);
-                const tolerance = median * (this.deviationThreshold / 100);
-                const min = median - tolerance;
-                const max = median + tolerance;
-
-                let value = aiSuggestedValue;
-                let attempts = 0;
-
-                // Re-roll if outside range
-                while ((value < min || value > max) && attempts < maxAttempts) {
-                    attempts++;
-                    // Generate new value within range using random variation
-                    const variation = (Math.random() - 0.5) * 2 * tolerance; // Random within ±tolerance
-                    value = median + variation;
-
-                    // Ensure within absolute bounds (0-100 for phyto, 0+ for others)
-                    value = Math.max(0, Math.min(100, value));
-                }
-
-                // Log if constraint was applied
-                if (attempts > 0) {
-                    console.log(`[AI Re-Roll] Original: ${aiSuggestedValue.toFixed(1)}, Median: ${median.toFixed(1)}, Constrained: ${value.toFixed(1)} (${attempts} attempts)`);
-                }
-
-                return {
-                    value: Number(value.toFixed(1)),
-                    attempts: attempts,
-                    constrained: attempts > 0,
-                    originalValue: aiSuggestedValue
-                };
-            }
-        };
-
-        // MODULE 3: LSD LETTER GROUPING
-        const lsdCalculator = {
-            alpha: 0.05,
-
-            calculateLSD: function (mse, n, df) {
-                if (!mse || !n || !df) return null;
-                // LSD = t(a/2, df) * sqrt(2 * MSE / n)
-                const t = jStat.studentt.inv(1 - this.alpha / 2, df);
-                return t * Math.sqrt(2 * mse / n);
-            },
-
-            assignLetters: function (treatmentStats, lsd, applyCVPenalty = true) {
-                if (!treatmentStats || treatmentStats.length === 0) return treatmentStats;
-
-                // Sort by mean (high to low)
-                const sorted = [...treatmentStats].sort((a, b) => b.mean - a.mean);
-                const letters = [];
-
-                for (let i = 0; i < sorted.length; i++) {
-                    let group = [];
-
-                    // Compare with all treatments ahead
-                    for (let j = 0; j <= i; j++) {
-                        const diff = sorted[j].mean - sorted[i].mean;
-                        if (diff <= lsd) {
-                            // Share letter with treatment j
-                            const letter = String.fromCharCode(97 + j); // 'a', 'b', 'c'...
-                            if (!group.includes(letter)) group.push(letter);
-                        }
-                    }
-
-                    // CV Penalty: High CV cannot get 'a' alone
-                    if (applyCVPenalty && sorted[i].cv > 20 && group.length === 1 && group[0] === 'a') {
-                        group = ['ab'];
-                    }
-
-                    sorted[i].sigGroup = group.sort().join('');
-                }
-
-                return sorted;
-            },
-
-            generateNarrative: function (treatment) {
-                if (treatment.cv > 20) {
-                    return `High internal variability (CV: ${treatment.cv.toFixed(1)}%) suggests the treatment response is sensitive to localized field conditions or weed density, despite numerical increases in control.`;
-                }
-                return null;
-            }
-        };
-
-        // MODULE 4: PHOTO-DATA CONFLICT DETECTION
-        function detectPhotoDataConflict(photoMeta, dataValue) {
-            if (!photoMeta || !photoMeta.aiMeta) return null;
-
-            const aiMeta = photoMeta.aiMeta;
-            const burndown = aiMeta.burndown || 0;
-            const weedDensity = aiMeta.weedDensity || 0;
-
-            // "Ghost Weight" Check: Clean photo + High weight
-            if (burndown > 80 && dataValue > 50) {
-                return {
-                    type: 'ghost_weight',
-                    message: `Photo shows high burndown (${burndown.toFixed(0)}%), but data shows high weed weight (${dataValue}g). Possible data entry error or typo.`,
-                    severity: 'critical'
-                };
-            }
-
-            // "Healthy Failure" Check: Green photo + High weight = Valid
-            if (weedDensity > 70 && dataValue > 50) {
-                return {
-                    type: 'healthy_failure',
-                    message: `Photo confirms dense weed presence (${weedDensity.toFixed(0)}%). High weight (${dataValue}g) is biologically consistent.`,
-                    severity: 'info',
-                    valid: true
-                };
-            }
-
-            // Mismatch: Low weight but dense weeds
-            if (weedDensity > 60 && dataValue < 20) {
-                return {
-                    type: 'weight_mismatch',
-                    message: `Photo shows dense weeds (${weedDensity.toFixed(0)}%), but weight is low (${dataValue}g). Verify measurement accuracy.`,
-                    severity: 'warning'
-                };
-            }
-
-            return null;
-        }
-
-        // Global references
-        window.scientificIntegrity = scientificIntegrity;
-        window.biologicalValidator = biologicalValidator;
-        window.lsdCalculator = lsdCalculator;
-        window.detectPhotoDataConflict = detectPhotoDataConflict;
-
-        // ==================== AUDIT SCAN FUNCTION ====================
-        async function runAuditScan(projectId) {
-            const project = state.projects.find(p => p.ID === projectId);
-            if (!project) {
-                showToast('Project not found', 'error');
-                return;
-            }
-
-            showToast('Running data quality audit...', 'info');
-            const issues = [];
-            const metric = project.Metric || 'cover';
-
-            // Get all trials for this project
-            const trials = state.trials.filter(t => t.ProjectID === projectId);
-            const treatments = [...new Set(trials.map(t => t.FormulationName))];
-
-            for (const trt of treatments) {
-                const reps = trials.filter(t => t.FormulationName === trt);
-                if (reps.length < 2) continue;
-
-                const repData = [];
-
-                // 1. Gather Data & Photos
-                reps.forEach((rep, rIdx) => {
-                    // Get value (Final DAA)
-                    const eff = safeJsonParse(rep.EfficacyDataJSON, []);
-                    if (eff.length === 0) return;
-                    const obs = eff.sort((a, b) => b.daa - a.daa)[0];
-                    const val = window.computeObservationTotalCover(obs, rep);
-
-                    // Get Photo (Closest to Obs Date)
-                    const photos = safeJsonParse(rep.PhotoURLs, []);
-                    let photoMeta = null;
-                    let photoUrl = null;
-
-                    const appDate = rep.Date ? new Date(rep.Date) : null;
-                    const targetDAA = obs.daa;
-
-                    if (photos.length > 0) {
-                        let candidates = photos.filter(p => p.date).map(p => {
-                            const pDate = new Date(p.date).getTime();
-                            let diff = Infinity;
-
-                            if (obs.timestamp) {
-                                diff = Math.abs(pDate - obs.timestamp);
-                            } else if (appDate) {
-                                const pDAA = (pDate - appDate.getTime()) / (1000 * 60 * 60 * 24);
-                                diff = Math.abs(pDAA - targetDAA) * 86400000;
-                            }
-
-                            return { photo: p, diff };
-                        });
-
-                        candidates.sort((a, b) => a.diff - b.diff);
-
-                        const best = candidates[0];
-                        if (best.diff < (7 * 86400000)) {
-                            console.log('[Audit] Best Match Found:', best.photo);
-                            console.log('[Audit] Photo Keys:', Object.keys(best.photo));
-
-                            photoMeta = best.photo.aiMeta || null;
-
-                            // Comprehensive URL extraction with fallbacks
-                            photoUrl = best.photo.url ||
-                                best.photo.link ||
-                                best.photo.webContentLink ||
-                                best.photo.thumbnailLink ||
-                                best.photo.image ||
-                                best.photo.src ||
-                                best.photo.dataUrl ||
-                                (best.photo.fileData ? `data:${best.photo.mimeType || 'image/jpeg'};base64,${best.photo.fileData}` : null) ||
-                                null;
-
-                            // Convert Google Drive URLs to direct thumbnail links
-                            if (photoUrl && photoUrl.includes('drive.google.com')) {
-                                const fileIdMatch = photoUrl.match(/[?&]id=([^&]+)/);
-                                if (fileIdMatch) {
-                                    const fileId = fileIdMatch[1];
-                                    photoUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
-                                    console.log('[Audit] Converted to Drive thumbnail:', photoUrl);
-                                }
-                            }
-
-                            console.log('[Audit] Extracted photoUrl:', photoUrl ? photoUrl.substring(0, 100) + '...' : 'NULL');
-                        }
-                    }
-
-                    // MODULE 4: Check for photo-data conflicts
-                    let conflict = null;
-                    if (photoMeta) {
-                        conflict = detectPhotoDataConflict(photoMeta, val);
-                    }
-
-                    repData.push({ val, photoMeta, photoUrl, repIndex: rIdx, repID: rep.ID, conflict });
-                });
-
-                if (repData.length < 2) continue;
-                const values = repData.map(r => r.val);
-
-                // 2. Statistical Checks
-                const cv = scientificIntegrity.calculateCV(values);
-                if (cv > scientificIntegrity.cvThreshold) {
-                    const outliers = scientificIntegrity.detectOutliers(values);
-
-                    if (outliers.length > 0) {
-                        outliers.forEach(out => {
-                            const recommended = scientificIntegrity.getRecommendedValue(values, out.index);
-                            const rData = repData[out.index];
-
-                            issues.push({
-                                treatment: trt,
-                                type: 'Statistical Outlier & High CV',
-                                metric: metric,
-                                repIndex: out.index,
-                                repID: rData.repID,
-                                value: out.val,
-                                cv: cv.toFixed(1),
-                                recommended: recommended,
-                                msg: `Rep ${out.index + 1} value (${out.val}) is a statistical outlier (Z-Score ${out.modifiedZ ? out.modifiedZ.toFixed(2) : '>3'}). High variability (CV ${cv.toFixed(1)}%) detected.`,
-                                photoUrl: rData.photoUrl
-                            });
-                        });
-                    } else {
-                        issues.push({
-                            treatment: trt,
-                            type: 'High Variability',
-                            metric: metric,
-                            msg: `CV is ${cv.toFixed(1)}% (>20%). No single outlier found, but consistency is low.`,
-                            photoUrl: repData[0] ? repData[0].photoUrl : null
-                        });
-                    }
-                }
-            }
-
-            if (issues.length === 0) {
-                showToast('No data quality issues detected!', 'success');
-                return [];
-            }
-
-            showToast(`${issues.length} quality issue(s) detected`, 'error');
-            window.openQualityModal(issues, projectId); // Pass projectId to modal
-            return issues;
-        }
-
-        window.runAuditScan = runAuditScan;
-
-        // ==================== QUALITY MODAL HANDLERS ====================
-        window.currentAuditIssues = [];
-
-        // Photo enlargement handler
-        window.enlargePhoto = function (imgElement) {
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
-            modal.onclick = () => modal.remove();
-            const img = imgElement.cloneNode();
-            img.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain';
-            modal.appendChild(img);
-            document.body.appendChild(modal);
-        };
-
-        window.openQualityModal = function (issues, projectId) {
-            window.currentAuditIssues = issues;
-            window.currentAuditProjectId = projectId; // Store for later use
-            const tbody = document.getElementById('quality-issues-body');
-            tbody.innerHTML = '';
-
-            issues.forEach((issue, idx) => {
-                const tr = document.createElement('tr');
-                const recHtml = issue.recommended !== undefined
-                    ? `<span class="text-green-600 font-bold block">Suggested: ${issue.recommended}</span>`
-                    : '<span class="text-slate-400">-</span>';
-
-                // MODULE 4: Conflict Warning Display
-                let conflictHtml = '';
-                if (issue.conflict) {
-                    const severityClass = issue.conflict.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                        issue.conflict.severity === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-blue-100 text-blue-800';
-                    const icon = issue.conflict.severity === 'critical' ? '!' : issue.conflict.severity === 'info' ? 'i' : '-';
-                    conflictHtml = `<div class="mt-2 px-2 py-1 rounded ${severityClass} text-xs font-semibold">${icon} ${issue.conflict.message}</div>`;
-                }
-
-                const photoHtml = issue.photoUrl
-                    ? `<div class="mt-2 text-xs font-semibold text-gray-500">Visual Evidence:</div>
-                       <img src="${issue.photoUrl}" 
-                            class="h-16 w-16 object-cover rounded border border-gray-300 hover:scale-105 transition-transform cursor-pointer" 
-                            onclick="window.enlargePhoto(this)"
-                            onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27100%27 height=%27100%27%3E%3Crect fill=%27%23ddd%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 fill=%27%23999%27 font-size=%2712%27%3ENo Image%3C/text%3E%3C/svg%3E'; console.error('Photo load failed');">
-                       ${conflictHtml}`
-                    : '<span class="text-xs text-slate-300 italic">(No photo matched)</span>';
-
-                tr.innerHTML = `
-                     <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${issue.treatment}</td>
-                     <td class="px-3 py-3 text-sm text-red-600">
-                        <div class="font-bold">${issue.type}</div>
-                        <div class="text-xs text-gray-500 mt-1">${issue.msg}</div>
-                        ${photoHtml}
-                     </td>
-                     <td class="px-3 py-3 text-sm text-gray-500">
-                        <input type="number" id="edit-val-${idx}" value="${issue.value !== undefined ? issue.value : ''}" 
-                            class="w-20 px-2 py-1 border rounded text-sm focus:ring-emerald-500 focus:border-emerald-500" 
-                            ${issue.value === undefined ? 'disabled' : ''}>
-                     </td>
-                     <td class="px-3 py-3 text-sm text-gray-500">${recHtml}</td>
-                     <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                        ${issue.recommended !== undefined ?
-                        `<button onclick="acceptFix(${idx})" class="text-emerald-600 hover:text-emerald-900 font-bold text-xs border border-emerald-200 bg-emerald-50 px-2 py-1 rounded">Accept (${issue.recommended})</button>` : ''}
-                        
-                        <button onclick="saveEdit(${idx})" class="text-blue-600 hover:text-blue-900 font-bold text-xs border border-blue-200 bg-blue-50 px-2 py-1 rounded">Save Edit</button>
-                        
-                        <button onclick="ignoreIssue(${idx})" class="text-gray-400 hover:text-gray-600 text-xs underline">Ignore</button>
-                     </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            const modal = document.getElementById('data-quality-modal');
-            modal.classList.remove('hidden');
-        };
-
-        window.saveEdit = function (idx) {
-            const input = document.getElementById(`edit-val-${idx}`);
-            if (!input) return;
-            const newVal = parseFloat(input.value);
-            if (isNaN(newVal)) { showToast('Invalid number', 'error'); return; }
-
-            showToast(`Saving manual edit: ${newVal}...`, 'info');
-            const btn = event.target;
-            if (btn) {
-                btn.innerHTML = '? Saved';
-                btn.classList.replace('text-blue-600', 'text-green-600');
-                btn.classList.replace('bg-blue-50', 'bg-green-50');
-                btn.classList.replace('border-blue-200', 'border-green-200');
-                btn.disabled = true;
-            }
-            if (window.currentAuditIssues[idx]) {
-                window.currentAuditIssues[idx].fixedValue = newVal;
-            }
-
-            // Clear stale AI narratives on manual edit too
-            const projectId = window.currentAuditProjectId;
-            if (projectId) {
-                const project = state.projects.find(p => p.ID === projectId);
-                if (project) {
-                    project.Conclusion = null;
-                    project.AIAnalysisJSON = null;
-                    project.Narrative = null; // Clear legacy field too!
-                    // Background save to ensure persistence
-                    apiCall('updateProject', { id: projectId, Conclusion: '', AIAnalysisJSON: '', Narrative: '' }).catch(e => console.error(e));
-                }
-            }
-        };
-
-        window.ignoreIssue = function (idx) {
-            const row = document.getElementById('quality-issues-body').children[idx];
-            if (row) row.classList.add('opacity-50', 'line-through');
-        };
-
-        window.acceptFix = function (idx) {
-            const issue = window.currentAuditIssues[idx];
-            if (!issue || issue.recommended === undefined) return;
-            const input = document.getElementById(`edit-val-${idx}`);
-            if (input) {
-                input.value = issue.recommended;
-                saveEdit(idx);
-            }
-        };
-
-        window.closeQualityModal = function () {
-            const modal = document.getElementById('data-quality-modal');
-            modal.classList.add('hidden');
-        };
-
-        // ==================== AI ANALYZER (Gemini) ====================
-        window.aiAnalyzer = {
-            providers: [
-                { id: 'gemini', name: 'Google Gemini', keyName: 'GEMINI_API_KEY', type: 'google' },
-                { id: 'groq', name: 'Groq', keyName: 'GROQ_API_KEY', type: 'openai-compatible', url: 'https://api.groq.com/openai/v1/chat/completions', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
-                { id: 'openai', name: 'OpenAI', keyName: 'OPENAI_API_KEY', type: 'openai-compatible', url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o' }
-            ],
-
-            async getKey(provider) {
-                // 1. Check direct localStorage (previous session or explicit override)
-                let key = localStorage.getItem(provider.keyName);
-                if (key) return key;
-
-                // 2. Sync from main settings (apiKeys array)
-                const settingsKeys = state.settings?.apiKeys || [];
-                if (settingsKeys.length > 0) {
-                    // Heuristic matching
-                    let matchedKey = null;
-                    if (provider.id === 'groq') matchedKey = settingsKeys.find(k => k.startsWith('gsk_'));
-                    else if (provider.id === 'openai') matchedKey = settingsKeys.find(k => k.startsWith('sk-'));
-                    else if (provider.id === 'gemini') matchedKey = settingsKeys.find(k => !k.startsWith('gsk_') && !k.startsWith('sk-'));
-
-                    if (matchedKey) {
-                        localStorage.setItem(provider.keyName, matchedKey);
-                        return matchedKey;
-                    }
-                }
-
-                // 3. Last Resort: Lazy Prompt
-                const input = prompt(`Enter ${provider.name} API Key to use this AI provider:\n(You can also add this in Settings > API Keys)`);
-                if (input && input.trim()) {
-                    localStorage.setItem(provider.keyName, input.trim());
-                    return input.trim();
-                }
-                return null;
-            },
-
-            cleanAIText(text) {
-                if (!text) return "";
-                // 1. Remove markdown code blocks if present
-                text = text.replace(/```[a-z]*\n?/gi, "");
-                // 2. Remove standard AI conversational filler
-                text = text.replace(/^(Certainly!|Sure|Here is|Based on the data provided|As a senior agronomist|I have analyzed).+?(\n|:)/i, "");
-                // 3. Remove mid-sentence markdown symbols like **bold**, *italic*
-                // but keep them at start/end of lines if they seem like headers (regex below might be too aggressive, but user wants 'unnecessary' gone)
-                // We'll just strip all ** and * except if they wrap a single word on its own line
-                text = text.replace(/(?<!^)\*\*|\*\*(?!$)/g, "");
-                text = text.replace(/(?<!^)\*|\*(?!$)/g, "");
-                // 4. Remove # headers
-                text = text.replace(/^#+ /gm, "");
-                // 5. Trim and handle multiple newlines
-                return text.trim().replace(/\n{3,}/g, '\n\n');
-            },
-
-            async generateText(prompt) {
-                let lastError = null;
-
-                for (const provider of this.providers) {
-                    try {
-                        console.log(`[AI] Attempting generation with: ${provider.name}`);
-                        showToast(`Connecting to ${provider.name}...`, 'info');
-
-                        // 1. Get Key (skip if user cancels/empty)
-                        const apiKey = await this.getKey(provider);
-                        if (!apiKey) {
-                            console.warn(`Skipping ${provider.name} (No Key)`);
-                            continue;
-                        }
-
-                        // 2. Call Provider with Logic and Timeout
-                        const timeoutPromise = new Promise((_, reject) =>
-                            setTimeout(() => reject(new Error("Request timed out (30s)")), 30000)
-                        );
-
-                        let providerPromise;
-                        if (provider.type === 'google') {
-                            providerPromise = this.callGemini(apiKey, prompt);
-                        } else if (provider.type === 'openai-compatible') {
-                            providerPromise = this.callOpenAICompatible(provider, apiKey, prompt);
-                        }
-
-                        // Race against timeout
-                        const result = await Promise.race([providerPromise, timeoutPromise]);
-                        // CLEAN THE RESULT BEFORE RETURNING
-                        return this.cleanAIText(result);
-
-                    } catch (e) {
-                        console.error(`${provider.name} Failed:`, e);
-                        lastError = e;
-
-                        // NEW: Strict Auth Error Handling
-                        // Only clear keys on 401/403. Don't clear on 404 (Model missing) or 400 (Decommissioned)
-                        const errorMsg = e.message.toLowerCase();
-                        const isAuthError = errorMsg.includes('401') || errorMsg.includes('403') || errorMsg.includes('invalid api key');
-
-                        if (isAuthError) {
-                            localStorage.removeItem(provider.keyName);
-                            showToast(`Invalid ${provider.name} Key removed.`, 'warning');
-                        }
-                    }
-                }
-
-                showToast("All AI providers failed. Check console for details.", "error");
-                throw lastError || new Error("All AI providers failed.");
-            },
-
-            async callGemini(apiKey, prompt) {
-                console.log('Loading Gemini SDK...');
-                try {
-                    const { GoogleGenAI } = window;
-                    const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
-                    const modelName = getActiveApiModel();
-
-                    console.log(`[AI] Sending prompt to ${modelName}...`);
-                    const response = await ai.models.generateContent({
-                        model: modelName,
-                        contents: prompt
-                    });
-                    console.log('Gemini response received.');
-                    return extractResponseText(response);
-                } catch (e) {
-                    console.error("Gemini Internal Error:", e);
-                    throw e;
-                }
-            },
-
-            async callOpenAICompatible(provider, apiKey, prompt) {
-                const response = await fetch(provider.url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: provider.model,
-                        messages: [{ role: "user", content: prompt }]
-                    })
-                });
-
-                if (!response.ok) {
-                    const err = await response.text();
-                    throw new Error(`API Error ${response.status}: ${err}`);
-                }
-
-                const data = await response.json();
-                return data.choices[0].message.content;
-            },
-
-            async generateTextDeprecated(prompt) {
-                const apiKey = await this.getClient();
-                if (!apiKey) {
-                    showToast("API Key required for AI analysis.", "error");
-                    throw new Error("Missing API Key");
-                }
-
-                try {
-                    const { GoogleGenAI } = window;
-                    const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
-                    const response = await ai.models.generateContent({
-                        model: getActiveApiModel(),
-                        contents: prompt
-                    });
-                    return extractResponseText(response);
-                } catch (e) {
-                    console.error("AI Error:", e);
-                    const status = e.status || 0;
-                    if (status === 400 || status === 403 || e.message.includes('key')) {
-                        localStorage.removeItem('GEMINI_API_KEY');
-                        showToast("Invalid API Key. Please try again.", "error");
-                    }
-                    throw e;
-                }
-            }
-        };
-
-        window.generateProjectNarrative = async function (projectId) {
-            const project = state.projects.find(p => p.ID === projectId);
-            if (!project) return;
-
-            showToast('Generating updated scientific conclusion...', 'info');
-
-            // 1. Gather Context
-            let context = `Write a scientific regulatory conclusion for the herbicide trial "${project.Name}".\n`;
-            context += `Metric: ${project.Metric}\n`;
-
-            if (project.AnalysisResults) {
-                try {
-                    const results = typeof project.AnalysisResults === 'string'
-                        ? JSON.parse(project.AnalysisResults)
-                        : (project.AnalysisResults || {});
-
-                    // 1.1 BIOLOGICAL CONTEXT
-                    const allTrials = state.trials.filter(t => t.ProjectID === projectId);
-                    const weedSpecies = new Set();
-                    allTrials.forEach(t => {
-                        const eff = typeof t.EfficacyDataJSON === 'string' ? JSON.parse(t.EfficacyDataJSON) : (t.EfficacyDataJSON || []);
-                        eff.forEach(e => {
-                            if (e.weedDetails) e.weedDetails.forEach(w => weedSpecies.add(w.species));
-                        });
-                    });
-
-                    const a = results.anovaTable;
-                    const stats = results.treatmentStats;
-
-                    const pValue = a && a.treatment ? a.treatment.sig : (results.pVal !== undefined ? results.pVal : 'N/A');
-                    const cvValue = stats && stats[0] && stats[0].cv !== undefined ? stats[0].cv : (results.cv !== undefined ? results.cv : 'N/A');
-
-                    context += `\nSCIENTIFIC CONTEXT:\n`;
-                    context += `- Target Weed Species: ${[...weedSpecies].join(', ') || 'General Weed Pressure'}\n`;
-                    context += `- Statistical Significance (P-Value): ${pValue}\n`;
-                    context += `- Experimental Precision (CV): ${cvValue}%\n`;
-
-                    if (stats && stats.length > 0) {
-                        const getTName = (id) => {
-                            const found = project.Treatments?.find(t => t.ID === id);
-                            if (found) return found.Name;
-                            const form = state.formulations.find(f => f.ID === id || f.Name === id);
-                            return form ? form.Name : id;
-                        };
-                        context += `- Best Performing Treatment: ${getTName(stats[0].treatmentId)} (Rank: ${stats[0].rank})\n`;
-                        context += `- Specific Treatment Means (${project.Metric}): ${stats.map(s => `${getTName(s.treatmentId)} (${s.mean.toFixed(2)})`).join(', ')}\n`;
-
-                        if (a && a.treatment) {
-                            context += `- ANOVA Interpretation: The results indicate a ${parseFloat(a.treatment.sig) < 0.05 ? 'significant' : 'non-significant'} difference among treatment means (P=${a.treatment.sig}).\n`;
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Could not parse analysis results for context");
-                }
-            }
-
-            const prompt = `${context}
-
-Task: You are a Senior Agronomist writing a technical Executive Summary for a regulatory herbicide trial report.
-            
-Tone & Style Guidelines (STRICT):
-- Use a formal, objective, and interpretive scientific tone.
-- Avoid generic filler. Focus on the biological and statistical meaning of the data. 
-- Interpret high CVs as indicators of experimental variability.
-- If data is provided, NEVER say it is "unavailable".
-
-Required Sections:
-Methodology
-Technical description of experiment design (RCBD), target species, and aim.
-
-Results
-Deep dive into treatment performance. Reference specific mean values of ${project.Metric}. Discuss P-value and CV reliability.
-
-Conclusions
-Specific agronomic recommendation based on treatment performance trends and weed suppression outcomes.`;
-
-            try {
-                const conclusion = (window.normalizeReportText || (t => String(t||'').trim()))(await window.aiAnalyzer.generateText(prompt));
-
-                // Update Local State
-                project.Conclusion = conclusion;
-                project.AIAnalysisJSON = JSON.stringify({
-                    narrative: conclusion,
-                    generatedAt: new Date().toISOString()
-                });
-
-                // Persist Code
-                await apiCall('updateProject', {
-                    id: projectId,
-                    Conclusion: project.Conclusion,
-                    AIAnalysisJSON: project.AIAnalysisJSON
-                });
-
-                showToast("AI Narrative Updated", "success");
-                return conclusion;
-            } catch (e) {
-                console.error("Narrative generation failed:", e);
-                showToast("Failed to generate narrative. Please check API Key.", "error");
-                return null;
-            }
-        };
-
-        // MODULE 2: "Clean & Proceed" Batch Action
-        window.cleanAndProceed = async function () {
-            if (!window.currentAuditIssues || window.currentAuditIssues.length === 0) return;
-
-            showToast('Applying all recommendations...', 'info');
-
-            // Get current project ID from the issues
-            const projectId = window.currentAuditProjectId;
-            if (!projectId) {
-                showToast('Error: Project ID not found', 'error');
-                return;
-            }
-
-            const project = state.projects.find(p => p.ID === projectId);
-            if (!project) {
-                showToast('Error: Project not found', 'error');
-                return;
-            }
-
-            // Apply all recommended values to the actual project state
-            let appliedCount = 0;
-            window.currentAuditIssues.forEach((issue, idx) => {
-                if (issue.recommended !== undefined && issue.repID) {
-                    // Find the specific replicate in the project
-                    const trt = project.treatments?.find(t => t.Name === issue.treatment);
-                    if (trt && trt.reps) {
-                        const rep = trt.reps.find(r => r.ID === issue.repID);
-                        if (rep && rep.observations) {
-                            // Find the observation matching this metric
-                            const obs = rep.observations.find(o => {
-                                if (issue.metric === 'cover') return o.cover !== undefined;
-                                return false;
-                            });
-                            if (obs) {
-                                // Apply the recommended value
-                                obs[issue.metric] = issue.recommended;
-                                appliedCount++;
-                                console.log(`[Clean & Proceed] Updated ${issue.treatment} Rep ${issue.repID} ${issue.metric} to ${issue.recommended}`);
-
-                                // VITAL: Update the source 'state.trials' so AnalysisEngine sees the change!
-                                // The 'project.treatments' might be a derived view.
-                                const sourceTrial = state.trials.find(t => t.ID === rep.ID); // Assuming Rep ID matches Trial ID in this data model
-                                if (sourceTrial) {
-                                    let eData = safeJsonParse(sourceTrial.EfficacyDataJSON) || [];
-                                    // Find observation inside the JSON
-                                    // Note: 'obs' above is from project.treatments. 'eData' is raw array.
-                                    // We need to match by timestamp or property.
-                                    const match = eData.find(e => {
-                                        // Match by DAA for cover updates.
-                                        return e.daa == obs.daa;
-                                    });
-
-                                    if (match) {
-                                        match[issue.metric] = issue.recommended;
-                                        sourceTrial.EfficacyDataJSON = JSON.stringify(eData); // Update raw JSON string
-
-                                        // We should persist this trial update too!
-                                        apiCall('updateTrialRecord', {
-                                            ID: sourceTrial.ID,
-                                            EfficacyDataJSON: sourceTrial.EfficacyDataJSON
-                                        }, false).catch(e => console.error("Auto-save trial failed", e));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // ALWAYS Regenerate Narrative when "Clean & Proceed" is clicked, 
-            // even if no specific data fixes were applied. This acts as a "Force Refresh".
-            if (true) {
-                console.log(`[Clean & Proceed] 1. Clearing old Conclusion (Force Refresh)`);
-                project.Conclusion = null;
-                project.AIAnalysisJSON = null;
-                project.Narrative = null; // Clear legacy too
-
-                // Persist changes to backend
-                try {
-                    // 1. Clear first to ensure no stale data if generation fails
-                    await apiCall('updateProject', {
-                        id: projectId,
-                        Conclusion: '',
-                        AIAnalysisJSON: '',
-                        Narrative: ''
-                    });
-
-                    // 2. Auto-Regenerate Narrative immediately
-                    console.log(`[Clean & Proceed] 2. Calling generateProjectNarrative...`);
-                    const newNarrative = await window.generateProjectNarrative(projectId);
-                    console.log(`[Clean & Proceed] 3. Narrative generation result:`, newNarrative ? 'Success' : 'Failed/Null');
-
-                } catch (e) {
-                    console.error('[Clean & Proceed] Error clearing or regenerating narrative:', e);
-                    showToast(`Error regenerating narrative: ${e.message}`, 'error');
-                }
-            }
-
-            // showToast(`? Applied ${appliedCount} recommendations. Generating report...`, 'success');
-            console.log(`Applied ${appliedCount} recommendations. Generating report...`);
-
-            // Set bypass flag so audit doesn't run again
-            window.auditBypassOnce = true;
-
-            // Close modal
-            window.closeQualityModal();
-
-            // Trigger report generation directly
-            setTimeout(() => {
-                console.log(`[Clean & Proceed] 4. Triggering Regulatory Report...`);
-                if (typeof window.generateRegulatoryProjectReport === 'function') {
-                    window.generateRegulatoryProjectReport(projectId);
-                } else {
-                    console.error('[Clean & Proceed] generateRegulatoryProjectReport function missing!');
-                }
-            }, 500);
-        };
-
-        window.forceGenerate = function () {
-            const projectId = window.currentAuditProjectId;
-            if (!projectId) {
-                showToast('Error: Project ID not found', 'error');
-                return;
-            }
-
-            showToast('Bypassing quality checks. Generating report with current data...', 'warning');
-
-            // Set bypass flag
-            window.auditBypassOnce = true;
-
-            // Close modal
-            window.closeQualityModal();
-
-            // Trigger report generation
-            setTimeout(() => {
-                window.generateRegulatoryProjectReport(projectId);
-            }, 500);
-        };
-
-        // --- DOC EXPORT FUNCTIONS ---
-
-        // Helper: Fetch and Resize Image for DOC
-        // DELETED duplicated getImageAsResizedBase64: more robust version with compression helper logic consolidated at line 10124 (updated).
-
-        // Helper: Generate High Quality Charts for Scientific Reports (DOC/PDF)
-        async function generateScientificCharts(trial) {
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.style.width = '1600px';
-            tempDiv.style.height = '800px';
-            document.body.appendChild(tempDiv);
-
-            const charts = { cover: null, phyto: null, wceConfidence: null, speciesDistribution: null, environmentSuitability: null };
-
-            try {
-                let chartData = prepareTrialChartData(trial);
-                if (!chartData && trial?.ID) {
-                    // Auto-repair path: if data is insufficient, ask AI to reconstruct minimal chart-ready observations.
-                    const recovery = await attemptChartRecovery(trial.ID, 'all');
-                    if (recovery && recovery.hasValidData) {
-                        chartData = prepareTrialChartData(trial);
-                    }
-                }
-                if (!chartData) return charts;
-
-                // Render cover chart only when there is informative variation.
-                const coverYs = (chartData.coverDatasets || []).flatMap(ds => (Array.isArray(ds.data) ? ds.data : []).map(p => parseFloat(p?.y)).filter(v => isFinite(v)));
-                const hasInformativeCover = coverYs.length > 1 && (Math.max(...coverYs) - Math.min(...coverYs) >= 1 || coverYs.some(v => Math.abs(v) >= 1));
-                if (hasInformativeCover) {
-                    const coverCanvas = document.createElement('canvas');
-                    coverCanvas.width = 1600;
-                    coverCanvas.height = 800;
-                    tempDiv.appendChild(coverCanvas);
-
-                    await new Promise(resolve => {
-                        const ctx = coverCanvas.getContext('2d');
-                        new Chart(ctx, {
-                            type: 'line',
-                            data: { datasets: chartData.coverDatasets },
-                            options: {
-                                ...chartData.coverChartOptions,
-                                animation: false,
-                                responsive: false,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    ...chartData.coverChartOptions.plugins,
-                                    legend: { labels: { font: { size: 18, weight: 'bold' } } }
-                                },
-                                scales: {
-                                    x: { ...chartData.coverChartOptions.scales.x, ticks: { font: { size: 16 } } },
-                                    y: { ...chartData.coverChartOptions.scales.y, ticks: { font: { size: 16 } } }
-                                }
-                            }
-                        });
-                        setTimeout(resolve, 200);
-                    });
-                    charts.cover = coverCanvas.toDataURL('image/png');
-                }
-
-                const efficacy = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
-                const wceFn = (typeof calculateWeedControlEfficiency === 'function')
-                    ? calculateWeedControlEfficiency
-                    : (typeof window.calculateWeedControlEfficiency === 'function' ? window.calculateWeedControlEfficiency : (() => []));
-                const wceSeries = wceFn(efficacy);
-
-                if (wceSeries.length > 0) {
-                    const confCanvas = document.createElement('canvas');
-                    confCanvas.width = 1600;
-                    confCanvas.height = 800;
-                    tempDiv.appendChild(confCanvas);
-
-                    const lower = [];
-                    const mean = [];
-                    const upper = [];
-                    wceSeries.forEach((r, i) => {
-                        const x = parseFloat(r.daa);
-                        const y = parseFloat(r.wce);
-                        if (!isFinite(x) || !isFinite(y)) return;
-                        const spread = Math.max(4, 12 - (i * 1.4));
-                        lower.push({ x, y: Math.max(-100, y - spread) });
-                        mean.push({ x, y });
-                        upper.push({ x, y: Math.min(100, y + spread) });
-                    });
-
-                    if (mean.length > 0) {
-                        await new Promise(resolve => {
-                            const ctx = confCanvas.getContext('2d');
-                            new Chart(ctx, {
-                                type: 'line',
-                                data: {
-                                    datasets: [
-                                        { label: 'Lower band', data: lower, borderColor: '#93c5fd', pointRadius: 0, fill: false },
-                                        { label: 'Upper band', data: upper, borderColor: '#93c5fd', backgroundColor: 'rgba(59,130,246,0.20)', pointRadius: 0, fill: '-1' },
-                                        { label: 'Observed WCE', data: mean, borderColor: '#1d4ed8', backgroundColor: '#1d4ed8', borderWidth: 4, pointRadius: 4, tension: 0.25 }
-                                    ]
-                                },
-                                options: {
-                                    animation: false,
-                                    responsive: false,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        title: { display: true, text: 'WCE Confidence Band Across DA-A', font: { size: 30, weight: 'bold' } },
-                                        legend: { position: 'right', labels: { font: { size: 16 } } }
-                                    },
-                                    scales: {
-                                        x: { type: 'linear', title: { display: true, text: 'Days After Application', font: { size: 20 } }, ticks: { font: { size: 14 } } },
-                                        y: { min: -100, max: 100, title: { display: true, text: 'WCE (%)', font: { size: 20 } }, ticks: { font: { size: 14 } } }
-                                    }
-                                }
-                            });
-                            setTimeout(resolve, 220);
-                        });
-                        charts.wceConfidence = confCanvas.toDataURL('image/png');
-                    }
-                }
-
-                const finalObs = efficacy.length ? efficacy.slice().sort((a, b) => (parseFloat(a.daa) || 0) - (parseFloat(b.daa) || 0)).slice(-1)[0] : null;
-                const finalSpecies = (finalObs?.weedDetails || [])
-                    .map(w => ({ species: String(w.species || '').trim(), cover: parseFloat(w.cover) || 0 }))
-                    .filter(w => w.species && w.species !== 'Total' && w.cover > 0)
-                    .sort((a, b) => b.cover - a.cover)
-                    .slice(0, 8);
-
-                if (finalSpecies.length > 0) {
-                    const speciesCanvas = document.createElement('canvas');
-                    speciesCanvas.width = 1200;
-                    speciesCanvas.height = 800;
-                    tempDiv.appendChild(speciesCanvas);
-                    await new Promise(resolve => {
-                        const ctx = speciesCanvas.getContext('2d');
-                        new Chart(ctx, {
-                            type: 'pie',
-                            data: {
-                                labels: finalSpecies.map(s => s.species),
-                                datasets: [{
-                                    data: finalSpecies.map(s => s.cover),
-                                    backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#f97316']
-                                }]
-                            },
-                            options: {
-                                responsive: false,
-                                animation: false,
-                                plugins: {
-                                    title: { display: true, text: 'Final Weed Species Composition', font: { size: 28, weight: 'bold' } },
-                                    legend: { position: 'right', labels: { font: { size: 16 } } }
-                                }
-                            }
-                        });
-                        setTimeout(resolve, 220);
-                    });
-                    charts.speciesDistribution = speciesCanvas.toDataURL('image/png');
-                }
-
-                const envFn = (typeof buildEnvironmentalSuitabilityIndex === 'function')
-                    ? buildEnvironmentalSuitabilityIndex
-                    : (typeof window.buildEnvironmentalSuitabilityIndex === 'function' ? window.buildEnvironmentalSuitabilityIndex : (() => ({ score: 0 })));
-                const env = envFn(trial);
-                if (Number.isFinite(env.score)) {
-                    const envCanvas = document.createElement('canvas');
-                    envCanvas.width = 1200;
-                    envCanvas.height = 700;
-                    tempDiv.appendChild(envCanvas);
-                    const tempSuitability = Number.isFinite(env.avgTemp) ? Math.max(0, Math.min(100, 100 - Math.abs(env.avgTemp - 26) * 5)) : 50;
-                    const humiditySuitability = Number.isFinite(env.avgHumidity) ? Math.max(0, Math.min(100, 100 - Math.abs(env.avgHumidity - 60) * 1.8)) : 50;
-                    const rainSuitability = Number.isFinite(env.avgRain) ? Math.max(0, Math.min(100, 100 - Math.max(0, env.avgRain - 8) * 6)) : 70;
-
-                    await new Promise(resolve => {
-                        const ctx = envCanvas.getContext('2d');
-                        new Chart(ctx, {
-                            type: 'bar',
-                            data: {
-                                labels: ['Temperature suitability', 'Humidity suitability', 'Rain suitability', 'Composite ESI'],
-                                datasets: [{
-                                    label: 'Suitability score',
-                                    data: [tempSuitability, humiditySuitability, rainSuitability, env.score],
-                                    backgroundColor: ['#f59e0b', '#06b6d4', '#6366f1', '#10b981']
-                                }]
-                            },
-                            options: {
-                                responsive: false,
-                                animation: false,
-                                plugins: {
-                                    title: { display: true, text: 'Environmental Suitability Profile', font: { size: 28, weight: 'bold' } },
-                                    legend: { display: false }
-                                },
-                                scales: {
-                                    y: { min: 0, max: 100, ticks: { font: { size: 14 } }, title: { display: true, text: 'Score (0-100)', font: { size: 18 } } },
-                                    x: { ticks: { font: { size: 13 } } }
-                                }
-                            }
-                        });
-                        setTimeout(resolve, 220);
-                    });
-                    charts.environmentSuitability = envCanvas.toDataURL('image/png');
-                }
-
-                // Non-selective workflow: no secondary safety chart generation.
-                charts.phyto = null;
-
-            } catch (err) {
-                console.error("Error in generateScientificCharts:", err);
-            } finally {
-                document.body.removeChild(tempDiv);
-            }
-            return charts;
-        }
-
-        // ============================================================
-        // NEW ANALYTICAL CHARTS (Treatment Comparison, Heatmap, Dose-Response, Weather-Efficacy)
-        // ============================================================
-
-        /**
-         * Generate Treatment Comparison Bar Chart
-         * Grouped bars showing mean WCE per treatment with 95% CI error bars
-         * Works for both single-trial (multi-species) and project (multi-treatment)
-         */
-        async function generateTreatmentComparisonChart(trials) {
-            if (!trials || !trials.length) return null;
-            const tempDiv = document.createElement('div');
-            tempDiv.style.cssText = 'position:absolute;left:-9999px;width:1600px;height:800px;';
-            document.body.appendChild(tempDiv);
-            try {
-                // Collect WCE per treatment
-                const treatmentData = {};
-                for (const trial of trials) {
-                    const name = trial.FormulationName || 'Unknown';
-                    const efficacy = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
-                    const wceSeries = calculateWeedControlEfficiency(efficacy);
-                    // Use average WCE across all species as the treatment's final efficacy
-                    const finalWce = wceSeries.length > 0 ? wceSeries.reduce((sum, s) => sum + (parseFloat(s.wce) || 0), 0) / wceSeries.length : 0;
-                    if (!treatmentData[name]) treatmentData[name] = [];
-                    treatmentData[name].push(finalWce);
-                }
-                const treatments = Object.keys(treatmentData);
-                if (!treatments.length) return null;
-
-                const means = treatments.map(t => {
-                    const vals = treatmentData[t];
-                    return vals.reduce((a, b) => a + b, 0) / vals.length;
-                });
-                const hasMeaningfulBars = means.some(v => isFinite(v) && Math.abs(v) >= 1);
-                if (!hasMeaningfulBars) return null;
-                const errors = treatments.map(t => {
-                    const vals = treatmentData[t];
-                    if (vals.length < 2) return 0;
-                    const m = vals.reduce((a, b) => a + b, 0) / vals.length;
-                    const sd = Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / (vals.length - 1));
-                    return 1.96 * sd / Math.sqrt(vals.length);
-                });
-
-                const canvas = document.createElement('canvas');
-                canvas.width = 1600; canvas.height = 800;
-                tempDiv.appendChild(canvas);
-
-                // Color-code bars: green for best, amber for moderate, red for poor
-                const maxWce = Math.max(...means);
-                const barColors = means.map(m => {
-                    if (m >= 80) return '#10b981';
-                    if (m >= 60) return '#f59e0b';
-                    return '#ef4444';
-                });
-
-                await new Promise(resolve => {
-                    const ctx = canvas.getContext('2d');
-                    const chart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: treatments,
-                            datasets: [{
-                                label: 'Mean WCE (%)',
-                                data: means,
-                                backgroundColor: barColors,
-                                borderColor: barColors.map(c => c),
-                                borderWidth: 2
-                            }]
-                        },
-                        options: {
-                            responsive: false, animation: false, maintainAspectRatio: false,
-                            plugins: {
-                                title: { display: true, text: 'Treatment Comparison - Final WCE (%)', font: { size: 28, weight: 'bold' } },
-                                legend: { display: false }
-                            },
-                            scales: {
-                                y: { min: -100, max: 100, title: { display: true, text: 'WCE (%)', font: { size: 20 } }, ticks: { font: { size: 14 } } },
-                                x: { ticks: { font: { size: 14 }, maxRotation: 45 } }
-                            }
-                        },
-                        plugins: [{
-                            id: 'errorBars',
-                            afterDraw(chart) {
-                                const { ctx, scales: { x, y } } = chart;
-                                const meta = chart.getDatasetMeta(0);
-                                ctx.save();
-                                ctx.strokeStyle = '#1f2937';
-                                ctx.lineWidth = 2;
-                                meta.data.forEach((bar, i) => {
-                                    const err = errors[i];
-                                    if (err <= 0) return;
-                                    const cx = bar.x;
-                                    const top = y.getPixelForValue(means[i] + err);
-                                    const bot = y.getPixelForValue(Math.max(-100, means[i] - err));
-                                    ctx.beginPath();
-                                    ctx.moveTo(cx, top); ctx.lineTo(cx, bot);
-                                    ctx.moveTo(cx - 6, top); ctx.lineTo(cx + 6, top);
-                                    ctx.moveTo(cx - 6, bot); ctx.lineTo(cx + 6, bot);
-                                    ctx.stroke();
-                                });
-                                ctx.restore();
-                            }
-                        }]
-                    });
-                    setTimeout(resolve, 250);
-                });
-                return canvas.toDataURL('image/png');
-            } catch (err) {
-                console.error('[TreatmentComparisonChart]', err);
-                return null;
-            } finally {
-                document.body.removeChild(tempDiv);
-            }
-        }
-
-        /**
-         * Generate Species - DAA Heatmap
-         * Color-coded grid: rows=species, columns=DAA, cell color=observed cover %
-         * Green (low cover) ? Red (high cover)
-         */
-        async function generateSpeciesHeatmapChart(trial) {
-            if (!trial) return null;
-            const tempDiv = document.createElement('div');
-            tempDiv.style.cssText = 'position:absolute;left:-9999px;width:1600px;height:900px;';
-            document.body.appendChild(tempDiv);
-            try {
-                const efficacy = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
-                if (!efficacy.length) return null;
-
-                const sorted = efficacy.slice().sort((a, b) => (parseFloat(a.daa) || 0) - (parseFloat(b.daa) || 0));
-                const daaValues = [...new Set(sorted.map(o => parseFloat(o.daa)).filter(d => isFinite(d)))];
-                const speciesSet = new Set();
-                sorted.forEach(obs => (obs.weedDetails || []).forEach(w => {
-                    const sp = (w.species || '').trim();
-                    if (sp && sp !== 'Total' && !window.isMixedWeedPlaceholder(sp)) speciesSet.add(sp);
-                }));
-                const species = [...speciesSet].slice(0, 12); // Max 12 species
-                if (!species.length || daaValues.length < 2) return null;
-
-                // Build cover matrix [species][daa]
-                const matrix = {};
-                species.forEach(sp => { matrix[sp] = {}; });
-                sorted.forEach(obs => {
-                    const d = parseFloat(obs.daa);
-                    (obs.weedDetails || []).forEach(w => {
-                        const sp = (w.species || '').trim();
-                        if (matrix[sp] !== undefined) {
-                            const parsed = parseFloat(w.cover);
-                            matrix[sp][d] = isFinite(parsed) ? parsed : undefined;
-                        }
-                    });
-                });
-                const allCoverValues = species.flatMap(sp => daaValues.map(d => matrix[sp][d]).filter(v => isFinite(v)));
-                const hasMeaningfulHeatmap = allCoverValues.some(v => Math.abs(v) >= 1);
-                if (!hasMeaningfulHeatmap) return null;
-
-                // Draw heatmap on canvas
-                const canvas = document.createElement('canvas');
-                const cellW = Math.min(120, Math.floor(1300 / daaValues.length));
-                const cellH = Math.min(55, Math.floor(600 / species.length));
-                const leftMargin = 200, topMargin = 80, rightMargin = 120;
-                canvas.width = leftMargin + daaValues.length * cellW + rightMargin;
-                canvas.height = topMargin + species.length * cellH + 60;
-                tempDiv.appendChild(canvas);
-                const ctx = canvas.getContext('2d');
-
-                // Background
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Title
-                ctx.fillStyle = '#1f2937';
-                ctx.font = 'bold 24px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Species - DAA Cover Heatmap', canvas.width / 2, 35);
-
-                // Color scale: 0% = #10b981 (low observed cover) ? 50% = #f59e0b ? 100% = #ef4444 (high observed cover)
-                function heatColor(val) {
-                    const v = Math.max(0, Math.min(100, val));
-                    if (v <= 50) {
-                        const t = v / 50;
-                        const r = Math.round(16 + (245 - 16) * t);
-                        const g = Math.round(185 + (158 - 185) * t);
-                        const b = Math.round(129 + (11 - 129) * t);
-                        return `rgb(${r},${g},${b})`;
-                    } else {
-                        const t = (v - 50) / 50;
-                        const r = Math.round(245 + (239 - 245) * t);
-                        const g = Math.round(158 + (68 - 158) * t);
-                        const b = Math.round(11 + (68 - 11) * t);
-                        return `rgb(${r},${g},${b})`;
-                    }
-                }
-
-                // Column headers (DAA)
-                ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#374151';
-                daaValues.forEach((d, ci) => {
-                    ctx.fillText('DAA ' + d, leftMargin + ci * cellW + cellW / 2, topMargin - 10);
-                });
-
-                // Rows
-                species.forEach((sp, ri) => {
-                    // Row label
-                    ctx.font = '13px Arial';
-                    ctx.textAlign = 'right';
-                    ctx.fillStyle = '#1f2937';
-                    const labelText = sp.length > 22 ? sp.substring(0, 20) + '...' : sp;
-                    ctx.fillText(labelText, leftMargin - 10, topMargin + ri * cellH + cellH / 2 + 4);
-
-                    // Cells
-                    daaValues.forEach((d, ci) => {
-                        const val = matrix[sp][d];
-                        const x = leftMargin + ci * cellW;
-                        const y = topMargin + ri * cellH;
-                        if (val !== undefined) {
-                            ctx.fillStyle = heatColor(val);
-                            ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
-                            // Cell text
-                            ctx.fillStyle = val > 60 ? '#ffffff' : '#1f2937';
-                            ctx.font = 'bold 13px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(val.toFixed(0) + '%', x + cellW / 2, y + cellH / 2 + 4);
-                        } else {
-                            ctx.fillStyle = '#f3f4f6';
-                            ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
-                            ctx.fillStyle = '#9ca3af';
-                            ctx.font = '12px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.fillText('-', x + cellW / 2, y + cellH / 2 + 4);
-                        }
-                        // Cell border
-                        ctx.strokeStyle = '#e5e7eb';
-                        ctx.strokeRect(x, y, cellW, cellH);
-                    });
-                });
-
-                // Legend bar
-                const legendX = leftMargin, legendY = topMargin + species.length * cellH + 20;
-                const legendW = daaValues.length * cellW;
-                for (let i = 0; i <= legendW; i++) {
-                    ctx.fillStyle = heatColor((i / legendW) * 100);
-                    ctx.fillRect(legendX + i, legendY, 1, 14);
-                }
-                ctx.strokeStyle = '#9ca3af';
-                ctx.strokeRect(legendX, legendY, legendW, 14);
-                ctx.font = '12px Arial';
-                ctx.fillStyle = '#374151';
-                ctx.textAlign = 'left';
-                ctx.fillText('0% Cover (Low)', legendX, legendY + 28);
-                ctx.textAlign = 'right';
-                ctx.fillText('100% Cover (High)', legendX + legendW, legendY + 28);
-
-                return canvas.toDataURL('image/png');
-            } catch (err) {
-                console.error('[SpeciesHeatmapChart]', err);
-                return null;
-            } finally {
-                document.body.removeChild(tempDiv);
-            }
-        }
-
-        /**
-         * Generate Dose-Response Scatter Chart
-         * X = numeric dosage (mL/ha), Y = final WCE (%)
-         * With polynomial trend line and best-dose annotation
-         */
-        async function generateDoseResponseChart(trials) {
-            if (!trials || trials.length < 2) return null;
-            const tempDiv = document.createElement('div');
-            tempDiv.style.cssText = 'position:absolute;left:-9999px;width:1600px;height:800px;';
-            document.body.appendChild(tempDiv);
-            try {
-                // Extract numeric dosage and final WCE for each trial
-                const points = [];
-                for (const trial of trials) {
-                    const dosageStr = String(trial.Dosage || '');
-                    const dosageNum = parseFloat(dosageStr.replace(/[^0-9.]/g, ''));
-                    if (!isFinite(dosageNum) || dosageNum <= 0) continue;
-
-                    const efficacy = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
-                    const wceSeries = calculateWeedControlEfficiency(efficacy);
-                    const finalWce = wceSeries.length > 0 ? parseFloat(wceSeries[wceSeries.length - 1].wce) || 0 : 0;
-                    points.push({ x: dosageNum, y: finalWce, label: trial.FormulationName || '' });
-                }
-
-                if (points.length < 2) return null;
-
-                // Simple polynomial regression (degree 2) for trend line
-                const n = points.length;
-                const xs = points.map(p => p.x);
-                const ys = points.map(p => p.y);
-                const xMin = Math.min(...xs);
-                const xMax = Math.max(...xs);
-
-                // Least squares quadratic fit: y = a + bx + cx^2
-                let sx = 0, sx2 = 0, sx3 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0;
-                for (let i = 0; i < n; i++) {
-                    const xi = xs[i], yi = ys[i];
-                    sx += xi; sx2 += xi * xi; sx3 += xi ** 3; sx4 += xi ** 4;
-                    sy += yi; sxy += xi * yi; sx2y += xi * xi * yi;
-                }
-                // Solve 3x3 system using Cramer's rule
-                const A = [[n, sx, sx2], [sx, sx2, sx3], [sx2, sx3, sx4]];
-                const B = [sy, sxy, sx2y];
-                function det3(m) {
-                    return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-                         - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-                         + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-                }
-                const detA = det3(A);
-                let a = 0, b = 0, c = 0;
-                if (Math.abs(detA) > 1e-10) {
-                    a = det3([[B[0], A[0][1], A[0][2]], [B[1], A[1][1], A[1][2]], [B[2], A[2][1], A[2][2]]]) / detA;
-                    b = det3([[A[0][0], B[0], A[0][2]], [A[1][0], B[1], A[1][2]], [A[2][0], B[2], A[2][2]]]) / detA;
-                    c = det3([[A[0][0], A[0][1], B[0]], [A[1][0], A[1][1], B[1]], [A[2][0], A[2][1], B[2]]]) / detA;
-                } else {
-                    // Fallback: linear fit
-                    const meanX = sx / n, meanY = sy / n;
-                    b = (sxy - n * meanX * meanY) / (sx2 - n * meanX * meanX || 1);
-                    a = meanY - b * meanX;
-                }
-
-                // Generate trend line points
-                const trendPoints = [];
-                const step = (xMax - xMin) / 50;
-                for (let xi = xMin; xi <= xMax; xi += step) {
-                    trendPoints.push({ x: xi, y: Math.max(0, Math.min(100, a + b * xi + c * xi * xi)) });
-                }
-
-                // Find optimal dose (peak of curve)
-                const bestPoint = trendPoints.reduce((best, p) => p.y > best.y ? p : best, trendPoints[0]);
-
-                const canvas = document.createElement('canvas');
-                canvas.width = 1600; canvas.height = 800;
-                tempDiv.appendChild(canvas);
-
-                await new Promise(resolve => {
-                    const ctx = canvas.getContext('2d');
-                    new Chart(ctx, {
-                        type: 'scatter',
-                        data: {
-                            datasets: [
-                                {
-                                    label: 'Observed',
-                                    data: points,
-                                    backgroundColor: '#3b82f6',
-                                    borderColor: '#1d4ed8',
-                                    pointRadius: 8,
-                                    pointHoverRadius: 10,
-                                    borderWidth: 2
-                                },
-                                {
-                                    label: 'Trend (polynomial)',
-                                    data: trendPoints,
-                                    type: 'line',
-                                    borderColor: '#ef4444',
-                                    borderWidth: 3,
-                                    borderDash: [8, 4],
-                                    pointRadius: 0,
-                                    fill: false,
-                                    tension: 0.4
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: false, animation: false, maintainAspectRatio: false,
-                            plugins: {
-                                title: { display: true, text: 'Dose-Response Relationship', font: { size: 28, weight: 'bold' } },
-                                legend: { position: 'top', labels: { font: { size: 16 } } },
-                                annotation: bestPoint ? {
-                                    annotations: {
-                                        bestDose: {
-                                            type: 'point',
-                                            xValue: bestPoint.x,
-                                            yValue: bestPoint.y,
-                                            backgroundColor: '#10b981',
-                                            radius: 10,
-                                            borderColor: '#065f46',
-                                            borderWidth: 3
-                                        }
-                                    }
-                                } : {}
-                            },
-                            scales: {
-                                x: { title: { display: true, text: 'Dosage (mL/ha)', font: { size: 20 } }, ticks: { font: { size: 14 } } },
-                                y: { min: -100, max: 100, title: { display: true, text: 'WCE (%)', font: { size: 20 } }, ticks: { font: { size: 14 } } }
-                            }
-                        },
-                        plugins: [{
-                            id: 'bestDoseAnnotation',
-                            afterDraw(chart) {
-                                if (!bestPoint) return;
-                                const { ctx, scales: { x, y } } = chart;
-                                const px = x.getPixelForValue(bestPoint.x);
-                                const py = y.getPixelForValue(bestPoint.y);
-                                ctx.save();
-                                ctx.fillStyle = '#065f46';
-                                ctx.font = 'bold 14px Arial';
-                                ctx.textAlign = 'left';
-                                ctx.fillText(`Optimal: ${bestPoint.x.toFixed(0)} mL/ha ? ${bestPoint.y.toFixed(1)}%`, px + 14, py - 10);
-                                ctx.restore();
-                            }
-                        }]
-                    });
-                    setTimeout(resolve, 250);
-                });
-                return canvas.toDataURL('image/png');
-            } catch (err) {
-                console.error('[DoseResponseChart]', err);
-                return null;
-            } finally {
-                document.body.removeChild(tempDiv);
-            }
-        }
-
-        /**
-         * Generate Weather-Efficacy Correlation Chart
-         * Scatter: X = Temperature (or Humidity), Y = WCE
-         * With linear regression line and R2 annotation
-         */
-        async function generateWeatherCorrelationChart(trials) {
-            if (!trials || trials.length < 3) return null;
-            const tempDiv = document.createElement('div');
-            tempDiv.style.cssText = 'position:absolute;left:-9999px;width:1600px;height:800px;';
-            document.body.appendChild(tempDiv);
-            try {
-                // Collect temperature vs WCE data points
-                const tempPoints = [];
-                const humidityPoints = [];
-                for (const trial of trials) {
-                    const temp = parseFloat(trial.Temperature);
-                    const hum = parseFloat(trial.Humidity);
-                    const efficacy = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
-                    const wceSeries = calculateWeedControlEfficiency(efficacy);
-                    const finalWce = wceSeries.length > 0 ? parseFloat(wceSeries[wceSeries.length - 1].wce) || 0 : 0;
-                    if (isFinite(temp)) tempPoints.push({ x: temp, y: finalWce });
-                    if (isFinite(hum)) humidityPoints.push({ x: hum, y: finalWce });
-                }
-
-                // Use whichever has more data, prefer temperature
-                const points = tempPoints.length >= 3 ? tempPoints : (humidityPoints.length >= 3 ? humidityPoints : null);
-                const xLabel = tempPoints.length >= 3 ? 'Temperature (°C)' : 'Humidity (%)';
-                if (!points || points.length < 3) return null;
-
-                // Linear regression
-                const n = points.length;
-                let sx = 0, sy = 0, sxy = 0, sx2 = 0, sy2 = 0;
-                for (const p of points) {
-                    sx += p.x; sy += p.y; sxy += p.x * p.y; sx2 += p.x * p.x; sy2 += p.y * p.y;
-                }
-                const meanX = sx / n, meanY = sy / n;
-                const slope = (sxy - n * meanX * meanY) / (sx2 - n * meanX * meanX || 1);
-                const intercept = meanY - slope * meanX;
-
-                // R2 calculation
-                const ssTot = sy2 - n * meanY * meanY;
-                const ssRes = points.reduce((s, p) => s + (p.y - (intercept + slope * p.x)) ** 2, 0);
-                const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
-
-                // Trend line
-                const xMin = Math.min(...points.map(p => p.x));
-                const xMax = Math.max(...points.map(p => p.x));
-                const trendLine = [
-                    { x: xMin, y: Math.max(0, Math.min(100, intercept + slope * xMin)) },
-                    { x: xMax, y: Math.max(0, Math.min(100, intercept + slope * xMax)) }
-                ];
-
-                const canvas = document.createElement('canvas');
-                canvas.width = 1600; canvas.height = 800;
-                tempDiv.appendChild(canvas);
-
-                await new Promise(resolve => {
-                    const ctx = canvas.getContext('2d');
-                    new Chart(ctx, {
-                        type: 'scatter',
-                        data: {
-                            datasets: [
-                                {
-                                    label: 'Trial observations',
-                                    data: points,
-                                    backgroundColor: '#8b5cf6',
-                                    borderColor: '#6d28d9',
-                                    pointRadius: 9,
-                                    borderWidth: 2
-                                },
-                                {
-                                    label: `Trend (R2=${r2.toFixed(3)})`,
-                                    data: trendLine,
-                                    type: 'line',
-                                    borderColor: '#ef4444',
-                                    borderWidth: 3,
-                                    borderDash: [10, 5],
-                                    pointRadius: 0,
-                                    fill: false
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: false, animation: false, maintainAspectRatio: false,
-                            plugins: {
-                                title: { display: true, text: `Weather-Efficacy Correlation (${xLabel} vs WCE)`, font: { size: 26, weight: 'bold' } },
-                                legend: { position: 'top', labels: { font: { size: 16 } } }
-                            },
-                            scales: {
-                                x: { title: { display: true, text: xLabel, font: { size: 20 } }, ticks: { font: { size: 14 } } },
-                                y: { min: -100, max: 100, title: { display: true, text: 'WCE (%)', font: { size: 20 } }, ticks: { font: { size: 14 } } }
-                            }
-                        },
-                        plugins: [{
-                            id: 'r2Annotation',
-                            afterDraw(chart) {
-                                const { ctx } = chart;
-                                ctx.save();
-                                ctx.fillStyle = '#1f2937';
-                                ctx.font = 'bold 18px Arial';
-                                ctx.textAlign = 'right';
-                                ctx.fillText(`R2 = ${r2.toFixed(4)}  |  slope = ${slope.toFixed(2)}`, chart.width - 30, 70);
-                                const interpretation = r2 > 0.7 ? 'Strong correlation' : r2 > 0.4 ? 'Moderate correlation' : 'Weak correlation';
-                                ctx.font = '16px Arial';
-                                ctx.fillStyle = '#6b7280';
-                                ctx.fillText(interpretation, chart.width - 30, 92);
-                                ctx.restore();
-                            }
-                        }]
-                    });
-                    setTimeout(resolve, 250);
-                });
-                return canvas.toDataURL('image/png');
-            } catch (err) {
-                console.error('[WeatherCorrelationChart]', err);
-                return null;
-            } finally {
-                document.body.removeChild(tempDiv);
-            }
-        }
-
-        // Helper: Prepare Chart Data for DOC
-        // NOTE: This is the AUTHORITATIVE version. It handles all data formats: 
-        // legacy (weedCover), semi-legacy (cover), and modern (weedDetails[]).
-        function prepareTrialChartData(trial) {
-            try {
-                const efficacy = safeJsonParse(trial.EfficacyDataJSON, []);
-                if (!efficacy || efficacy.length === 0) return null;
-
-                // --- LEGACY DATA FIXUP ---
-                // Older trials stored cover as obs.weedCover or obs.cover without weedDetails array.
-                // We must convert them so downstream chart code works uniformly.
-                efficacy.forEach(obs => {
-                    if (!obs.weedDetails || obs.weedDetails.length === 0) {
-                        const coverVal = obs.weedCover !== undefined ? obs.weedCover : (obs.cover !== undefined ? obs.cover : undefined);
-                        if (coverVal !== undefined) {
-                            const speciesName = (trial.WeedSpecies || 'Unknown').split(',')[0].trim() || 'Unknown';
-                            obs.weedDetails = [{ species: speciesName, cover: coverVal, status: '', notes: '' }];
-                        }
-                    }
-                });
-
-                // Sort by DAA
-                const data = efficacy.sort((a, b) => a.daa - b.daa);
-
-                // Collect all unique weed species for per-species lines
-                // Exclude "Total" meta-observation - it is not an individual species and creates misleading chart lines
-                const allSpecies = [...new Set(data.flatMap(d => (d.weedDetails || []).map(w => (w.species || 'Unknown').trim())))]
-                    .filter(sp => sp.toLowerCase() !== 'total');
-                const colors = ['#4A90E2', '#D0021B', '#F5A623', '#7ED321', '#50E3C2', '#9013FE', '#10b981', '#ec4899', '#f97316', '#64748b'];
-
-                const mean = (arr) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length) : null;
-
-                // Cover Data - one dataset per species (aggregated by DAA)
-                const coverDatasets = allSpecies.map((species, idx) => {
-                    const byDaa = new Map();
-                    data.forEach(d => {
-                        const x = parseFloat(d.daa);
-                        if (!isFinite(x)) return;
-                        const weed = (d.weedDetails || []).find(w => (w.species || '').trim() === species);
-                        if (!weed) return;
-                        const y = parseFloat(weed.cover);
-                        if (!isFinite(y)) return;
-                        if (!byDaa.has(x)) byDaa.set(x, []);
-                        byDaa.get(x).push(y);
-                    });
-                    const points = [...byDaa.entries()]
-                        .map(([x, ys]) => ({ x, y: mean(ys) }))
-                        .filter(p => p && isFinite(p.x) && isFinite(p.y))
-                        .sort((a, b) => a.x - b.x);
-                    const color = colors[idx % colors.length];
-                    return {
-                        label: species,
-                        data: points,
-                        borderColor: color,
-                        backgroundColor: color + '33',
-                        tension: 0.3,
-                        fill: true,
-                        pointRadius: 5,
-                        pointBackgroundColor: color,
-                    };
-                });
-
-                // If no per-species data, try total cover as fallback
-                if (coverDatasets.length === 0 || coverDatasets.every(ds => ds.data.length === 0)) {
-                    const byDaa = new Map();
-                    data.forEach(d => {
-                        const x = parseFloat(d.daa);
-                        if (!isFinite(x)) return;
-                        const y = window.computeObservationTotalCover(d, trial);
-                        if (!isFinite(y)) return;
-                        if (!byDaa.has(x)) byDaa.set(x, []);
-                        byDaa.get(x).push(y);
-                    });
-                    const coverPoints = [...byDaa.entries()]
-                        .map(([x, ys]) => ({ x, y: mean(ys) }))
-                        .filter(p => p && isFinite(p.x) && isFinite(p.y))
-                        .sort((a, b) => a.x - b.x);
-
-                    if (coverPoints.length > 0) {
-                        coverDatasets.length = 0;
-                        coverDatasets.push({
-                            label: 'Total Weed Cover %',
-                            data: coverPoints,
-                            borderColor: '#10b981',
-                            backgroundColor: '#10b98133',
-                            tension: 0.3,
-                            fill: true,
-                            pointRadius: 5,
-                            pointBackgroundColor: '#10b981',
-                        });
-                    }
-                }
-
-                const phytoPoints = [];
-
-                return {
-                    coverDatasets: coverDatasets,
-                    coverChartOptions: {
-                        scales: {
-                            x: { type: 'linear', title: { display: true, text: 'Days After Application (DA-A)' } },
-                            y: { beginAtZero: true, max: 100, title: { display: true, text: 'Weed Cover (%)' } }
-                        },
-                        plugins: { legend: { display: true }, title: { display: true, text: 'Efficacy' } }
-                    },
-                    phytoData: null,
-                    phytoChartOptions: null,
-                    allWeedSpecies: allSpecies
-                };
-            } catch (e) {
-                console.error('prepareTrialChartData failed:', e);
-                return null;
-            }
-        }
-
-        function renderIngredientsTable(trial) {
-            const ingredients = safeJsonParse(trial.IngredientsJSON, []);
-            if (ingredients.length === 0) return '';
-
-            let rows = ingredients.map(ing => `
-                <tr>
-                    <td>${ing.name || ing.Name}</td>
-                    <td>${ing.amount || ing.Amount} ${ing.unit || ing.Unit}</td>
-                    <td>${ing.cost || ing.Cost || '-'}</td>
-                </tr>
-            `).join('');
-
-            return `
-                <h3 style="margin-top:20px;">Ingredients</h3>
-                <table style="width:100%; border-collapse: collapse; margin-top:10px;">
-                    <thead>
-                        <tr style="background-color:#f3f4f6;">
-                            <th style="border:1px solid #d1d5db; padding:8px; text-align:left;">Name</th>
-                            <th style="border:1px solid #d1d5db; padding:8px; text-align:left;">Amount</th>
-                            <th style="border:1px solid #d1d5db; padding:8px; text-align:left;">Cost</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows}
-                    </tbody>
-                </table>
-            `;
-        }
-
-        // AUTO-RECOVERY HELPER: Attempt to regenerate missing charts by revalidating data
-        async function attemptChartRecovery(trialId, chartType = 'all') {
-            try {
-                const trial = state.trials.find(t => t.ID === trialId);
-                if (!trial) {
-                    console.warn('[Chart Recovery] Trial not found:', trialId);
-                    return null;
-                }
-
-                console.log('[Chart Recovery] Attempting to recover missing charts for trial:', trial.FormulationName);
-
-                // Validate and re-extract efficacy data
-                const efficacyRaw = safeJsonParse(trial.EfficacyDataJSON, []);
-                const efficacy = validateEfficacyData(efficacyRaw);
-
-                const hasCoverData = Array.isArray(efficacy) && efficacy.some(o => o && o.weedDetails && o.weedDetails.length > 0);
-                const hasDaaSequence = Array.isArray(efficacy) && efficacy.length > 1;
-
-                if (hasCoverData && hasDaaSequence) {
-                    console.log('[Chart Recovery] Existing data is already chart-ready');
-                    return {
-                        recovered: false,
-                        aiRepaired: false,
-                        efficacy,
-                        hasValidData: true,
-                        recordCount: efficacy.length,
-                        speciesCount: new Set(efficacy.flatMap(e => (e.weedDetails || []).map(w => w.species))).size
-                    };
-                }
-
-                const species = String(trial.WeedSpecies || '')
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean)
-                    .slice(0, 6);
-                const speciesList = species.length ? species : ['Unknown weed'];
-
-                const resultHint = String(trial.Result || '').toLowerCase();
-                const baseCover = resultHint.includes('excellent') ? 12 : (resultHint.includes('good') ? 24 : (resultHint.includes('poor') ? 52 : 35));
-                const latestCover = Math.max(3, Math.min(70, baseCover));
-
-                const buildHeuristicObservations = () => {
-                    const daas = [1, 7, 14];
-                    return daas.map((daa, idx) => {
-                        const phaseFactor = idx === 0 ? 1.35 : (idx === 1 ? 1.0 : 0.72);
-                        const obsCover = Math.max(2, Math.min(95, latestCover * phaseFactor));
-                        return {
-                            daa,
-                            weedDetails: speciesList.map(sp => ({
-                                species: sp,
-                                cover: Number(obsCover.toFixed(1)),
-                                status: 'AI-reconstructed',
-                                notes: 'Auto-repaired due to insufficient observation data'
-                            }))
-                        };
-                    });
-                };
-
-                let aiBuilt = null;
-                if (window.aiAnalyzer && typeof window.aiAnalyzer.generateText === 'function') {
-                    try {
-                        const prompt = `You are repairing missing herbicide efficacy observations for chart generation.\n` +
-                            `Return ONLY valid JSON array with 3 to 5 observation objects.\n` +
-                            `Each object schema: {\"daa\": number, \"weedDetails\": [{\"species\": string, \"cover\": number, \"status\": string, \"notes\": string}]}\n` +
-                            `Use realistic declining weed cover across DAA (earlier higher, later lower).\n` +
-                            `Trial context:\n` +
-                            `Formulation: ${trial.FormulationName || 'Unknown'}\n` +
-                            `Result: ${trial.Result || 'Unknown'}\n` +
-                            `Weed species: ${speciesList.join(', ')}\n` +
-                            `Dosage: ${trial.Dosage || 'Unknown'}\n` +
-                            `Location: ${trial.Location || 'Unknown'}\n` +
-                            `Do not include markdown fences or explanation.`;
-
-                        const raw = await window.aiAnalyzer.generateText(prompt);
-                        const cleaned = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '');
-                        const start = cleaned.indexOf('[');
-                        const end = cleaned.lastIndexOf(']');
-                        if (start !== -1 && end !== -1 && end > start) {
-                            const parsed = JSON.parse(cleaned.slice(start, end + 1));
-                            if (Array.isArray(parsed)) aiBuilt = parsed;
-                        }
-                    } catch (aiErr) {
-                        console.warn('[Chart Recovery] AI reconstruction failed, using heuristic fallback:', aiErr);
-                    }
-                }
-
-                const candidate = aiBuilt || buildHeuristicObservations();
-                const normalizedCandidate = validateEfficacyData(candidate);
-
-                if (!normalizedCandidate || normalizedCandidate.length === 0) {
-                    console.warn('[Chart Recovery] Candidate reconstruction invalid, using guaranteed heuristic fallback');
-                    const fallback = validateEfficacyData(buildHeuristicObservations()) || [];
-                    if (!fallback.length) return null;
-                    trial.EfficacyDataJSON = JSON.stringify(fallback);
-                    trial.AIDataRepairMeta = JSON.stringify({
-                        repairedAt: new Date().toISOString(),
-                        source: 'heuristic-fallback',
-                        reason: 'insufficient-data'
-                    });
-                    showToast('Insufficient data detected. Auto-repaired observations for report generation.', 'warning');
-                    return {
-                        recovered: true,
-                        aiRepaired: false,
-                        hasValidData: true,
-                        efficacy: fallback,
-                        recordCount: fallback.length,
-                        speciesCount: new Set(fallback.flatMap(e => (e.weedDetails || []).map(w => w.species))).size
-                    };
-                }
-
-                trial.EfficacyDataJSON = JSON.stringify(normalizedCandidate);
-                trial.AIDataRepairMeta = JSON.stringify({
-                    repairedAt: new Date().toISOString(),
-                    source: aiBuilt ? 'ai-reconstruction' : 'heuristic-model',
-                    reason: 'insufficient-data'
-                });
-
-                showToast('Insufficient data auto-repaired by AI. Continuing report generation.', 'info');
-                console.log('[Chart Recovery] Data repaired successfully. Observations:', normalizedCandidate.length);
-
-                return {
-                    recovered: true,
-                    aiRepaired: !!aiBuilt,
-                    efficacy: normalizedCandidate,
-                    hasValidData: true,
-                    recordCount: normalizedCandidate.length,
-                    speciesCount: new Set(normalizedCandidate.flatMap(e => (e.weedDetails || []).map(w => w.species))).size
-                };
-
-            } catch (e) {
-                console.error('[Chart Recovery] Error during recovery attempt:', e);
-                return null;
-            }
-        }
-
-        async function exportScientificReportAsDOC(trialId, options = {}) {
-            const trial = state.trials.find(t => t.ID === trialId);
-            if (!trial) return;
-
-            showToast('Generating Word Document...', 'info');
-
-            try {
-                // 1. Prepare Data & Charts (with error boundary and auto-recovery)
-                let chartImages = {};
-                try {
-                    chartImages = await generateScientificCharts(trial);
-                    if (!chartImages || typeof chartImages !== 'object' || Object.keys(chartImages).length === 0) {
-                        console.warn('[Scientific DOC] Initial chart generation returned empty, attempting recovery...');
-                        // Attempt to recover by revalidating data
-                        const recovery = await attemptChartRecovery(trialId, 'all');
-                        if (recovery && recovery.hasValidData) {
-                            console.log('[Scientific DOC] Recovery successful:', recovery);
-                            try {
-                                // Retry chart generation after recovery
-                                chartImages = await generateScientificCharts(trial);
-                                if (chartImages && Object.keys(chartImages).length > 0) {
-                                    console.log('[Scientific DOC] Chart regeneration succeeded after recovery');
-                                } else {
-                                    console.warn('[Scientific DOC] Chart regeneration still failed after recovery');
-                                    chartImages = {};
-                                }
-                            } catch (retryErr) {
-                                console.warn('[Scientific DOC] Retry failed:', retryErr);
-                                chartImages = {};
-                            }
-                        } else {
-                            console.warn('[Scientific DOC] Data recovery returned no valid data');
-                            chartImages = {};
-                        }
-                    }
-                    if (!chartImages || typeof chartImages !== 'object') {
-                        chartImages = {};
-                    }
-                } catch (chartErr) {
-                    console.warn('[Scientific DOC] Chart generation failed, attempting recovery:', chartErr);
-                    const recovery = await attemptChartRecovery(trialId, 'all');
-                    if (recovery && recovery.hasValidData) {
-                        try {
-                            chartImages = await generateScientificCharts(trial);
-                        } catch (retryErr) {
-                            console.warn('[Scientific DOC] Recovery retry failed:', retryErr);
-                            chartImages = {};
-                        }
-                    } else {
-                        chartImages = {};
-                    }
-                    showToast('Charts regenerated with fallback - review content carefully.', 'warning');
-                }
-
-                const coverChartImg = chartImages.cover;
-
-                // 2. Generate HTML Content
-                const contentHtml = await generateScientificHTML(trial, coverChartImg, { ...options, chartImages });
-
-                // 3. Convert to DOCX
-                const fullHtml = `<!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <style>
-                        body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.55; color: #111827; }
-                        h1 { color: #0d9488; font-size: 24pt; font-weight: 700; text-align: center; margin-bottom: 20px; }
-                        h2 { color: #0f766e; font-size: 16pt; font-weight: 700; margin-top: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; page-break-before: always; }
-                        h2:first-of-type { page-break-before: avoid; }
-                        h3 { font-size: 13pt; font-weight: 700; font-style: italic; margin-top: 15px; margin-bottom: 6px; }
-                        p { margin-bottom: 10px; line-height: 1.55; text-align: justify; text-justify: inter-word; }
-                        table { border-collapse: collapse; width: 100%; margin-bottom: 15px; }
-                        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 10pt; }
-                        th { background-color: #f0fdf9; font-weight: bold; }
-                        .center { text-align: center; }
-                        .img-container { text-align: center; margin: 20px 0; }
-                        img { max-width: 100%; height: auto; }
-                        .meta-table td { border: none; padding: 4px; }
-                    </style>
-                </head>
-                <body>
-                    ${contentHtml}
-                </body>
-                </html>`;
-
-                const converted = htmlDocx.asBlob(fullHtml, {
-                    orientation: 'portrait',
-                    margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
-                });
-
-                saveAs(converted, `Scientific_Report_${trial.FormulationName}.docx`);
-                showToast('DOC Downloaded!', 'success');
-
-            } catch (err) {
-                console.error('DOC Export Error:', err);
-                showToast('Failed to export DOC', 'error');
-            }
-        }
-
-        // Helper: Render Photo Grid (Fixed Layout for DOC)
-        function renderPhotoGridHTML(photos) {
-            if (!photos || photos.length === 0) return '<p>No photos available.</p>';
-
-            // We use a fixed-width table (650 is standard for A4 Word width)
-            let html = '<table width="100%" style="width: 100%; border-collapse: collapse; margin-top: 20px;">';
-
-            const imagesPerRow = 2; // This creates the 2-column look from your 1st image
-
-            for (let i = 0; i < photos.length; i += imagesPerRow) {
-                html += '<tr>';
-                for (let j = 0; j < imagesPerRow; j++) {
-                    const photo = photos[i + j];
-                    if (photo && photo.base64) {
-                        // We set a hard width of 300 to ensure they fill the column space
-                        html += `
-                            <td width="50%" style="width: 50%; padding: 10px; vertical-align: top; text-align: center;">
-                                <img src="${photo.base64}" width="300" style="width: 300px; display: block; margin-bottom: 5px;" />
-                                <div style="font-size: 10pt; font-family: Arial; font-weight: bold;">${photo.label || 'Trial Photo'}</div>
-                                <div style="font-size: 9pt; color: #555;">${photo.date || ''}</div>
-                            </td>`;
-                    } else {
-                        // Empty cell to keep the grid perfectly aligned
-                        html += '<td width="50%">&nbsp;</td>';
-                    }
-                }
-                html += '</tr>';
-            }
-            html += '</table>';
-            return html;
-        }
-
-        // Helper: Generate Charts for DOC (Off-screen)
-        async function generateRegulatoryChartsForDOC(projectId) {
-            const project = state.projects.find(p => p.ID === projectId);
-            if (!project) return {};
-
-            const chartImages = {};
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.style.width = '1600px';
-            tempDiv.style.height = '800px';
-            document.body.appendChild(tempDiv);
-
-            try {
-                // Prepare Data
-                const blocks = state.blocks.filter(b => b.ProjectID === projectId);
-                const trials = state.trials.filter(t => t.ProjectID === projectId);
-
-                const trialsNeedingRepair = trials.filter(t => {
-                    const eff = validateEfficacyData(safeJsonParse(t.EfficacyDataJSON, []));
-                    const hasCover = Array.isArray(eff) && eff.some(o => Array.isArray(o?.weedDetails) && o.weedDetails.length > 0);
-                    return !Array.isArray(eff) || eff.length < 2 || !hasCover;
-                });
-
-                for (const t of trialsNeedingRepair) {
-                    await attemptChartRecovery(t.ID, 'all');
-                }
-
-                let results = project.AnalysisResults;
-                if (!results || Object.keys(results).length === 0) {
-                    try { results = project.AnalysisResultsJSON ? JSON.parse(project.AnalysisResultsJSON) : {}; } catch (e) { }
-                }
-                if ((!results || Object.keys(results).length === 0) && typeof calculateRCBD_Stats === 'function') {
-                    try {
-                        const rebuilt = calculateRCBD_Stats(project, trials, blocks) || {};
-                        if (Object.keys(rebuilt).length > 0) {
-                            results = rebuilt;
-                            project.AnalysisResults = rebuilt;
-                            project.AnalysisResultsJSON = JSON.stringify(rebuilt);
-                            console.log('[Regulatory DOC] Rebuilt analysis results after AI data repair');
-                        }
-                    } catch (recalcErr) {
-                        console.warn('[Regulatory DOC] Failed to rebuild analysis after repair:', recalcErr);
-                    }
-                }
-                const daas = Object.keys(results).sort((a, b) => parseInt(a) - parseInt(b));
-                const treatments = [...new Set(trials.map(t => t.FormulationID || t.FormulationName))];
-                const colors = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
-
-                // 1. WCE Chart
-                const wceCanvas = document.createElement('canvas');
-                wceCanvas.width = 1600; wceCanvas.height = 800;
-                tempDiv.appendChild(wceCanvas);
-
-                const wceDatasets = treatments.map((tId, idx) => {
-                    const tName = state.formulations.find(f => f.ID === tId)?.Name || tId;
-                    const data = daas.map(dat => {
-                        const res = results[dat];
-                        if (!res || !res.treatmentStats) return null;
-                        const ts = res.treatmentStats.find(s => s.treatmentId === tId);
-                        return ts ? { x: parseInt(dat), y: ts.wce } : null;
-                    }).filter(Boolean);
-
-                    return {
-                        label: tName, data,
-                        borderColor: colors[idx % colors.length],
-                        backgroundColor: colors[idx % colors.length] + '33',
-                        borderWidth: 4, tension: 0.3, pointRadius: 0
-                    };
-                });
-
-                new Chart(wceCanvas, {
-                    type: 'line', data: { datasets: wceDatasets },
-                    options: {
-                        responsive: false, animation: false,
-                        plugins: { title: { display: true, text: 'Weed Control Efficacy Over Time', font: { size: 32, weight: 'bold' } }, legend: { position: 'right', labels: { font: { size: 20 } } } },
-                        scales: { x: { type: 'linear', title: { display: true, text: 'DAA', font: { size: 24 } }, ticks: { font: { size: 18 } } }, y: { min: -100, max: 100, title: { display: true, text: 'WCE (%)', font: { size: 24 } }, ticks: { font: { size: 18 } } } }
-                    }
-                });
-                await new Promise(r => setTimeout(r, 300));
-                chartImages.wceTimeline = wceCanvas.toDataURL('image/jpeg', 0.92);
-
-                // 2. Performance Chart (Final)
-                if (daas.length > 0) {
-                    const finalDat = daas[daas.length - 1];
-                    const finalRes = results[finalDat];
-                    if (finalRes && finalRes.treatmentStats) {
-                        const perfCanvas = document.createElement('canvas');
-                        perfCanvas.width = 1600; perfCanvas.height = 800;
-                        tempDiv.appendChild(perfCanvas);
-
-                        const perfData = finalRes.treatmentStats.map(ts => {
-                            const tName = state.formulations.find(f => f.ID === ts.treatmentId)?.Name || 'Unknown';
-                            return { treatment: tName, mean: ts.mean };
-                        }).sort((a, b) => b.mean - a.mean);
-
-                        new Chart(perfCanvas, {
-                            type: 'bar',
-                            data: {
-                                labels: perfData.map(d => d.treatment),
-                                datasets: [{
-                                    label: project.Metric, data: perfData.map(d => d.mean),
-                                    backgroundColor: perfData.map((d, i) => colors[i % colors.length])
-                                }]
-                            },
-                            options: {
-                                responsive: false, animation: false,
-                                plugins: { title: { display: true, text: `Performance at ${finalDat} DAA`, font: { size: 32, weight: 'bold' } }, legend: { display: false } }, // Increased font size
-                                scales: { y: { beginAtZero: true, ticks: { font: { size: 18 } } }, x: { ticks: { font: { size: 18 } } } }
-                            }
-                        });
-                        await new Promise(r => setTimeout(r, 300));
-                        chartImages.finalPerformance = perfCanvas.toDataURL('image/jpeg', 0.92);
-
-                        const confCanvas = document.createElement('canvas');
-                        confCanvas.width = 1600; confCanvas.height = 800;
-                        tempDiv.appendChild(confCanvas);
-
-                        const confRows = (finalRes.treatmentStats || []).map(ts => {
-                            const n = Math.max(2, parseFloat(ts.n) || blocks.length || 3);
-                            const sd = parseFloat(ts.sd) || 8;
-                            const wce = parseFloat(ts.wce) || 0;
-                            const margin = 1.96 * (sd / Math.sqrt(n));
-                            return {
-                                name: state.formulations.find(f => f.ID === ts.treatmentId)?.Name || 'Unknown',
-                                low: Math.max(-100, wce - margin),
-                                mean: wce,
-                                high: Math.min(100, wce + margin)
-                            };
-                        }).sort((a, b) => b.mean - a.mean);
-
-                        new Chart(confCanvas, {
-                            type: 'bar',
-                            data: {
-                                labels: confRows.map(r => truncateText(r.name, 18)),
-                                datasets: [
-                                    { label: 'Lower 95% band', data: confRows.map(r => r.low), backgroundColor: '#cbd5e1' },
-                                    { label: 'Mean WCE', data: confRows.map(r => r.mean), backgroundColor: '#2563eb' },
-                                    { label: 'Upper 95% band', data: confRows.map(r => r.high), backgroundColor: '#93c5fd' }
-                                ]
-                            },
-                            options: {
-                                responsive: false, animation: false,
-                                plugins: { title: { display: true, text: `WCE Confidence Bands at ${finalDat} DAA`, font: { size: 28, weight: 'bold' } } },
-                                scales: { y: { min: -100, max: 100, ticks: { font: { size: 14 } } }, x: { ticks: { font: { size: 14 } } } }
-                            }
-                        });
-                        await new Promise(r => setTimeout(r, 300));
-                        chartImages.confidenceBands = confCanvas.toDataURL('image/jpeg', 0.92);
-
-                        const doseCanvas = document.createElement('canvas');
-                        doseCanvas.width = 1600; doseCanvas.height = 800;
-                        tempDiv.appendChild(doseCanvas);
-                        const wceById = new Map((finalRes.treatmentStats || []).map(ts => [ts.treatmentId, parseFloat(ts.wce) || 0]));
-                        const dosePoints = trials
-                            .map(t => {
-                                const dose = parseFloat((String(t.Dosage || '').match(/[\d.]+/) || [null])[0]);
-                                const wce = wceById.has(t.FormulationID) ? wceById.get(t.FormulationID) : null;
-                                const name = t.FormulationName || t.FormulationID;
-                                if (!isFinite(dose) || !isFinite(wce)) return null;
-                                return { x: dose, y: wce, label: name };
-                            })
-                            .filter(Boolean);
-
-                        if (dosePoints.length > 0) {
-                            new Chart(doseCanvas, {
-                                type: 'scatter',
-                                data: { datasets: [{ label: 'Dose-response', data: dosePoints, backgroundColor: '#10b981', borderColor: '#047857', pointRadius: 7 }] },
-                                options: {
-                                    responsive: false, animation: false,
-                                    plugins: {
-                                        title: { display: true, text: 'Dose-Response Plot (Dosage vs WCE)', font: { size: 28, weight: 'bold' } },
-                                        tooltip: { callbacks: { label: ctx => `${ctx.raw.label}: Dose ${ctx.raw.x}, WCE ${ctx.raw.y.toFixed(1)}%` } }
-                                    },
-                                    scales: {
-                                        x: { title: { display: true, text: 'Dosage (numeric extract)' }, ticks: { font: { size: 14 } } },
-                                        y: { min: -100, max: 100, title: { display: true, text: 'WCE (%)' }, ticks: { font: { size: 14 } } }
-                                    }
-                                }
-                            });
-                            await new Promise(r => setTimeout(r, 300));
-                            chartImages.doseResponse = doseCanvas.toDataURL('image/jpeg', 0.92);
-                        }
-                    }
-                }
-
-                // 3. Phyto Chart
-                const engine = new AnalysisEngine(projectId, state);
-                const allDaas = new Set();
-                engine.trials.forEach(t => { safeJsonParse(t.EfficacyDataJSON, []).forEach(e => allDaas.add(e.daa)); });
-                const sortedDaas = [...allDaas].sort((a, b) => a - b);
-                chartImages.phytoTimeline = null;
-
-            } catch (e) {
-                console.warn('DOC Chart Gen Error:', e);
-            } finally {
-                if (tempDiv.parentNode) tempDiv.parentNode.removeChild(tempDiv);
-            }
-
-            return chartImages;
-        }
-
-        async function generateScientificHTML(trial, coverChartImg, options = {}) {
-            const chartImages = options.chartImages || {};
-            const wceBandImg = chartImages.wceConfidence || '';
-            const speciesDistImg = chartImages.speciesDistribution || '';
-            const envChartImg = chartImages.environmentSuitability || '';
-            // Generate new analytical charts for DOC
-            let treatmentCompImg = null;
-            let heatmapImg = null;
-            try {
-                treatmentCompImg = await generateTreatmentComparisonChart([trial]);
-                heatmapImg = await generateSpeciesHeatmapChart(trial);
-            } catch (e) { console.warn('DOC new chart generation failed:', e); }
-            const efficacyData = validateEfficacyData(safeJsonParse(trial.EfficacyDataJSON, []));
-            const allWeedSpecies = [...new Set(efficacyData.flatMap(obs => (obs.weedDetails || []).map(wc => wc.species.trim())))]
-                .filter(sp => sp && sp.toLowerCase() !== 'total');
-            const trialDate = formatReportDateLong(trial.Date);
-            const interpretationFn = (typeof buildTrialDataInterpretation === 'function') ? buildTrialDataInterpretation : window.buildTrialDataInterpretation;
-            const continuityFn = (typeof buildSpeciesContinuityTable === 'function') ? buildSpeciesContinuityTable : window.buildSpeciesContinuityTable;
-            const envFn = (typeof buildEnvironmentalSuitabilityIndex === 'function') ? buildEnvironmentalSuitabilityIndex : window.buildEnvironmentalSuitabilityIndex;
-            const traceFn = (typeof buildEvidenceTraceabilityMatrix === 'function') ? buildEvidenceTraceabilityMatrix : window.buildEvidenceTraceabilityMatrix;
-            const doseFn = (typeof buildDoseResponseRecommendationPanel === 'function') ? buildDoseResponseRecommendationPanel : window.buildDoseResponseRecommendationPanel;
-            const derivedInterpretation = exportCtx.derivedInterpretation || (interpretationFn ? interpretationFn(trial, 'scientific') : { coverSummary: 'Interpretation unavailable.', conclusion: '' });
-            const interpretationSection = exportCtx.interpretationSection;
-            const photoTimelineSection = exportCtx.photoTimelineSection;
-            const continuity = continuityFn ? continuityFn(efficacyData) : { rows: [], summary: '' };
-            const envIndex = envFn ? envFn(trial) : { note: 'Environmental suitability unavailable.' };
-            const traceabilityRows = traceFn ? traceFn(trial, [trial], !!safeJsonParse(trial.StatisticsJSON, {})?.anovaResults) : [];
-            const dosePanel = doseFn ? doseFn([trial], null) : { rows: [], recommendation: 'Dose-response unavailable.' };
-            const controlDays = exportCtx.controlDays;
-            const confidenceRows = [];
-            const trialWceSeries = calculateWeedControlEfficiency(efficacyData);
-            trialWceSeries.forEach((r, i) => {
-                const m = parseFloat(r?.wce) || 0;
-                const spread = Math.max(5, 12 - i * 1.5);
-                confidenceRows.push([r.daa, m.toFixed(1), Math.max(-100, m - spread).toFixed(1), Math.min(100, m + spread).toFixed(1)]);
-            });
-
-            const brief = buildOnePageExecutiveBrief({
-                title: `Executive Brief - ${trial.FormulationName || 'Trial'}`,
-                objective: `Evaluate efficacy and persistence for ${trial.FormulationName || 'the tested treatment'} in field conditions.`,
-                keyFinding: derivedInterpretation.coverSummary,
-                statsNote: buildStatisticalSignificanceBlock(safeJsonParse(trial.StatisticsJSON, {})?.anovaResults?.anovaTable || null).text,
-                recommendation: dosePanel.recommendation,
-                risk: envIndex.note
-            });
-
-            // Narrative
-            let narrativeHtml = "";
-            const methodologyLine = buildMethodologySentence(trial, trialDate);
-            const narrativeText = applyReportStyleGuard(`Methodology\n${methodologyLine}\n\nResults\n${derivedInterpretation.coverSummary}\n\nConclusions\n${derivedInterpretation.conclusion}`);
-            if (narrativeText) {
-                narrativeHtml = formatReportNarrativeHtml(narrativeText);
-            } else {
-                narrativeHtml = "<p><i>Narrative not available. Please generate AI summary first.</i></p>";
-            }
-
-            // Photos - Prepare for Grid
-            const photos = safeJsonParse(trial.PhotoURLs, []);
-            const processedPhotos = [];
-
-            if (photos.length > 0) {
-                for (const p of photos) {
-                    const photoSrc = getPhotoSource(p);
-                    if (photoSrc) {
-                        try {
-                            const base64 = await getImageAsResizedBase64(photoSrc, 600); // Higher resolution for export
-                            if (base64) {
-                                processedPhotos.push({
-                                    base64: base64,
-                                    label: p.label || 'Photo',
-                                    date: p.date ? new Date(p.date).toLocaleDateString() : '',
-                                    weather: p.weather ? `${p.weather.temp}°C` : ''
-                                });
-                            }
-                        } catch (e) { console.log('Photo skip', e); }
-                    }
-                }
-            }
-
-            const photosHtml = processedPhotos.length > 0
-                ? `<h2>${REPORT_SECTIONS.trial.photo}</h2>${renderPhotoGridHTML(processedPhotos)}`
-                : '';
-
-            const interpretationHtml = `
-                <h2>${sanitizeHTML(interpretationSection.title)}</h2>
-                ${interpretationSection.paragraphs.map(p => `<p>${sanitizeHTML(p)}</p>`).join('')}
-                ${interpretationSection.phaseRows.length ? renderSimpleHtmlTable(['Phase', 'Window', 'Interpretation'], interpretationSection.phaseRows) : ''}
-                ${interpretationSection.speciesRows.length ? renderSimpleHtmlTable(['Species Group', 'Observed Performance', 'Practical Implication'], interpretationSection.speciesRows) : ''}
-            `;
-
-            const photoTimelineHtml = photoTimelineSection.rows.length
-                ? `
-                    <h3>${sanitizeHTML(photoTimelineSection.title)}</h3>
-                    ${renderSimpleHtmlTable(
-                        ['Date', 'DAA', 'Stage', 'Estimated Cover', 'Interpretation'],
-                        photoTimelineSection.rows.map(r => [r.date, r.daa, r.stage, r.estimatedCover, r.interpretation])
-                    )}
-                    ${photoTimelineSection.summary ? `<p>${sanitizeHTML(photoTimelineSection.summary)}</p>` : ''}
-                `
-                : '';
-
-            const photosWithTimelineHtml = processedPhotos.length > 0
-                ? `<h2>${REPORT_SECTIONS.trial.photo}</h2>${photoTimelineHtml}${renderPhotoGridHTML(processedPhotos)}`
-                : '';
-
-            const continuityHtml = continuity.rows.length
-                ? `
-                    <h2>Species Continuity Table</h2>
-                    <p>${sanitizeHTML(continuity.summary)}</p>
-                    ${renderSimpleHtmlTable(
-                        ['Species', 'First DAA', 'Last DAA', 'Observations', 'Reappearance', 'Continuity %'],
-                        continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, Number.isFinite(r.continuityScore) ? r.continuityScore.toFixed(1) : '-'])
-                    )}
-                `
-                : '';
-
-            const confidenceHtml = confidenceRows.length
-                ? `
-                    <h2>Species-wise Efficacy Confidence Bands</h2>
-                    <p>Confidence bands represent an expected interval around observed WCE for each DA-A assessment and are intended for interpretation support.</p>
-                    ${renderSimpleHtmlTable(['DAA', 'Mean WCE %', 'Lower Band %', 'Upper Band %'], confidenceRows)}
-                `
-                : '';
-
-            const traceabilityHtml = `
-                <h2>Evidence Traceability Matrix</h2>
-                ${renderSimpleHtmlTable(['Evidence Block', 'Available', 'Trace'], traceabilityRows)}
-            `;
-
-            const doseResponseHtml = `
-                <h2>Dose-Response Recommendation Panel</h2>
-                <p>${sanitizeHTML(dosePanel.recommendation)}</p>
-                ${renderSimpleHtmlTable(['Treatment', 'Dosage', 'Observed WCE %'], dosePanel.rows.map(r => [r.name, r.dosageRaw, (parseFloat(r.wce) || 0).toFixed(1)]))}
-            `;
-
-            const executiveBriefHtml = `
-                <h2>One-Page Executive Brief</h2>
-                ${renderSimpleHtmlTable(
-                    ['Component', 'Statement'],
-                    [
-                        ['Title', brief.title],
-                        ['Objective', brief.objective],
-                        ['Key finding', brief.keyFinding],
-                        ['Statistical note', brief.statsNote],
-                        ['Recommendation', brief.recommendation],
-                        ['Risk and context', brief.risk]
-                    ]
-                )}
-            `;
-
-            return `
-                <h1>SCIENTIFIC TRIAL REPORT</h1>
-                <p class="center"><strong>Trial Protocol: ${trial.FormulationName}</strong></p>
-                
-                <table class="meta-table">
-                    <tr><td><strong>Investigator:</strong> ${trial.InvestigatorName || 'N/A'}</td><td><strong>Date:</strong> ${trialDate}</td></tr>
-                    <tr><td><strong>Location:</strong> ${trial.Location || 'N/A'}</td><td><strong>Dosage:</strong> ${trial.Dosage || 'N/A'}</td></tr>
-                    <tr><td><strong>Status:</strong> ${trial.IsCompleted ? 'Finalized' : 'Ongoing'}</td><td><strong>Evidence-Based Classification:</strong> ${derivedInterpretation.finalClassification || 'N/A'}</td></tr>
-                    <tr><td><strong>Total Control Days:</strong> ${controlDays.days}</td><td><strong>Control Source:</strong> ${sanitizeHTML(controlDays.source)}</td></tr>
-                </table>
-
-                ${trial.Temperature ? `
-                <h3>Weather Conditions</h3>
-                <table class="meta-table" style="background-color: #f8fafc;">
-                    <tr>
-                        <td><strong>Temp:</strong> ${trial.Temperature}°C</td>
-                        <td><strong>Humidity:</strong> ${trial.Humidity}%</td>
-                        <td><strong>Wind:</strong> ${trial.Windspeed || '0'} km/h</td>
-                        <td><strong>Rain:</strong> ${trial.Rain || '0'} mm</td>
-                    </tr>
-                </table>` : ''}
-
-                ${(() => {
-                    if (trial.SoilDataJSON) {
-                        try {
-                            const soil = JSON.parse(trial.SoilDataJSON);
-                            if (Object.keys(soil).length > 0) {
-                                return `
-                                <h3>Soil Profile (0-30cm)</h3>
-                                <table class="meta-table" style="background-color: #fffbeb;">
-                                    <tr>
-                                        <td><strong>pH:</strong> ${soil.ph}</td>
-                                        <td><strong>Clay:</strong> ${soil.clay}%</td>
-                                        <td><strong>Sand:</strong> ${soil.sand}%</td>
-                                        <td><strong>Org. Carbon:</strong> ${soil.organicCarbon}</td>
-                                        <td><strong>Texture:</strong> ${soil.texture}</td>
-                                    </tr>
-                                </table>`;
-                            }
-                        } catch(e) {}
-                    }
-                    return '';
-                })()}
-
-                ${options.includeIngredients ? renderIngredientsTable(trial) : ''}
-
-                <hr/>
-
-                <h2>${REPORT_SECTIONS.trial.executiveSummary}</h2>
-                ${narrativeHtml}
-
-                <h2>${REPORT_SECTIONS.trial.trialDesign}</h2>
-                <p><strong>Target Species:</strong> ${allWeedSpecies.join(', ') || 'N/A'}</p>
-                
-                <h2>${REPORT_SECTIONS.trial.efficacy}</h2>
-                ${coverChartImg ? `<div class="img-container"><img src="${coverChartImg}" width="600" /></div><p><em>${sanitizeHTML(buildPublicationCaption(1, 'Weed control trajectory by DAA', `Treatment: ${trial.FormulationName || 'Unknown'}.`))}</em></p>` : '<p>No efficacy chart available.</p>'}
-                <p>${applyReportStyleGuard(derivedInterpretation.coverSummary)}</p>
-
-                ${interpretationHtml}
-
-                ${(wceBandImg || speciesDistImg || envChartImg) ? `<h2>Supplementary Analytical Charts</h2>` : ''}
-                ${wceBandImg ? `<div class="img-container"><img src="${wceBandImg}" width="620" /></div>` : ''}
-                ${speciesDistImg ? `<div class="img-container"><img src="${speciesDistImg}" width="460" /></div>` : ''}
-                ${envChartImg ? `<div class="img-container"><img src="${envChartImg}" width="560" /></div>` : ''}
-
-                ${treatmentCompImg ? `<h2>Treatment Comparison</h2><div class="img-container"><img src="${treatmentCompImg}" width="600" /></div><p><em>${sanitizeHTML(buildPublicationCaption(5, 'Mean WCE with 95% CI error bars', `Treatment: ${trial.FormulationName || 'Unknown'}.`))}</em></p>` : ''}
-                ${heatmapImg ? `<h2>Species Control Heatmap</h2><div class="img-container"><img src="${heatmapImg}" width="620" /></div><p><em>${sanitizeHTML(buildPublicationCaption(6, 'Species - DAA observed cover heatmap', 'Green = low cover, Red = high cover. Heatmap indicates progressive response following a single herbicide application, with localized regrowth in later stages.'))}</em></p>` : ''}
-
-                <h2>Statistical Significance Block</h2>
-                <p>${sanitizeHTML(buildStatisticalSignificanceBlock(safeJsonParse(trial.StatisticsJSON, {})?.anovaResults?.anovaTable || null).text)}</p>
-
-                <h2>Environmental Suitability Index</h2>
-                <p>${sanitizeHTML(envIndex.note)}</p>
-
-                ${continuityHtml}
-                ${confidenceHtml}
-                ${traceabilityHtml}
-                ${doseResponseHtml}
-                ${executiveBriefHtml}
-
-                ${photosWithTimelineHtml}
-            `;
-        }
-
-        async function exportRegulatoryReportAsDOC(projectId) {
-            const project = state.projects.find(p => p.ID === projectId);
-            if (!project) return;
-
-            const continuityFn = (typeof buildSpeciesContinuityTable === 'function') ? buildSpeciesContinuityTable : window.buildSpeciesContinuityTable;
-            const sigFn = (typeof buildStatisticalSignificanceBlock === 'function') ? buildStatisticalSignificanceBlock : window.buildStatisticalSignificanceBlock;
-            const envFn = (typeof buildEnvironmentalSuitabilityIndex === 'function') ? buildEnvironmentalSuitabilityIndex : window.buildEnvironmentalSuitabilityIndex;
-            const confFn = (typeof buildSpeciesConfidenceBands === 'function') ? buildSpeciesConfidenceBands : window.buildSpeciesConfidenceBands;
-            const traceFn = (typeof buildEvidenceTraceabilityMatrix === 'function') ? buildEvidenceTraceabilityMatrix : window.buildEvidenceTraceabilityMatrix;
-            const doseFn = (typeof buildDoseResponseRecommendationPanel === 'function') ? buildDoseResponseRecommendationPanel : window.buildDoseResponseRecommendationPanel;
-            const normalizeReportFn = (typeof normalizeReportText === 'function') ? normalizeReportText : (window.normalizeReportText || (t => String(t || '').trim()));
-            const resolvePhotoSource = (typeof getPhotoSource === 'function')
-                ? getPhotoSource
-                : ((typeof window !== 'undefined' && typeof window.getPhotoSource === 'function')
-                    ? window.getPhotoSource
-                    : (photo => {
-                        if (!photo || typeof photo !== 'object') return '';
-                        const candidates = [photo.fileData, photo.url, photo.fileUrl, photo.publicUrl, photo.src, photo.imageUrl, photo.link];
-                        for (const value of candidates) {
-                            if (typeof value !== 'string') continue;
-                            const normalized = value.trim();
-                            if (normalized) return normalized;
-                        }
-                        return '';
-                    }));
-
-            showToast('Generating Regulatory Report DOC...', 'info');
-
-            try {
-                // 1. Capture Charts
-                // 1. Capture Charts (OFF-SCREEN REGENERATION)
-                const chartImages = await generateRegulatoryChartsForDOC(projectId);
-
-                const performanceChartImg = chartImages.finalPerformance || "";
-                const wceChartImg = chartImages.wceTimeline || "";
-                const confidenceChartImg = chartImages.confidenceBands || "";
-                const doseResponseChartImg = chartImages.doseResponse || "";
-                const phytoChartImg = "";
-
-                // Generate new analytical charts for DOC
-                let treatmentCompDocImg = null;
-                let doseResponseCurveDocImg = null;
-                let weatherCorrelationDocImg = null;
-                try {
-                    treatmentCompDocImg = await generateTreatmentComparisonChart(projectTrials);
-                    doseResponseCurveDocImg = await generateDoseResponseChart(projectTrials);
-                    weatherCorrelationDocImg = await generateWeatherCorrelationChart(projectTrials);
-                } catch (e) { console.warn('Regulatory DOC new chart generation failed:', e); }
-
-
-
-                // 2. Prepare Data
-                const projectTrials = state.trials.filter(t => t.ProjectID === projectId);
-                const treatments = [...new Set(projectTrials.map(t => t.FormulationName))];
-
-                // Analysis Data
-                const engine = new AnalysisEngine(projectId, state);
-                const anovaResults = await engine.analyze('wce', null, null);
-                const parsedResults = project.AnalysisResults || safeJsonParse(project.AnalysisResultsJSON, {});
-                const groupedResults =
-                    (anovaResults && anovaResults.grouping) ||
-                    (anovaResults && anovaResults.lsdResults && anovaResults.lsdResults.groupings) ||
-                    (anovaResults && anovaResults.tukeyResults && anovaResults.tukeyResults.groupings) ||
-                    [];
-                const finalDaa = Object.keys(parsedResults || {}).sort((a, b) => parseFloat(a) - parseFloat(b)).slice(-1)[0] || null;
-                const finalRes = finalDaa ? (parsedResults[finalDaa] || null) : null;
-                const continuity = continuityFn
-                    ? continuityFn(projectTrials.flatMap(t => validateEfficacyData(safeJsonParse(t.EfficacyDataJSON, []))))
-                    : { rows: [], summary: '' };
-                const significance = sigFn ? sigFn(finalRes) : { text: 'Significance unavailable.' };
-                const envIndex = envFn ? envFn(projectTrials) : { note: 'Environmental suitability unavailable.' };
-                const confidenceBands = confFn ? confFn(finalRes) : [];
-                const traceabilityRows = traceFn ? traceFn(project, projectTrials, !!finalRes?.anova) : [];
-                const dosePanel = doseFn ? doseFn(projectTrials, finalRes) : { rows: [], recommendation: 'Dose-response unavailable.' };
-                const controlDaysSummary = summarizeProjectControlDays(projectTrials);
-                const finalConclusion = normalizeReportFn(
-                    (project.Conclusion || '').trim() ||
-                    (project.Narrative || '').trim() ||
-                    buildProjectConclusionFromResults(project, parsedResults, projectTrials)
-                );
-                const executiveBrief = buildOnePageExecutiveBrief({
-                    title: `Executive Brief - ${project.Name || 'Project'}`,
-                    objective: `Evaluate treatment efficacy under RCBD across ${projectTrials.length} trial plot records.`,
-                    keyFinding: `${finalConclusion} ${controlDaysSummary}`,
-                    statsNote: significance.text,
-                    recommendation: dosePanel.recommendation,
-                    risk: envIndex.note
-                });
-
-                // 3. Prepare Photos (Grouped by Treatment)
-                const photosByTreatment = {};
-
-                // Initialize arrays for each treatment
-                treatments.forEach(t => photosByTreatment[t] = []);
-
-                // Collect photos from all trials
-                for (const t of projectTrials) {
-                    const tName = t.FormulationName;
-                    const photos = safeJsonParse(t.PhotoURLs, []);
-
-                    // We'll take up to 2 representative photos per trial to avoid huge DOCs
-                    let count = 0;
-                    for (const p of photos) {
-                        const photoSrc = resolvePhotoSource(p);
-                        if (photoSrc && count < 2) {
-                            try {
-                                const base64 = await getImageAsResizedBase64(photoSrc, 600);
-                                if (base64) {
-                                    photosByTreatment[tName].push({
-                                        base64: base64,
-                                        label: `Rep ${state.blocks.find(b => b.ID === t.BlockID)?.ReplicationNum || '?'} - ${p.label || 'Photo'}`,
-                                        date: p.date ? formatReportDateLong(p.date) : '',
-                                        weather: p.weather ? `${p.weather.temp}°C` : ''
-                                    });
-                                    count++;
-                                }
-                            } catch (e) { }
-                        }
-                    }
-                }
-
-                // 4a. Build professional narrative paragraphs
-                const docProtocol = safeJsonParse(project.ProtocolJSON, {});
-                const docBlocks = state.blocks.filter(b => b.ProjectID === projectId);
-                const docProjectDate = project.StartDate ? formatReportDateLong(project.StartDate) : (projectTrials.length ? formatReportDateLong(projectTrials[0].Date) : 'Not specified');
-                const docAllTreatNames = [...new Set(projectTrials.map(t => t.FormulationName))].join(', ');
-                const docTemps = projectTrials.filter(t => parseFloat(t.Temperature) > 0);
-                const docAvgTemp = docTemps.length ? (docTemps.reduce((s, t) => s + parseFloat(t.Temperature), 0) / docTemps.length).toFixed(1) : null;
-                const docWeatherClause = docAvgTemp ? ` under recorded average conditions of ${docAvgTemp}\u00b0C` : '';
-                const docEquipClause = docProtocol.Equipment ? ` using ${docProtocol.Equipment}${docProtocol.SprayVolume ? ' at ' + docProtocol.SprayVolume : ''}` : '';
-                const docMethodologyParagraph = applyReportStyleGuard(`This study was conducted as a Randomized Complete Block Design (RCBD) with ${docBlocks.length} replication(s) at ${docProtocol.Location || 'the experimental site'} on ${docProjectDate}${docWeatherClause}. A total of ${treatments.length} treatment(s) were evaluated - ${docAllTreatNames} - targeting ${docProtocol.Crop || 'the target crop'}${docEquipClause}. The primary response variable was ${project.Metric || 'weed control efficiency (WCE)'}. ${controlDaysSummary}`);
-                const docSortedStats = (finalRes && finalRes.treatmentStats ? [...finalRes.treatmentStats] : []).sort((a, b) => (b.wce || 0) - (a.wce || 0));
-                const docBest = docSortedStats[0];
-                const docBestName = docBest ? (state.formulations.find(f => f.ID === docBest.treatmentId)?.Name || docBest.treatmentId || 'the leading treatment') : 'the leading treatment';
-                const docBestWce = docBest && Number.isFinite(docBest.wce) ? Number(docBest.wce).toFixed(1) : '-';
-                const docWceRange = docSortedStats.length >= 2 ? `ranging from ${Number(docSortedStats[docSortedStats.length - 1]?.wce || 0).toFixed(1)}% to ${docBestWce}%` : `at approximately ${docBestWce}%`;
-                const docSigClause = significance.significant ? 'Treatment differences were statistically significant (p\u00a0<\u00a00.05), supporting evidence-based differentiation between formulations.' : 'Treatment differences did not reach statistical significance at p\u00a0=\u00a00.05; directional trends are presented for field guidance only.';
-                const docResultsParagraph = applyReportStyleGuard(`At ${finalDaa || 'final assessment'} DA-A, ${docBestName} achieved the highest weed control efficiency among tested treatments, with WCE ${docWceRange}. ${docSigClause} The RCBD structure ensures block-level variation is accounted for in all treatment comparisons and groupings presented above.`);
-
-                // 4. Build HTML Content
-                let html = `
-                    <div style="font-family: 'Times New Roman', serif; color: #000;">
-                        <h1 style="color: #0d9488; text-align: center; font-size: 24pt; margin-bottom: 10px;">REGULATORY TRIAL REPORT</h1>
-                        <h2 style="text-align: center; font-size: 18pt; color: #555; margin-bottom: 30px;">${project.Name}</h2>
-                        
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                            <tr style="background-color: #f3f4f6;">
-                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Project ID</td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${project.ID}</td>
-                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Date</td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${formatReportDateLong(new Date())}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Metric</td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${project.Metric || 'Weed Control Efficiency'}</td>
-                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Trials</td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${projectTrials.length}</td>
-                            </tr>
-                            <tr style="background-color: #f3f4f6;">
-                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Status</td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${project.Status}</td>
-                                <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Treatments</td>
-                                <td style="padding: 8px; border: 1px solid #ddd;">${treatments.length}</td>
-                            </tr>
-                        </table>
-
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.executiveSummary}</h3>
-                        <p>${applyReportStyleGuard(finalConclusion)}</p>
-                        <p><strong>Total Control Days Summary:</strong> ${sanitizeHTML(controlDaysSummary)}</p>
-
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">One-Page Executive Brief</h3>
-                        ${renderSimpleHtmlTable(
-                            ['Component', 'Statement'],
-                            [
-                                ['Title', executiveBrief.title],
-                                ['Objective', executiveBrief.objective],
-                                ['Key finding', executiveBrief.keyFinding],
-                                ['Statistical note', executiveBrief.statsNote],
-                                ['Recommendation', executiveBrief.recommendation],
-                                ['Risk and context', executiveBrief.risk]
-                            ]
-                        )}
-
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">Trial Design &amp; Methodology</h3>
-                        <p style="text-align: justify; margin-bottom: 12px;">${sanitizeHTML(docMethodologyParagraph)}</p>
-                        <h4 style="margin-top: 10px; color: #333;">Evaluated Treatments</h4>
-                        <ul style="margin-bottom: 20px;">
-                            ${treatments.map(t => `<li>${t}</li>`).join('')}
-                        </ul>
-
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.efficacy}</h3>
-                        <p>The following charts illustrate the performance of tested formulations across all trials.</p>
-                        
-                        ${performanceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${performanceChartImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(1, 'Mean performance by treatment', `Project: ${project.Name || 'NA'}.`))}</em></div>` : '<p><em>Performance chart unavailable for current dataset.</em></p>'}
-                        
-                        ${wceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${wceChartImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(2, 'Efficacy over time by DA-A', `Metric: ${project.Metric || 'WCE'}.`))}</em></div>` : '<p><em>WCE timeline chart unavailable for current dataset.</em></p>'}
-
-                        ${confidenceChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${confidenceChartImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(3, 'Treatment-level WCE confidence bands', `Final assessment: ${finalDaa || 'NA'} DA-A.`))}</em></div>` : '<p><em>Confidence-band chart unavailable for current dataset.</em></p>'}
-
-                        ${confidenceBands.length ? `
-                            <h4 style="margin-top: 12px;">Species-wise Efficacy Confidence Bands</h4>
-                            ${renderSimpleHtmlTable(
-                                ['Treatment', 'Mean WCE%', 'Lower 95% band', 'Upper 95% band'],
-                                confidenceBands.map(r => [state.formulations.find(f => f.ID === r.treatmentId)?.Name || r.treatmentId, Number.isFinite(r.mean) ? r.mean.toFixed(1) : '-', Number.isFinite(r.low) ? r.low.toFixed(1) : '-', Number.isFinite(r.high) ? r.high.toFixed(1) : '-'])
-                            )}
-                        ` : ''}
-
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.statistical}</h3>
-                        ${renderAnovaTableHTML(anovaResults?.anova)}
-                        <p><strong>Statistical Significance Block:</strong> ${sanitizeHTML(significance.text)}</p>
-                        <h4 style="margin-top: 14px; color: #333;">Results Interpretation</h4>
-                        <p style="text-align: justify; margin-bottom: 12px;">${sanitizeHTML(docResultsParagraph)}</p>
-
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">Treatment Means & Grouping</h3>
-                        ${renderMeansTableHTML(groupedResults)}
-
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.detailed}</h3>
-                        <p>Species-level interpretation is based on weed cover dynamics and WCE trends across treatments.</p>
-
-                        <h4 style="margin-top: 12px;">Environmental Suitability Index</h4>
-                        <p>${sanitizeHTML(envIndex.note)}</p>
-
-                        ${continuity.rows.length ? `
-                            <h4 style="margin-top: 12px;">Species Continuity Table</h4>
-                            <p>${sanitizeHTML(continuity.summary)}</p>
-                            ${renderSimpleHtmlTable(
-                                ['Species', 'First DAA', 'Last DAA', 'Observations', 'Reappearance', 'Continuity %'],
-                                continuity.rows.map(r => [r.species, r.firstDaa, r.lastDaa, r.observations, r.reappearance, Number.isFinite(r.continuityScore) ? r.continuityScore.toFixed(1) : '-'])
-                            )}
-                        ` : ''}
-
-                        <h4 style="margin-top: 12px;">Evidence Traceability Matrix</h4>
-                        ${traceabilityRows.length ? renderSimpleHtmlTable(['Evidence Block', 'Available', 'Trace'], traceabilityRows) : '<p><em>No traceability rows available for current project scope.</em></p>'}
-
-                        <h4 style="margin-top: 12px;">Dose-Response Recommendation Panel</h4>
-                        <p>${sanitizeHTML(dosePanel.recommendation)}</p>
-                        ${(dosePanel.rows || []).length ? renderSimpleHtmlTable(
-                            ['Treatment', 'Dosage', 'Observed WCE%'],
-                            dosePanel.rows.map(r => [r.name, r.dosageRaw, (parseFloat(r.wce) || 0).toFixed(1)])
-                        ) : '<p><em>No dose-response rows available for current dataset.</em></p>'}
-                        ${doseResponseChartImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${doseResponseChartImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(4, 'Dose-response scatter relationship', 'Points represent treatment dosage and final WCE.'))}</em></div>` : '<p><em>Dose-response chart unavailable for current dataset.</em></p>'}
-
-                        ${treatmentCompDocImg ? `<h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">Treatment Comparison</h3><div style="text-align: center; margin: 20px 0;"><img src="${treatmentCompDocImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(5, 'Mean WCE with 95% CI error bars by treatment', `Project: ${project.Name || 'NA'}.`))}</em></div>` : ''}
-
-                        ${doseResponseCurveDocImg ? `<div style="text-align: center; margin: 20px 0;"><img src="${doseResponseCurveDocImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(6, 'Dose-response curve with polynomial fit', 'Green dot indicates optimal dosage.'))}</em></div>` : ''}
-
-                        ${weatherCorrelationDocImg ? `<h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">Weather-Efficacy Correlation</h3><div style="text-align: center; margin: 20px 0;"><img src="${weatherCorrelationDocImg}" width="600" /><br/><em>${sanitizeHTML(buildPublicationCaption(7, 'Environmental variable vs WCE with linear regression', 'Purple dots represent individual trials.'))}</em></div>` : ''}
-
-                        <h3 style="color: #0f766e; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-top: 30px;">${REPORT_SECTIONS.project.photo}</h3>
-                        ${treatments.map(t => {
-                    const tPhotos = photosByTreatment[t] || [];
-                    if (tPhotos.length === 0) return '';
-                    return `
-                                <h4 style="color: #333; margin-top: 15px;">Treatment: ${t}</h4>
-                                ${renderPhotoGridHTML(tPhotos)}
-                            `;
-                }).join('')}
-
-                        <p><em>Generated by Herbicide App Regulatory Module.</em></p>
-                    </div>
-                `;
-
-                // 4. Convert & Save
-                const fullDoc = `<!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <style>
-                        body { font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.55; color: #111827; }
-                        h1 { font-size: 24pt; font-weight: 700; margin-bottom: 10pt; }
-                        h2 { font-size: 18pt; font-weight: 700; margin-bottom: 18pt; }
-                        h3 { font-size: 14pt; font-weight: 700; margin-top: 16pt; margin-bottom: 6pt; page-break-before: always; }
-                        h3:first-of-type { page-break-before: avoid; }
-                        h4 { font-size: 12pt; font-weight: 700; font-style: italic; margin-top: 12pt; margin-bottom: 4pt; }
-                        p { text-align: justify; text-justify: inter-word; margin: 0 0 10pt; }
-                        li { margin-bottom: 4pt; }
-                        table { border-collapse: collapse; width: 100%; margin-bottom: 12pt; }
-                        td, th { vertical-align: top; }
-                    </style>
-                </head>
-                <body>
-                    ${html}
-                </body>
-                </html>`;
-
-                const converted = htmlDocx.asBlob(fullDoc, {
-                    orientation: 'portrait',
-                    margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
-                });
-
-                showToast('DOC Downloaded!', 'success');
-                saveAs(converted, `Regulatory_Report_${project.Name.replace(/[^a-z0-9]/gi, '_')}.docx`);
-
-            } catch (err) {
-                console.error('Regulatory DOC Export Failed:', err);
-                showToast('Failed to export DOC: ' + err.message, 'error');
-            }
-        }
-
-        // Helper: Render ANOVA Table
-        function renderAnovaTableHTML(anova) {
-            const data = anova && anova.treatment
-                ? {
-                    dfTreat: anova.treatment.df,
-                    ssTreat: anova.treatment.ss,
-                    msTreat: anova.treatment.ms,
-                    fVal: anova.treatment.f,
-                    pVal: anova.treatment.p,
-                    dfError: anova.error && anova.error.df,
-                    ssError: anova.error && anova.error.ss,
-                    msError: anova.error && anova.error.ms,
-                    dfTotal: anova.total && anova.total.df,
-                    ssTotal: anova.total && anova.total.ss
-                }
-                : anova;
-
-            if (!data || data.dfTreat === undefined || data.ssTreat === undefined) {
-                return '<p>ANOVA table is not available for the current dataset. Check treatment replication and completeness of final observations.</p>';
-            }
-
-            const n = (v, d = 2) => {
-                const x = Number(v);
-                return isFinite(x) ? x.toFixed(d) : '-';
-            };
-            return `
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;">
-                    <thead style="background-color: #f3f4f6;">
-                        <tr>
-                            <th style="border: 1px solid #999; padding: 6px;">Source</th>
-                            <th style="border: 1px solid #999; padding: 6px;">DF</th>
-                            <th style="border: 1px solid #999; padding: 6px;">SS</th>
-                            <th style="border: 1px solid #999; padding: 6px;">MS</th>
-                            <th style="border: 1px solid #999; padding: 6px;">F</th>
-                            <th style="border: 1px solid #999; padding: 6px;">P-value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="border: 1px solid #999; padding: 6px;">Treatments</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.dfTreat, 0)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.ssTreat)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.msTreat)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.fVal)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.pVal, 4)} ${Number(data.pVal) < 0.05 ? '*' : 'ns'}</td>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #999; padding: 6px;">Error</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.dfError, 0)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.ssError)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.msError)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">-</td>
-                            <td style="border: 1px solid #999; padding: 6px;">-</td>
-                        </tr>
-                        <tr style="font-weight: bold; background-color: #f9fafb;">
-                            <td style="border: 1px solid #999; padding: 6px;">Total</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.dfTotal, 0)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">${n(data.ssTotal)}</td>
-                            <td style="border: 1px solid #999; padding: 6px;">-</td>
-                            <td style="border: 1px solid #999; padding: 6px;">-</td>
-                            <td style="border: 1px solid #999; padding: 6px;">-</td>
-                        </tr>
-                    </tbody>
-                </table>
-            `;
-        }
-
-        // Helper: Render Means Table
-        function renderMeansTableHTML(grouping) {
-            if (!grouping || grouping.length === 0) {
-                return '<p>Treatment-level means are not available from the current statistical run.</p>';
-            }
-            return `
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10pt;">
-                    <thead style="background-color: #f3f4f6;">
-                        <tr>
-                            <th style="border: 1px solid #999; padding: 6px; text-align: left;">Treatment</th>
-                            <th style="border: 1px solid #999; padding: 6px;">Mean Efficiency (%)</th>
-                            <th style="border: 1px solid #999; padding: 6px;">LSD Group</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${grouping.map(g => `
-                            <tr>
-                                <td style="border: 1px solid #999; padding: 6px;">${g.name || g.treatment || 'Treatment'}</td>
-                                <td style="border: 1px solid #999; padding: 6px; text-align: center;">${Number(g.mean || 0).toFixed(2)}</td>
-                                <td style="border: 1px solid #999; padding: 6px; text-align: center;">${g.grouping || '-'}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
-
-        // --- BUTTON INJECTION FOR REGULATORY DOC ---
-        function injectRegulatoryReportDOCButton() {
-            // Only inject if on project dashboard and has active project
-            const actionsCard = document.getElementById('project-actions-card');
-            if (!actionsCard || !state.activeProjectId) return;
-
-            // Check if already injected
-            if (document.getElementById('btn-regulatory-doc-export')) return;
-
-            const btn = document.createElement('button');
-            btn.id = 'btn-regulatory-doc-export';
-            btn.className = 'w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 transition';
-            btn.innerHTML = '<i data-lucide="file-text" class="h-4 w-4 text-blue-600"></i> Export Regulatory DOC';
-            btn.onclick = () => exportRegulatoryReportAsDOC(state.activeProjectId);
-
-            // Find where to insert (e.g., in the actions list)
-            // If the actions card has a specific structure, we append or insert
-            // Assuming it might be a list or we append to the bottom
-
-            // Try to find the "Export Regulatory Report (PDF)" button and insert after it
-            // Or just append to the container
-            actionsCard.appendChild(btn);
-
-            // Re-initialize icons
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-
-        // Run injection periodically
-        setInterval(injectRegulatoryReportDOCButton, 2000);
-
-        // Also run on page load
-        setTimeout(injectRegulatoryReportDOCButton, 1500);
-    </script>
-
-    <!-- DATA QUALITY REVIEW MODAL -->
-    <div id="data-quality-modal"
-        class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div class="bg-red-600 p-6 flex justify-between items-center text-white">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-white/20 rounded-lg"><i data-lucide="alert-triangle" class="h-6 w-6"></i></div>
-                    <div>
-                        <h3 class="text-xl font-bold">Data Quality Review Required</h3>
-                        <p class="text-red-100 text-sm">The Auditor System detected statistical anomalies that may
-                            compromise the regulatory report. Please review.</p>
-                    </div>
-                </div>
-                <button onclick="closeQualityModal()" class="text-white/80 hover:text-white transition"><i
-                        data-lucide="x" class="h-6 w-6"></i></button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-6">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Treatment</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Issue</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Rep Data</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Proposal</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="quality-issues-body" class="bg-white divide-y divide-gray-200"></tbody>
-                </table>
-            </div>
-            <div class="bg-gray-50 p-4 flex justify-end gap-3 border-t">
-                <button onclick="closeQualityModal()"
-                    class="px-4 py-2 text-slate-600 font-semibold hover:bg-slate-200 rounded-lg transition">Close</button>
-                <button onclick="cleanAndProceed()"
-                    class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow hover:bg-green-700 transition flex items-center gap-2">
-                    <span>Clean</span> & Proceed
-                </button>
-                <button onclick="forceGenerate()"
-                    class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow hover:bg-red-700 transition">Ignore
-                    All & Force Generate</button>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- SETUP OVERLAY (First-time configuration for new browsers) -->
-    <div id="setup-overlay" class="fixed inset-0 z-[200] flex items-center justify-center hidden" style="background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <i data-lucide="settings" class="w-8 h-8 text-emerald-600"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-slate-800">First-Time Setup</h1>
-                <p class="text-slate-500 text-sm mt-1">Enter your configuration details to connect this app to your Google Sheet.</p>
-            </div>
-            <form id="setup-form" onsubmit="handleSetupSave(event)">
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Google Apps Script URL</label>
-                        <input type="url" id="setup-script-url" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white text-sm" placeholder="https://script.google.com/macros/s/.../exec" required>
-                        <p class="text-xs text-slate-400 mt-1">Go to Apps Script -> Deploy -> Manage Deployments -> copy the URL</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Google Sheet ID</label>
-                        <input type="text" id="setup-sheet-id" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white text-sm" placeholder="1aBcDeFgHiJk..." required>
-                        <p class="text-xs text-slate-400 mt-1">Found in the Google Sheet URL: docs.google.com/spreadsheets/d/<strong>ID</strong>/edit</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Google Drive Folder ID</label>
-                        <input type="text" id="setup-folder-id" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white text-sm" placeholder="1xYzAbC..." required>
-                        <p class="text-xs text-slate-400 mt-1">Found in the Drive folder URL: drive.google.com/drive/folders/<strong>ID</strong></p>
-                    </div>
-                    <p id="setup-error" class="text-red-500 text-sm hidden"></p>
-                    <button type="submit" class="w-full py-3 rounded-xl text-white font-semibold text-sm shadow-lg transition" style="background: linear-gradient(135deg, #059669, #047857);">
-                        Save &amp; Continue to Login
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-    function handleSetupSave(e) {
-        e.preventDefault();
-        const scriptUrl = document.getElementById('setup-script-url').value.replace(/\s/g, '');
-        const sheetId = document.getElementById('setup-sheet-id').value.trim();
-        const folderId = document.getElementById('setup-folder-id').value.trim();
-        
-        if (!scriptUrl || !sheetId || !folderId) {
-            document.getElementById('setup-error').textContent = 'All fields are required.';
-            document.getElementById('setup-error').classList.remove('hidden');
-            return;
-        }
-        
-        // Load existing settings, update, and save
-        const existing = JSON.parse(localStorage.getItem('appSettings') || '{}');
-        const updated = { ...existing, scriptUrl, sheetId, folderId };
-        localStorage.setItem('appSettings', JSON.stringify(updated));
-        
-        // Hide setup, show login
-        document.getElementById('setup-overlay').classList.add('hidden');
-        document.getElementById('login-overlay').classList.remove('hidden');
-        if (window.lucide) lucide.createIcons();
-    }
-    </script>
-
-</body>
-
-</html>
-
-
-
-
