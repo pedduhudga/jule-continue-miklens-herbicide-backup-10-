@@ -10,20 +10,20 @@ export default function Dashboard({ onMenuClick }) {
       <TopBar title="Dashboard" onMenuClick={onMenuClick} />
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="dashboard-card p-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+          <div className="dashboard-card p-4 md:p-6 flex flex-col items-center text-center">
             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Trials</h3>
             <p className="text-3xl font-bold text-slate-800">{state.trials?.length || 0}</p>
           </div>
-          <div className="dashboard-card p-6">
+          <div className="dashboard-card p-4 md:p-6 flex flex-col items-center text-center">
             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Projects</h3>
             <p className="text-3xl font-bold text-slate-800">{state.projects?.length || 0}</p>
           </div>
-          <div className="dashboard-card p-6">
+          <div className="dashboard-card p-4 md:p-6 flex flex-col items-center text-center">
             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Formulations</h3>
             <p className="text-3xl font-bold text-slate-800">{state.formulations?.length || 0}</p>
           </div>
-          <div className="dashboard-card p-6">
+          <div className="dashboard-card p-4 md:p-6 flex flex-col items-center text-center">
             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Offline Queue</h3>
             <p className="text-3xl font-bold text-slate-800">{state.syncQueue?.length || 0}</p>
           </div>

@@ -297,7 +297,7 @@ export default function Trials({ onMenuClick }) {
     return (
       <div
          onClick={() => toggleBulkSelect(trial.ID)}
-         className={`bg-white p-6 rounded-xl shadow-lg relative transition-all duration-300 hover:-translate-y-1 cursor-pointer ${isSelected ? 'border-2 border-emerald-500 ring-2 ring-emerald-200' : 'border border-transparent hover:shadow-xl hover:border-emerald-500/50'}`}
+         className={`bg-white p-5 md:p-6 rounded-xl shadow-lg relative transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] cursor-pointer ${isSelected ? 'border-2 border-emerald-500 ring-2 ring-emerald-200' : 'border border-transparent hover:shadow-xl hover:border-emerald-500/50'}`}
       >
         {isSelected && (
            <div className="absolute -top-3 -left-3 bg-emerald-500 text-white rounded-full p-1 shadow-md z-10">
@@ -373,7 +373,7 @@ export default function Trials({ onMenuClick }) {
         </div>
 
         {activeTab === 'standard' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 px-2 md:px-0">
             {standardTrials.length > 0 ? (
               standardTrials.map(t => <TrialCard key={t.ID} trial={t} />)
             ) : (
@@ -385,7 +385,7 @@ export default function Trials({ onMenuClick }) {
         )}
 
         {activeTab === 'rcbd' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 px-2 md:px-0">
             {rcbdTrials.length > 0 ? (
               rcbdTrials.map(t => <TrialCard key={t.ID} trial={t} />)
             ) : (

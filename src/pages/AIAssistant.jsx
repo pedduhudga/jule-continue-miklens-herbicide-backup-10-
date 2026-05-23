@@ -77,8 +77,8 @@ export default function AIAssistant({ onMenuClick }) {
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
       <TopBar title="AI Assistant" onMenuClick={onMenuClick} />
 
-      <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full p-4 md:p-6">
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col w-full h-full p-0 md:p-6 md:max-w-5xl md:mx-auto">
+        <div className="flex-1 bg-white md:rounded-2xl md:shadow-sm md:border md:border-slate-200 border-0 rounded-none flex flex-col overflow-hidden">
 
           <div className="p-4 border-b bg-slate-50 flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">

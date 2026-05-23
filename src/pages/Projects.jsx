@@ -114,7 +114,7 @@ export default function Projects({ onMenuClick }) {
                 {!analysisResults ? (
                   <div className="py-8 text-center text-slate-400">Running analysis engine...</div>
                 ) : analysisResults.anova ? (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto pb-2 scrollbar-hide -mx-6 px-6 md:mx-0 md:px-0">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-slate-50 text-slate-600">
                         <tr>
@@ -170,7 +170,7 @@ export default function Projects({ onMenuClick }) {
               {analysisResults && analysisResults.grouping && (
                 <div className="bg-white rounded-xl shadow border border-slate-100 p-6">
                   <h3 className="font-bold text-lg text-slate-800 border-b pb-3 mb-4">Treatment Efficacy Grouping (LSD)</h3>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto pb-2 scrollbar-hide -mx-6 px-6 md:mx-0 md:px-0">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-slate-50 text-slate-600">
                         <tr>

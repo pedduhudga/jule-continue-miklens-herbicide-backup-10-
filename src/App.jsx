@@ -17,6 +17,7 @@ import Organisations from './pages/Organisations.jsx';
 import Formulations from './pages/Formulations.jsx';
 import { AppStateProvider } from './hooks/useAppState.jsx';
 import Sidebar from './components/Sidebar.jsx';
+import BottomNav from './components/BottomNav.jsx';
 import Toast from './components/Toast.jsx';
 import LoadingOverlay from './components/LoadingOverlay.jsx';
 
@@ -121,8 +122,10 @@ function AppLayout() {
           <Route path="/compare" element={<CompareTrials onMenuClick={toggleSidebar} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+
       </main>
 
+      <BottomNav onMoreClick={toggleSidebar} />
       <Toast />
       <LoadingOverlay />
     </div>
