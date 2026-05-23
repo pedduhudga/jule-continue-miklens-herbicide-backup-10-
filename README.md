@@ -1,16 +1,37 @@
-# React + Vite
+# Herbicide Trial Manager
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A professional, mobile-first agricultural research platform for tracking, evaluating, and reporting on herbicide efficacy trials.
 
-Currently, two official plugins are available:
+## Architecture
+This project is built using:
+- **React 18 + Vite** for the frontend UI.
+- **Tailwind CSS v4** for styling.
+- **Capacitor** for native Android APK generation.
+- **Google Apps Script** for backend database integrations (Abstracted via `src/services/db.js`).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Multi-Platform Deployment
+This codebase is designed to run perfectly as a standard web application, an installable Progressive Web App (PWA), and a native Android application.
 
-## React Compiler
+### 1. GitHub Pages (Web Deployment)
+The application automatically builds and deploys to GitHub Pages upon pushing to the `main` branch using GitHub Actions.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- The routing uses `HashRouter` to ensure deep links do not break on static hosts.
+- Assets are configured using relative paths (`base: './'`) to ensure they resolve correctly inside GitHub Pages subdirectories.
 
-## Expanding the ESLint configuration
+### 2. Android APK (Capacitor)
+To build the native Android app:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. Build the web project:
+   `npm run build`
+2. Sync the built assets (`/dist`) into the Capacitor Android container:
+   `npx cap sync android`
+3. Open Android Studio to build the final APK or AAB:
+   `npx cap open android`
+
+*For detailed Android build steps, see [MOBILE_BUILD_INSTRUCTIONS.md](./MOBILE_BUILD_INSTRUCTIONS.md).*
+
+## Development
+To start the local development server:
+
+`npm install`
+`npm run dev`

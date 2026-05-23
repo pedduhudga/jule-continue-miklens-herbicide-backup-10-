@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import QRScanner from './components/QRScanner.jsx';
 import TopBar from './components/TopBar.jsx';
 import DataManagement from './pages/DataManagement.jsx';
@@ -173,9 +173,9 @@ function WebPlatformAdapter({ children }) {
 function App() {
   return (
     <AppStateProvider>
-      <BrowserRouter>
+      <HashRouter>
         <WebPlatformAdapter><AppLayout /></WebPlatformAdapter>
-      </BrowserRouter>
+      </HashRouter>
     </AppStateProvider>
   );
 }
