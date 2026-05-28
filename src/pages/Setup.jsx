@@ -23,6 +23,38 @@ export default function Setup({ onComplete }) {
   const [folderId, setFolderId] = useState('');
   const [error, setError] = useState('');
 
+  // SDK paste autofill
+  const [sdkPaste, setSdkPaste] = useState('');
+  const [pasteSuccess, setPasteSuccess] = useState(false);
+
+  const handleSdkPaste = (text) => {
+    setSdkPaste(text);
+    setPasteSuccess(false);
+    try {
+      const extract = (key) => {
+        const m = text.match(new RegExp(`["']?${key}["']?\\s*:\\s*["'\`]([^"'\`]+)["'\`]`));
+        return m ? m[1].trim() : '';
+      };
+      const apiKey   = extract('apiKey');
+      const authDomain = extract('authDomain');
+      const projectId = extract('projectId');
+      const storageBucket = extract('storageBucket');
+      const messagingSenderId = extract('messagingSenderId');
+      const appId    = extract('appId');
+      if (apiKey || projectId) {
+        if (apiKey)            setFbApiKey(apiKey);
+        if (authDomain)        setFbAuthDomain(authDomain);
+        if (projectId)         setFbProjectId(projectId);
+        if (storageBucket)     setFbStorageBucket(storageBucket);
+        if (messagingSenderId) setFbMessagingSenderId(messagingSenderId);
+        if (appId)             setFbAppId(appId);
+        setMode('firebase');
+        setPasteSuccess(true);
+        setSdkPaste('');
+      }
+    } catch (_) {}
+  };
+
   const handleSetupSave = (e) => {
     e.preventDefault();
     setError('');
@@ -75,6 +107,28 @@ export default function Setup({ onComplete }) {
           </div>
           <h1 className="text-2xl font-bold text-slate-800">First-Time Setup</h1>
           <p className="text-slate-500 text-sm mt-1">Choose your database backend to get started.</p>
+        </div>
+
+        {/* ── SDK Paste Autofill ── */}
+        <div className="mb-5">
+          <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wide">
+            ⚡ Quick Fill — Paste Firebase SDK Config
+          </label>
+          <textarea
+            rows={3}
+            value={sdkPaste}
+            onChange={e => handleSdkPaste(e.target.value)}
+            placeholder={`Paste your Firebase SDK config here, e.g.:\nconst firebaseConfig = { apiKey: "...", projectId: "...", ... }`}
+            className="w-full px-3 py-2 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50 focus:outline-none focus:ring-2 focus:ring-orange-400 text-xs font-mono text-slate-700 resize-none placeholder-slate-400"
+          />
+          {pasteSuccess && (
+            <p className="text-emerald-600 text-xs font-semibold mt-1.5 flex items-center gap-1">
+              ✅ All fields filled from SDK config!
+            </p>
+          )}
+          <p className="text-slate-400 text-xs mt-1">
+            Copy the config from <strong>Firebase Console → Project Settings → Web app</strong> and paste above — fields fill automatically.
+          </p>
         </div>
 
         {/* Mode selector */}
