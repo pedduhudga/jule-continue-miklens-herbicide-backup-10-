@@ -1,3 +1,4 @@
+import { canonicalizeWeedSpecies } from './weedUtils.js';
 
 export function safeJsonParse(str, fallback = null) {
     try {
@@ -26,8 +27,6 @@ export function escapeHtml(text) {
         }[tag] || tag)
     );
 }
-
-import { canonicalizeWeedSpecies } from './weedUtils.js';
 export function extractMetricValue (observation, project) {
                 if (!observation) return null;
 
