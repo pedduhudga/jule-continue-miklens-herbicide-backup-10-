@@ -517,6 +517,12 @@ export default function Trials({ onMenuClick }) {
     try { await updateTrial({ ID: updated.ID, EfficacyDataJSON: updated.EfficacyDataJSON }, getAppState); } catch (e) {}
   };
 
+  // ── DETAIL TRIAL DERIVATIONS ──────────────────────────────────────
+  const detailTrial = activeTrial ? (trials.find(t => t.ID === activeTrial.ID) || activeTrial) : null;
+  const detailEfficacy = detailTrial ? validateEfficacyData(safeJsonParse(detailTrial.EfficacyDataJSON, [])) : [];
+  const detailPhotos = detailTrial ? safeJsonParse(detailTrial.PhotoURLs, []) : [];
+  const detailIsCompleted = detailTrial?.IsCompleted === true || detailTrial?.IsCompleted === 'true';
+
   // Helper for statistics
   const interpretCV = useCallback((cv) => {
     if (!isFinite(cv)) return '';
@@ -1103,12 +1109,6 @@ export default function Trials({ onMenuClick }) {
     control: trials.filter(t => t.IsControl === true || t.IsControl === 'true').length,
     finalized: trials.filter(t => t.IsCompleted === true || t.IsCompleted === 'true').length,
   }), [trials]);
-
-  // ── DETAIL TRIAL DERIVATIONS (must be before useCallbacks that use them) ───
-  const detailTrial = activeTrial ? (trials.find(t => t.ID === activeTrial.ID) || activeTrial) : null;
-  const detailEfficacy = detailTrial ? validateEfficacyData(safeJsonParse(detailTrial.EfficacyDataJSON, [])) : [];
-  const detailPhotos = detailTrial ? safeJsonParse(detailTrial.PhotoURLs, []) : [];
-  const detailIsCompleted = detailTrial?.IsCompleted === true || detailTrial?.IsCompleted === 'true';
 
   // DAA coverage analysis for photos/observations
   const daaCoverage = useMemo(() => {
