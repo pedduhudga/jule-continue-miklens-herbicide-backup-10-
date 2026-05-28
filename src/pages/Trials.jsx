@@ -2079,45 +2079,57 @@ Write a professional, concise narrative summary.`;
                   {detailPhotos.length > 0 ? (
                     <div className="grid grid-cols-2 gap-3">
                       {detailPhotos.map((photo, idx) => {
-                        const src = photo.url || photo.fileData || photo;
+                        const rawSrc = photo.fileData || photo.url || (typeof photo === 'string' ? photo : null);
+                        if (!rawSrc) return null;
+                        const driveMatch = typeof rawSrc === 'string' && rawSrc.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
+                        const src = driveMatch
+                          ? `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w400`
+                          : rawSrc;
                         return (
-                          <div key={idx} className="relative group rounded-xl overflow-hidden bg-slate-100">
-                            <img src={src} alt={`Photo ${idx + 1}`} className="w-full aspect-square object-cover" />
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col justify-between p-2">
-                              <div className="flex justify-end gap-1 flex-wrap">
-                                <button onClick={() => handleAnalyzeSinglePhoto(src, photo.date)} title="AI Full Scan & Log"
-                                  className="p-1.5 bg-gradient-to-r from-purple-500 to-pink-500 backdrop-blur rounded-lg text-white hover:from-purple-600 hover:to-pink-600">
-                                  <Sparkles className="w-3.5 h-3.5" />
+                          <div key={idx} className="rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex flex-col">
+                            <div className="relative">
+                              <img
+                                src={src}
+                                alt={`Photo ${idx + 1}`}
+                                className="w-full aspect-square object-cover bg-slate-200"
+                                onError={e => { e.target.onerror = null; e.target.src = rawSrc; }}
+                              />
+                              <div className="absolute top-1 right-1 flex gap-1">
+                                <button onClick={() => handleAnalyzeSinglePhoto(rawSrc, photo.date)} title="AI Full Scan & Log"
+                                  className="p-1.5 bg-purple-600/90 backdrop-blur rounded-lg text-white shadow">
+                                  <Sparkles className="w-3 h-3" />
                                 </button>
-                                <button onClick={() => identifyWeedFromPhoto(src)} title="AI Weed ID"
-                                  className="p-1.5 bg-emerald-500/80 backdrop-blur rounded-lg text-white hover:bg-emerald-600">
-                                  <Leaf className="w-3.5 h-3.5" />
+                                <button onClick={() => handleDeletePhoto(idx)} title="Delete"
+                                  className="p-1.5 bg-red-500/90 backdrop-blur rounded-lg text-white shadow">
+                                  <Trash2 className="w-3 h-3" />
                                 </button>
-                                <button onClick={() => detectWeedCoverAI(src)} title="Detect Weed Cover"
-                                  className="p-1.5 bg-violet-500/80 backdrop-blur rounded-lg text-white hover:bg-violet-600">
-                                  <ScanLine className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleCropExistingPhoto(idx, src)}
-                                  className="p-1.5 bg-white/20 backdrop-blur rounded-lg text-white hover:bg-white/40" title="Crop photo">
-                                  <Crop className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => setPhotoEditModal({ idx, label: photo.label || '', date: photo.date || '' })}
-                                  className="p-1.5 bg-white/20 backdrop-blur rounded-lg text-white hover:bg-white/40" title="Edit label/date">
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => { const a = document.createElement('a'); a.href = src; a.download = photo.fileName || `photo-${idx+1}.jpg`; a.target = '_blank'; a.click(); }}
-                                  className="p-1.5 bg-white/20 backdrop-blur rounded-lg text-white hover:bg-white/40" title="Download">
-                                  <Download className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => handleDeletePhoto(idx)} className="p-1.5 bg-red-500/80 rounded-lg text-white hover:bg-red-600" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
-                              <div>
-                                <p className="text-white text-xs font-semibold truncate">{photo.label || `Photo ${idx+1}`}</p>
-                                {photo.date && <p className="text-white/70 text-xs">{new Date(photo.date).toLocaleDateString()}</p>}
-                              </div>
+                            </div>
+                            <div className="px-2 pt-1.5 pb-1">
+                              <p className="text-xs font-semibold text-slate-700 truncate">{photo.label || `Photo ${idx+1}`}</p>
+                              {photo.date && <p className="text-[10px] text-slate-400">{new Date(photo.date).toLocaleDateString()}</p>}
+                            </div>
+                            <div className="px-2 pb-2 flex gap-1 flex-wrap">
+                              <button onClick={() => identifyWeedFromPhoto(rawSrc)} title="AI Weed ID"
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100">
+                                <Leaf className="w-3 h-3" />Weed ID
+                              </button>
+                              <button onClick={() => detectWeedCoverAI(rawSrc)} title="Detect Weed Cover"
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold bg-violet-50 text-violet-700 rounded-lg hover:bg-violet-100">
+                                <ScanLine className="w-3 h-3" />Cover
+                              </button>
+                              <button onClick={() => handleCropExistingPhoto(idx, rawSrc)} title="Crop photo"
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200">
+                                <Crop className="w-3 h-3" />Crop
+                              </button>
+                              <button onClick={() => setPhotoEditModal({ idx, label: photo.label || '', date: photo.date || '' })} title="Edit label/date"
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200">
+                                <Pencil className="w-3 h-3" />Edit
+                              </button>
+                              <button onClick={() => { const a = document.createElement('a'); a.href = rawSrc; a.download = photo.fileName || `photo-${idx+1}.jpg`; a.target = '_blank'; a.click(); }} title="Download"
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200">
+                                <Download className="w-3 h-3" />
+                              </button>
                             </div>
                           </div>
                         );
