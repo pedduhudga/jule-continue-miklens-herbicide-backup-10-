@@ -53,8 +53,9 @@ export default function CropperModal({ isOpen, onClose, imageSrc, onCropComplete
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
   useEffect(() => {
-    if (!isOpen) { setRotation(0); return; }
+    if (!isOpen || !imageSrc) { setRotation(0); return; }
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       imgRef.current = img;
       const maxW = Math.min(window.innerWidth - 48, 760);
@@ -62,12 +63,18 @@ export default function CropperModal({ isOpen, onClose, imageSrc, onCropComplete
       const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
       const w = Math.round(img.naturalWidth * scale);
       const h = Math.round(img.naturalHeight * scale);
-      setCanvasSize({ w, h });
       const margin = Math.round(Math.min(w, h) * 0.05);
       setCrop({ x: margin, y: margin, w: w - margin * 2, h: h - margin * 2 });
+      setCanvasSize({ w, h });
     };
     img.src = imageSrc;
   }, [isOpen, imageSrc]);
+
+  useEffect(() => {
+    if (canvasRef.current && imgRef.current) {
+      drawCanvas();
+    }
+  }, [canvasSize]);
 
   const hitTest = (px, py) => {
     const { x, y, w, h } = crop;
