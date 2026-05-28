@@ -1,6 +1,7 @@
 // src/services/multiProviderAI.js
 // Multi-provider AI photo analysis — ported from herbicide app 10 HTML
 
+
 const PROVIDERS = [
   {
     id: 'groq',
@@ -11,14 +12,14 @@ const PROVIDERS = [
   },
   {
     id: 'gemini-flash',
-    name: 'Gemini 2.0 Flash',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    name: 'Gemini 3.5 Flash',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
     dailyLimit: 1000,
   },
   {
     id: 'gemini',
-    name: 'Gemini 2.5 Pro',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
+    name: 'Gemini 3.1 Pro',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro:generateContent',
     dailyLimit: 25,
   },
   {
@@ -176,7 +177,7 @@ async function callGemini(provider, imageData, context, apiKey) {
       contents: [{
         parts: [
           { text: buildPrompt(context) },
-          { inline_data: { mime_type: mimeType, data: base64 } }
+          { inlineData: { mimeType, data: base64 } }
         ]
       }]
     })

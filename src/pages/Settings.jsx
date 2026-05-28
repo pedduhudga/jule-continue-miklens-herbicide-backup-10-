@@ -4,8 +4,10 @@ import { useAppState } from '../hooks/useAppState.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { initFirebase, isFirebaseReady } from '../services/firebase.js';
 import { Link, Key, CloudLightning, Trash2, CheckCircle, Plus, LogOut, Cpu, Info, Image, QrCode, Wrench, Save, LayoutGrid, Search, Flame, Database, ToggleLeft, ToggleRight, AlertTriangle, ArrowRight } from 'lucide-react';
+import { AVAILABLE_GEMINI_MODELS } from '../utils/aiConstants.js';
 
 const QR_FIELDS = ['FormulationName', 'Dosage', 'WeedSpecies', 'Location', 'Date', 'Result', 'InvestigatorName', 'Replication', 'Notes', 'Temperature', 'Humidity'];
+
 
 export default function Settings({ onMenuClick }) {
   const { state, updateSettings } = useAppState();
@@ -181,18 +183,17 @@ export default function Settings({ onMenuClick }) {
                 className="w-full border rounded-md shadow-sm p-2 bg-white text-sm">
                 <optgroup label="Recommended (Stable & Reliable)">
                   <option value="gemini-2.5-flash">Gemini 2.5 Flash (Best all-round, stable)</option>
-                  <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite (Cheapest, fastest)</option>
+                  <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Ultra-fast, optimized)</option>
                 </optgroup>
-                <optgroup label="Gemini 3 (Preview - Newest)">
-                  <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash-Lite Preview (High free quota)</option>
-                  <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Frontier)</option>
-                  <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Complex reasoning)</option>
+                <optgroup label="Gemini 3 (Newest)">
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (Frontier)</option>
+                  <option value="gemini-3.1-pro">Gemini 3.1 Pro (Complex reasoning)</option>
                 </optgroup>
                 <optgroup label="Pro (Heavy reasoning)">
                   <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep reasoning, stable)</option>
                 </optgroup>
               </select>
-              <p className="text-xs text-gray-500 mt-1">Recommended: <b>2.5 Flash</b> (stable) or <b>3.1 Flash-Lite</b> (newest free).</p>
+              <p className="text-xs text-gray-500 mt-1">Recommended: <b>3.5 Flash</b> (best agentic) or <b>3.1 Flash-Lite</b> (fastest).</p>
             </div>
             <div>
               <label className="block text-gray-700 text-sm font-bold mb-2 flex items-center gap-1">

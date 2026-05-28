@@ -362,7 +362,7 @@ export default function Trials({ onMenuClick }) {
         try {
           const mimeType = imageDataUrl.split(';')[0].split(':')[1];
           const base64 = imageDataUrl.split(',')[1];
-          const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+          const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [
@@ -444,7 +444,7 @@ export default function Trials({ onMenuClick }) {
     try {
       const mimeType = imageDataUrl.split(';')[0].split(':')[1];
       const base64 = imageDataUrl.split(',')[1];
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [
@@ -1128,7 +1128,7 @@ export default function Trials({ onMenuClick }) {
   const chartDataComputed = useMemo(() => {
     const chartData = detailEfficacy.filter(o => o.daa !== undefined);
     if (chartData.length === 0) return null;
-    const maxDaa = Math.max(...chartData.map(o => o.daa));
+    const maxDaa = Math.max(...chartData.map(o => o.daa)) || 1;
     const maxCover = Math.max(...chartData.map(o => o.weedCover ?? 0), 10);
     const baseCover = chartData[0]?.weedCover ?? 0;
     const W = 340, H = 180, PX = 40, PY = 20, PB = 30;
@@ -1227,7 +1227,7 @@ Observations: ${obsSummary || 'No data'}
 Overall result: ${detailTrial.Result || 'Not rated'}
 Conclusion: ${detailTrial.Conclusion || ''}
 Write a professional, concise narrative summary.`;
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -1296,7 +1296,7 @@ Write a professional, concise narrative summary.`;
       const weedSpecies = [...new Set(efficacy.flatMap(o => (o.weedDetails||[]).map(w=>w.species).filter(Boolean)))];
       const obsText = efficacy.map(o => `DAA ${o.daa}: cover=${o.weedCover}% [${(o.weedDetails||[]).map(w=>`${w.species} ${w.cover}% ${w.status}`).join(', ')}]`).join('; ');
       const prompt = `You are an expert agricultural scientist. Write a concise scientific narrative (3-5 paragraphs) for this herbicide efficacy trial:\n\nFormulation: ${trial.FormulationName}\nDosage: ${trial.Dosage}\nTarget Weeds: ${trial.WeedSpecies}\nLocation: ${trial.Location}\nDate Applied: ${trial.Date}\nResult Rating: ${trial.Result}\nObservations: ${obsText}\nWeather: Temp ${trial.Temperature}°C, Humidity ${trial.Humidity}%, Wind ${trial.Windspeed} km/h\n\nAddress: initial cover, response trajectory, final efficacy, species-specific outcomes, and recommendation.`;
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] }) });
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] }) });
       const d = await r.json();
       const text = d.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
       const summaries = { cover: text, generatedAt: new Date().toISOString() };
