@@ -1,6 +1,14 @@
 import { isMixedWeedPlaceholder } from './weedUtils.js';
-import { validateEfficacyData } from './analysisUtils.js';
 import { safeJsonParse } from './helpers.js';
+
+function _filterValidEfficacy(efficacy) {
+  if (!Array.isArray(efficacy)) return [];
+  return efficacy.filter(o => {
+    if (!o || typeof o !== 'object') return false;
+    const daa = typeof o.daa === 'number' ? o.daa : parseFloat(o.daa);
+    return isFinite(daa) && daa >= 0;
+  });
+}
 
 export function computeObservationTotalCover (obs, trial) {
                 const clamp01 = (v) => Math.max(0, Math.min(100, v));
@@ -70,7 +78,7 @@ export function computeObservationTotalCover (obs, trial) {
 
                 const coverVals = [];
                 controls.forEach(ct => {
-                    const eff = validateEfficacyData(safeJsonParse(ct.EfficacyDataJSON, []));
+                    const eff = _filterValidEfficacy(safeJsonParse(ct.EfficacyDataJSON, []));
                     let best = null;
                     let bestDelta = Infinity;
                     eff.forEach(o => {
@@ -99,7 +107,7 @@ export function computeObservationTotalCover (obs, trial) {
 
                 let ref = refControl;
                 if (ref === null || ref === undefined) {
-                    const eff = validateEfficacyData(safeJsonParse(trial?.EfficacyDataJSON, []));
+                    const eff = _filterValidEfficacy(safeJsonParse(trial?.EfficacyDataJSON, []));
                     const flagged = eff.find(o => String(o?.isBaseline).toLowerCase() === 'true');
                     if (flagged) {
                         ref = computeObservationTotalCover(flagged, trial);
