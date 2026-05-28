@@ -11,12 +11,13 @@ import {
   QrCode, BrainCircuit, TrendingDown, Download, RefreshCw, Leaf,
   Navigation, FolderOpen, Lock, Unlock,
   FileDown, Share2, MoreVertical, FileSpreadsheet,
-  FileCode, MonitorPlay, Archive, Pencil, ScanLine
+  FileCode, MonitorPlay, Archive, Pencil, ScanLine, Crop
 } from 'lucide-react';
 import { safeJsonParse } from '../utils/helpers.js';
 import { calculateDAA } from '../utils/dateUtils.js';
 import { validateEfficacyData } from '../utils/analysisUtils.js';
 import CameraCapture from '../components/CameraCapture.jsx';
+import CropperModal from '../components/CropperModal.jsx';
 import GridWeedCoverTool from '../components/GridWeedCoverTool.jsx';
 import { analyzePhoto, analyzePhotosBatch } from '../services/multiProviderAI.js';
 import TrialCard from '../components/TrialCard.jsx';
@@ -110,6 +111,11 @@ export default function Trials({ onMenuClick }) {
   const [isGridOpen, setIsGridOpen] = useState(false);
   const [cameraMode, setCameraMode] = useState('general');
   const fileInputRef = useRef(null);
+
+  // --- Cropper ---
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropSource, setCropSource] = useState(null);
+  const cropCallbackRef = useRef(null);
 
   // --- QR Code ---
   const qrCanvasRef = useRef(null);
@@ -576,10 +582,24 @@ export default function Trials({ onMenuClick }) {
   }, [detailTrial]);
 
   // ── PHOTOS ────────────────────────────────────────────────────────
-  const handleCapturePhoto = async (dataUrl) => {
+  const openCropperFor = (dataUrl, callback) => {
+    setCropSource(dataUrl);
+    cropCallbackRef.current = callback;
+    setCropperOpen(true);
+  };
+
+  const handleCropComplete = (croppedUrl) => {
+    setCropperOpen(false);
+    setCropSource(null);
+    if (cropCallbackRef.current) {
+      cropCallbackRef.current(croppedUrl);
+      cropCallbackRef.current = null;
+    }
+  };
+
+  const saveAndAnalyzePhoto = async (dataUrl) => {
     if (!activeTrial) return;
-    setIsCameraOpen(false);
-    window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Photo captured! Saving...', type: 'info' } }));
+    window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Photo saved! Starting AI analysis...', type: 'info' } }));
 
     const photoDate = new Date().toISOString();
     const photos = safeJsonParse(activeTrial.PhotoURLs, []);
@@ -590,9 +610,7 @@ export default function Trials({ onMenuClick }) {
 
     try {
       await updateTrial({ ID: updated.ID, PhotoURLs: updated.PhotoURLs }, getAppState);
-      window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Photo saved! Starting AI analysis...', type: 'success' } }));
 
-      // AUTO-TRIGGER AI ANALYSIS after capture
       const trialDate = new Date(activeTrial.Date);
       const pDate = new Date(photoDate);
       const daa = Math.max(0, Math.round((pDate.getTime() - trialDate.getTime()) / (1000 * 60 * 60 * 24)));
@@ -616,13 +634,33 @@ export default function Trials({ onMenuClick }) {
     }
   };
 
+  const handleCapturePhoto = (dataUrl) => {
+    if (!activeTrial) return;
+    setIsCameraOpen(false);
+    openCropperFor(dataUrl, saveAndAnalyzePhoto);
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !activeTrial) return;
     const reader = new FileReader();
-    reader.onload = async (ev) => { await handleCapturePhoto(ev.target.result); };
+    reader.onload = (ev) => {
+      e.target.value = '';
+      openCropperFor(ev.target.result, saveAndAnalyzePhoto);
+    };
     reader.readAsDataURL(file);
-    e.target.value = '';
+  };
+
+  const handleCropExistingPhoto = (idx, currentSrc) => {
+    openCropperFor(currentSrc, async (croppedUrl) => {
+      const photos = safeJsonParse(activeTrial.PhotoURLs, []);
+      photos[idx] = { ...photos[idx], fileData: croppedUrl, url: undefined };
+      const updated = { ...activeTrial, PhotoURLs: JSON.stringify(photos) };
+      updateState({ trials: trials.map(t => t.ID === updated.ID ? updated : t) });
+      setActiveTrial(updated);
+      try { await updateTrial({ ID: updated.ID, PhotoURLs: updated.PhotoURLs }, getAppState); } catch (e) {}
+      window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Photo cropped & saved', type: 'success' } }));
+    });
   };
 
   const handleDeletePhoto = async (idx) => {
@@ -2060,6 +2098,11 @@ Write a professional, concise narrative summary.`;
                                   <ScanLine className="w-3.5 h-3.5" />
                                 </button>
                                 <button
+                                  onClick={() => handleCropExistingPhoto(idx, src)}
+                                  className="p-1.5 bg-white/20 backdrop-blur rounded-lg text-white hover:bg-white/40" title="Crop photo">
+                                  <Crop className="w-3.5 h-3.5" />
+                                </button>
+                                <button
                                   onClick={() => setPhotoEditModal({ idx, label: photo.label || '', date: photo.date || '' })}
                                   className="p-1.5 bg-white/20 backdrop-blur rounded-lg text-white hover:bg-white/40" title="Edit label/date">
                                   <Pencil className="w-3.5 h-3.5" />
@@ -2751,6 +2794,14 @@ Write a professional, concise narrative summary.`;
           </div>
         </form>
       </Modal>
+
+      {/* ── CROPPER MODAL ── */}
+      <CropperModal
+        isOpen={cropperOpen}
+        imageSrc={cropSource}
+        onClose={() => { setCropperOpen(false); setCropSource(null); cropCallbackRef.current = null; }}
+        onCropComplete={handleCropComplete}
+      />
 
       {/* ── PHOTO EDIT MODAL ── */}
       {photoEditModal && (
