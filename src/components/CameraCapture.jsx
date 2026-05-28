@@ -31,9 +31,9 @@ export default function CameraCapture({ isOpen = true, onClose, onCapture }) {
         }
       } catch (err) {
         console.warn("Camera attempt failed:", constraints, err);
-        if (constraints.video.width) {
+        if (constraints && constraints.video && typeof constraints.video === 'object' && constraints.video.width) {
             await startCamera({ video: { facingMode: { ideal: 'environment' } } });
-        } else if (constraints.video.facingMode) {
+        } else if (constraints && constraints.video && typeof constraints.video === 'object' && constraints.video.facingMode) {
             await startCamera({ video: true });
         } else {
             window.dispatchEvent(new CustomEvent('app:toast', { detail: { msg: 'Camera access denied or unavailable.', type: 'error' } }));

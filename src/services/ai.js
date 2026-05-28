@@ -1,3 +1,4 @@
+import { AVAILABLE_GEMINI_MODELS } from '../utils/aiConstants.js';
 import { GoogleGenAI } from "@google/genai";
 
 export class MultiProviderAI {
@@ -1389,22 +1390,19 @@ async function _callGeminiApiWithRetries(apiCallFunction, getAppState, retries =
                                                 Gemini API Model
                                             </label>
                                             <select id="settings-api-model" class="w-full border rounded-md shadow-sm p-2 bg-white text-sm">
-                                                <optgroup label="Recommended (Stable &amp; Reliable)">
+                                                <optgroup label="Recommended (Stable & Reliable)">
                                                     <option value="gemini-2.5-flash">Gemini 2.5 Flash (Best all-round, stable)</option>
-                                                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite (Cheapest, fastest)</option>
+                                                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Ultra-fast, optimized)</option>
                                                 </optgroup>
-
-                                                <optgroup label="Gemini 3 (Preview - Newest)">
-                                                    <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash-Lite Preview (High free quota)</option>
-                                                    <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Frontier)</option>
-                                                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Complex reasoning)</option>
+                                                <optgroup label="Gemini 3 (Newest)">
+                                                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (Frontier)</option>
+                                                    <option value="gemini-3.1-pro">Gemini 3.1 Pro (Complex reasoning)</option>
                                                 </optgroup>
-
                                                 <optgroup label="Pro (Heavy reasoning)">
                                                     <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep reasoning, stable)</option>
                                                 </optgroup>
                                             </select>
-                                            <p class="text-xs text-gray-500 mt-1">Recommended: <b>2.5 Flash</b> (stable) or <b>3.1 Flash-Lite</b> (newest free).</p>
+                                            <p class="text-xs text-gray-500 mt-1">Recommended: <b>3.5 Flash</b> (best agentic) or <b>3.1 Flash-Lite</b> (fastest).</p>
                                         </div>
                                         <div>
                                             <label class="block text-gray-700 text-sm font-bold mb-2" for="settings-soil-provider">
@@ -7611,7 +7609,7 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     scriptUrl: DEFAULT_SCRIPT_URL,
                     sheetId: DEFAULT_SHEET_ID,
                     folderId: DEFAULT_FOLDER_ID,
-                    apiModel: 'gemini-3.1-flash-lite-preview',
+                    apiModel: 'gemini-3.1-flash-lite',
                     autoAnalyzePhotos: true,  // MUST be enabled to save weed cover data
                     showPhotoDates: false,
                     includeTimeline: false,
@@ -7629,20 +7627,23 @@ Respond ONLY with a single minified JSON object in this format: {"identification
                     state.settings = { ...defaultSettings, ...parsed };
 
                     const modelMigrationMap = {
-                        'gemini-3-pro-preview': 'gemini-3.1-pro-preview',
-                        'gemini-3.1-flash-preview': 'gemini-3-flash-preview',
-                        'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite-preview',
-                        'gemini-2.0-flash-exp': 'gemini-3.1-flash-lite-preview',
-                        'gemini-2.0-flash': 'gemini-3-flash-preview',
-                        'gemini-2.0-flash-lite': 'gemini-3.1-flash-lite-preview',
+                        'gemini-3-pro-preview': 'gemini-3.1-pro',
+                        'gemini-3.1-flash-preview': 'gemini-3.5-flash',
+                        'gemini-3.1-flash-lite-preview': 'gemini-3.1-flash-lite',
+                        'gemini-2.5-flash-lite': 'gemini-3.1-flash-lite',
+                        'gemini-3-flash-preview': 'gemini-3.5-flash',
+                        'gemini-3.1-pro-preview': 'gemini-3.1-pro',
+                        'gemini-2.0-flash-exp': 'gemini-3.1-flash-lite',
+                        'gemini-2.0-flash': 'gemini-3.5-flash',
+                        'gemini-2.0-flash-lite': 'gemini-3.1-flash-lite',
                         'gemini-2.0-pro-exp-02-05': 'gemini-2.5-pro',
-                        'gemini-1.5-flash': 'gemini-3.1-flash-lite-preview',
-                        'gemini-1.5-pro': 'gemini-3.1-pro-preview',
-                        'gemini-pro': 'gemini-3.1-flash-lite-preview'
+                        'gemini-1.5-flash': 'gemini-3.1-flash-lite',
+                        'gemini-1.5-pro': 'gemini-3.1-pro',
+                        'gemini-pro': 'gemini-3.1-flash-lite'
                     };
                     const currentModel = String(state.settings.apiModel || '').trim();
                     const migrated = modelMigrationMap[currentModel] || currentModel;
-                    state.settings.apiModel = GEMINI_MODEL_PRIORITY.includes(migrated) ? migrated : 'gemini-3.1-flash-lite-preview';
+                    state.settings.apiModel = GEMINI_MODEL_PRIORITY.includes(migrated) ? migrated : 'gemini-3.1-flash-lite';
 
                     // FORCE FIX: Reset A6 to ID if found
                     if (state.settings.cardSize === 'A6') {
